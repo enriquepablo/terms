@@ -2,3 +2,6 @@
 bin
 include
 lib
+*.swp
+*.egg-info
+__pycache__
