@@ -39,6 +39,9 @@ class Predicate(Base):
         self.verb = verb
         self.objects = objs or []
 
+    def substitute(self, match):
+        raise NotImplementedError
+
 
 class Object(Base):
     __tablename__ = 'objects'
