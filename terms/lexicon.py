@@ -22,7 +22,7 @@ import re
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import sessionmaker
 
-from terms.words import word, noun, thing, verb, exists, get_name
+from terms.words import word, noun, thing, verb, exists, get_name, get_type
 from terms.terms import Term, ObjectType
 from terms import exceptions
 
@@ -48,24 +48,7 @@ class Lexicon(object):
         self.add_word('exists', verb, _commit=False)
         self.session.commit()
 
-    def add_word(self, name, word_type, _commit=True, **objs):
-        try:
-            term = self.get_term(name)
-        except exceptions.TermNotFound:
-            pass
-        else:
-            if term:
-                raise exceptions.TermRepeated(name)
-        objects = []
-        for label, obj_type in objs.items():
-            obj_tname = get_name(obj_type)
-            obj_term = self.get_term(obj_tname)
-            objects.append(ObjectType(label, obj_term))
-        term_type = self.get_term(get_name(word_type))
-        term = Term(name, ttype=term_type, objs=objects)
-        self.session.add(term)
-        if _commit:
-            self.session.commit()
+    def make_word(self, name, word_type, **objs):
         if name in self.terms:
             return self.terms[name]
         if issubclass(word_type, noun):
@@ -75,32 +58,13 @@ class Lexicon(object):
         elif issubclass(word_type, verb):
             return self._make_verb(name, vtype=word_type, objs=objs)
 
-    def add_subword(self, name, super_words, _commit=True, **objs):
-        try:
-            term = self.get_term(name)
-        except exceptions.TermNotFound:
-            pass
-        else:
-            if term:
-                raise exceptions.TermRepeated(name)
-        term_bases = []
+    def make_subword(self, name, super_words, **objs):
         if isinstance(super_words, word):
             super_words = (super_words,)
-        objects = []
         for super_word in super_words:
             super_name = get_name(super_word)
-            term_base = self.get_term(super_name)
             if hasattr(super_word, 'objs'):
-                objects.extend(term_base.object_types)
                 objs.update(super_word.objs)
-            term_bases.append(term_base)
-        for label, word_type in objs.items():
-            type_name = get_name(word_type)
-            objects.append(ObjectType(label, self.get_term(type_name)))
-        term = Term(name, bases=term_bases, objs=objects)
-        self.session.add(term)
-        if _commit:
-            self.session.commit()
         word_base = super_words[0]
         if issubclass(word_base, noun):
             return self._make_subnoun(name, bases=super_words)
@@ -110,6 +74,40 @@ class Lexicon(object):
             return self._make_subverb(name, bases=super_words)
         elif issubclass(word_base, exists):
             return self._make_verb(name, bases=super_words, objs=objs)
+
+    def save_word(self, w, _commit=True):
+        name = get_name(w)
+        word_type = get_type(w)
+        try:
+            term = self.get_term(name)
+        except exceptions.TermNotFound:
+            pass
+        else:
+            if term:
+                raise exceptions.TermRepeated(name)
+        objects = []
+        if hasattr(w, 'objs'):
+            for label, obj_type in w.objs.items():
+                obj_tname = get_name(obj_type)
+                obj_term = self.get_term(obj_tname)
+                objects.append(ObjectType(label, obj_term))
+        term_type = self.get_term(get_name(word_type))
+        term = Term(name, ttype=term_type, objs=objects)
+        self.session.add(term)
+        if _commit:
+            self.session.commit()
+        return term
+
+    def add_word(self, name, word_type, _commit=True, **objs):
+        w = self.make_word(name, word_type, **objs)
+        self.save_word(w, _commit=_commit)
+        return w
+
+
+    def add_subword(self, name, super_words, _commit=True, **objs):
+        w = self.make_subword(name, super_words, **objs)
+        self.save_word(w, _commit=_commit)
+        return w
 
     def get_word(self, name):
         if name in self.terms:
