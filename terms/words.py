@@ -17,7 +17,7 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-word = type
+class word(type): pass
 
 
 class noun(word, metaclass=word):
@@ -75,9 +75,22 @@ exists.objs = {'subject': word}
 
 
 def get_name(w):
-    if w is type:
-        return 'word'
     return w.__name__
+
+def get_type(w):
+    if w is word:
+        return w
+    return type(w)
+
+
+def isa(w1, w2):
+    if w1 is word and w2 is word:
+        return True
+    return isinstance(w1, w2)
+
+
+def are(w1, w2):
+    return issubclass(w1, w2)
 
 
 def make_pred(verb_, **objs):
@@ -87,3 +100,7 @@ def make_pred(verb_, **objs):
     for label, obj in obj_list:
         name += '__' + label + '__' + get_name(obj)
     return verb_(name, (), objs)
+
+
+class number(int, metaclass=word):
+    """ """
