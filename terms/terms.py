@@ -43,15 +43,64 @@ class Term(Base):
                          secondary=term_to_base,
                          primaryjoin=id==term_to_base.c.term_id,
                          secondaryjoin=id==term_to_base.c.base_id)
+    equals = None  # ==
     object_types = relationship('ObjectType', backref='verb',
                           primaryjoin='ObjectType.verb_id==Term.id')
 
-    def __init__(self, name, ttype=None, bases=None, objs=None, _bootstrap=False):
+    def __init__(self, name,
+                       ttype=None,
+                       bases=None,
+                       objs=None,
+                       _bootstrap=False):
         self.name = name
         if not _bootstrap:
             self.term_type = ttype or bases[0].term_type
         self.bases = bases or []
         self.object_types = objs or []
+
+    def isa(self, term):
+        if self.term_type == term:
+            return True
+        bases = self.term_type.get_bases('bases')
+        bases += self.term_type.get_bases('equals')
+        for base in bases:
+            if base == term:
+                return True
+        return False
+
+    def are(self, term):
+        if self == term:
+            return True
+        bases = self.get_bases('bases')
+        bases += self.get_bases('equals')
+        for base in bases:
+            if base == term:
+                return True
+        return False
+
+    def eq(self, term):
+        if self == term:
+            return True
+        bases = self.get_bases('equals')
+        for base in bases:
+            if base == term:
+                return True
+        return False
+
+    def get_bases(self, desc, bset=None):
+        if not bset:
+            bset = set()
+        bases = getattr(self, desc, None)
+        if bases is None:
+            return bset
+        for base in bases:
+            bset.add(base)
+            base.get_bases(desc, bset)
+            if desc != 'equals':
+                for eq in base.equals:
+                    bset.add(eq)
+                    eq.get_bases(desc, bset)
+        return bset
 
 
 class ObjectType(Base):
