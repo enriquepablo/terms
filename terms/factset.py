@@ -17,8 +17,6 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy.orm import sessionmaker
-
 from terms.words import get_name
 from terms.predicates import Predicate, Object
 
@@ -27,10 +25,7 @@ class FactSet(object):
     """
     """
 
-    def __init__(self, lexicon, engine):
-        #Session = sessionmaker()
-        #Session.configure(bind=engine)
-        #self.session = Session()
+    def __init__(self, lexicon):
         self.session = lexicon.session
         self.lexicon = lexicon
 
