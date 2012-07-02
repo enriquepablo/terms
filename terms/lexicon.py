@@ -22,6 +22,7 @@ import re
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import sessionmaker
 
+from terms.words import word, noun, thing, verb, exists, get_name, get_type
 from terms.terms import Term, ObjectType
 from terms import exceptions
 
@@ -34,37 +35,88 @@ class Lexicon(object):
         Session = sessionmaker()
         Session.configure(bind=engine)
         self.session = Session()
+        self.terms = {'word': word,
+                      'noun': noun,
+                      'verb': verb,
+                      'thing': thing,
+                      'exists': exists}
+        wrd = Term('word', _bootstrap=True)
+        self.session.add(wrd)
+        self.add_word('noun', word, _commit=False)
+        self.add_word('verb', word, _commit=False)
+        self.add_word('thing', noun, _commit=False)
+        self.add_word('exists', verb, _commit=False)
+        self.session.commit()
+
+    def make_word(self, name, word_type, **objs):
+        if name in self.terms:
+            return self.terms[name]
+        if issubclass(word_type, noun):
+            return self._make_noun(name, ntype=word_type)
+        elif issubclass(word_type, thing):
+            return self._make_name(name, word_type)
+        elif issubclass(word_type, verb):
+            return self._make_verb(name, vtype=word_type, objs=objs)
+
+    def make_subword(self, name, super_words, **objs):
+        if isinstance(super_words, word):
+            super_words = (super_words,)
+        for super_word in super_words:
+            super_name = get_name(super_word)
+            if hasattr(super_word, 'objs'):
+                objs.update(super_word.objs)
+        word_base = super_words[0]
+        if issubclass(word_base, noun):
+            return self._make_subnoun(name, bases=super_words)
+        elif issubclass(word_base, thing):
+            return self._make_noun(name, bases=super_words)
+        elif issubclass(word_base, verb):
+            return self._make_subverb(name, bases=super_words)
+        elif issubclass(word_base, exists):
+            return self._make_verb(name, bases=super_words, objs=objs)
+
+    def save_word(self, w, _commit=True):
+        name = get_name(w)
+        word_type = get_type(w)
         try:
-            self.word = self.get_term('word')
-            self.noun = self.get_term('noun')
-            self.verb = self.get_term('verb')
-            self.thing = self.get_term('thing')
-            self.exists = self.get_term('exists')
+            term = self.get_term(name)
         except exceptions.TermNotFound:
-            self.word = Term('word', _bootstrap=True)
-            self.session.add(word)
-            self.noun = self.add_word('noun', word, _commit=False)
-            self.verb = self.add_word('verb', word, _commit=False)
-            self.thing = self.add_word('thing', noun, _commit=False)
-            self.exists = self.add_word('exists', verb, _commit=False)
-            self.session.commit()
-
-    def add_term(self, name, term_type, _commit=True, **objs):
-        t = self.make_term(name, term_type, **objs)
-        self.session.add(t)
+            pass
+        else:
+            if term:
+                raise exceptions.TermRepeated(name)
+        objects = []
+        if hasattr(w, 'objs'):
+            for label, obj_type in w.objs.items():
+                obj_tname = get_name(obj_type)
+                obj_term = self.get_term(obj_tname)
+                objects.append(ObjectType(label, obj_term))
+        term_type = self.get_term(get_name(word_type))
+        term = Term(name, ttype=term_type, objs=objects)
+        self.session.add(term)
         if _commit:
             self.session.commit()
-        return t
+        return term
 
-    def add_subterm(self, name, super_terms, _commit=True, **objs):
-        t = self.make_subterm(name, super_terms, **objs)
-        self.session.add(t)
-        if _commit:
-            self.session.commit()
-        return t
+    def add_word(self, name, word_type, _commit=True, **objs):
+        w = self.make_word(name, word_type, **objs)
+        self.save_word(w, _commit=_commit)
+        return w
+
+
+    def add_subword(self, name, super_words, _commit=True, **objs):
+        w = self.make_subword(name, super_words, **objs)
+        self.save_word(w, _commit=_commit)
+        return w
+
+    def get_word(self, name):
+        if name in self.terms:
+            return self.terms[name]
+        term = self.get_term(name)
+        word_type = self.terms[term.term_type.name]
+        return self._make_name(name, word_type)
 
     def get_term(self, name):
-        # cache
         try:
             return self.session.query(Term).filter_by(name=name).one()
         except MultipleResultsFound:
@@ -72,67 +124,71 @@ class Lexicon(object):
         except NoResultFound:
             raise exceptions.TermNotFound()
 
-    def make_term(self, name, term_type, **objs):
-        if term_type.are(self.get_term('noun')):
-            return self._make_noun(name, ntype=term_type)
-        elif term_type.are(self.get_term('thing')):
-            return self._make_name(name, term_type)
-        elif term_type.are(self.get_term('verb')):
-            return self._make_verb(name, vtype=term_type, **objs)
-
-    def make_subterm(self, name, super_terms, **objs):
-        if super_terms.isa(self.get_term('word')):
-            super_terms = (super_terms,)
-        term_base = super_terms[0]
-        if term_base.are(self.get_term('noun')):
-            return self._make_noun(name, bases=super_terms)
-        elif term_base.are(self.get_term('thing')):
-            return self._make_noun(name, bases=super_terms)
-        elif term_base.are(self.get_term('verb')):
-            return self._make_verb(name, bases=super_terms)
-        elif term_base.are(self.get_term('exists')):
-            return self._make_verb(name, bases=super_terms, **objs)
+    def _load_terms(self):
+        terms = self.session.query(Term).all()
+        for term in terms:
+            type_name = term.types[0].name
+            term_type = self.terms[type_name]
+            if not issubclass(term_type, thing):
+                term_types = [self.terms[ttype.name] for ttype in term.types]
+                if issubclass(term_type, noun):
+                    self._make_noun(type_name, term_types)
+                elif issubclass(term_type, verb):
+                    objects = dict([(obj.label, self.terms[obj.term_type.name])
+                                                for obj in term.object_types])
+                    self._make_verb(type_name, term_types, objects)
 
     def _make_noun(self, name, bases=None, ntype=None):
         if bases is None:
-            bases = (self.get_term('thing'),)
-        elif isinstance(bases, Term):
+            bases = (thing,)
+        elif isinstance(bases, word):
             bases = (bases,)
         if ntype is None:
-            ntype = self.get_term('noun')
-        new = Term(name, ttype=ntype, bases=bases)
+            ntype = noun
+        new = ntype(name, tuple(bases), {})
+        self.terms[name] = new
         return new
 
-    def _make_name(self, name, noun):
-        return Term(name, ttype=noun)
+    def _make_name(self, name, noun_=None):
+        if noun_ is None:
+            m = NAME_PAT.match(name)
+            if m:
+                noun_ = self.terms[m.group(1)]
+                assert isinstance(noun_, noun)
+            else:
+                noun_ = thing
+        new = noun_(name)
+        self.terms[name] = new
+        return new
 
-    def _make_verb(self, name, bases=None, vtype=None, **objs):
+    def _make_verb(self, name, bases=None, vtype=None, objs=None):
         if bases is None:
-            bases = (self.get_term('exists'),)
-        elif isinstance(bases, Term):
+            bases = (exists,)
+        elif bases is None:
+            bases = ()
+        elif isinstance(bases, verb):
             bases = (bases,)
+        if objs is None:
+            objs = {}
         if vtype is None:
             if bases:
-                vtype = bases[0].term_type
+                vtype = type(bases[0])
             else:
-                vtype = self.get_term('verb')
-        objects = []
-        for label, obj_type in objs.items():
-            objects.append(ObjectType(label, obj_type))
-        for base in bases:
-            if hasattr(base, 'objs'):
-                objects += base.objs
-        new = Term(name, ttype=vtype, bases=bases, objs=objects)
+                vtype = verb
+        new = vtype(name, tuple(bases), objs)
+        self.terms[name] = new
         return new
 
     def _make_subverb(self, name, bases=None):
         if bases is None:
-            bases = (self.get_term('verb'),)
-        new = Term(name, ttype=self.get_term('word'), bases=tuple(bases))
+            bases = (verb,)
+        new = word(name, tuple(bases), {})
+        self.terms[name] = new
         return new
 
     def _make_subnoun(self, name, bases=None):
         if bases is None:
-            bases = (self.get_term('noun'),)
-        new = Term(name, ttype=self.get_term('word'), bases=tuple(bases))
+            bases = (noun,)
+        new = word(name, tuple(bases), {})
+        self.terms[name] = new
         return new

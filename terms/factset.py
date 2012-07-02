@@ -29,18 +29,24 @@ class FactSet(object):
         self.session = lexicon.session
         self.lexicon = lexicon
 
-    def add_fact(self, verb, _commit=True, true=True, **objs):
+    def add_fact(self, pred, _commit=True):
+        verb_ = type(pred)
+        verb_name = get_name(verb_)
+        verb_term = self.lexicon.get_term(verb_name)
         objects = []
-        for objt in verb.object_types:
-            obj = objs.get(objt.label, None)
+        for label, otype in verb_.objs.items():
+            obj = getattr(pred, label, None)
             if obj:
-                assert obj.isa(objt.term_type)
-                objects.append(obj)
-        p = Predicate(verb_term, objects, true)
+                assert isinstance(obj, otype)
+                oname = get_name(obj)
+                oterm = self.lexicon.get_term(oname)
+                objects.append(Object(label, oterm))
+        p = Predicate(verb_term, objects)
         self.session.add(p)
         if _commit:
             self.session.commit()
         return p
+
 
     def query(self, q):
         pass
