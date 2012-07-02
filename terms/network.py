@@ -18,8 +18,20 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
+special_resolvers = {}
+
+
 def resolve(sen, path):
-    pass
+    '''
+    Get the value (a string) in sen (a StringSentence)
+    pointed at by path (a string).
+    '''
+    obj = sen
+    path = path.split('.')
+    for segment in path:
+        if segment in special_resolvers:
+            obj = 
+
 
 class Match(object):
     def __init__(self, sen):
@@ -40,6 +52,7 @@ class TermNode(object):
         self.pred = pred  # string
         self.term = term  # term
         self.var = var  # int
+        self.type = 'arg'  # pred/arg to discriminate PredNodes / ArgNodes
 
     def test(self, match):
         """
@@ -66,6 +79,20 @@ class TermNode(object):
                 child.dispatch(new_match)
 
 
+class PredNode(TermNode):
+    # discriminate on self.type
+
+    def __init__(self, true, *args):
+        self.true = true
+        super(PredNode, self).__init__(*args)
+
+
+class ArgNode(TermNode):
+    '''
+    '''
+    # discriminate on self.type
+
+
 class MNodeDispatcher(object):
 
     def dispatch_to_children(self, match, old_matches):
@@ -73,25 +100,25 @@ class MNodeDispatcher(object):
             return []
         new_matches = []
         first = self.children.first()
-        # matching = self.children.filter(value=new_match.pairings[first.var])
+        # matching = self.children.filter(value=new_match.substitutions[first.var])
         # for child in matching:
         for child in self.children:
             new_matches.append(child.dispatch(match, old_matches))
         new_matches = filter(lambda x: x is not None, new_matches)
         if not new_matches:
-            self.add_nodes(match, old_matches, hint=first.var)
+            self.add_mnodes(match, old_matches, hint=first.var)
         return [m for matches in new_matches for m in matches]
 
-    def _add_nodes(self, match, old_matches, rule, hint=None):
+    def _add_mnodes(self, match, old_matches, rule, hint=None):
         if not hint:
-            left = filter(lambda x: x not in old_matches, match.pairings.keys())
+            left = filter(lambda x: x not in old_matches, match.substitutions.keys())
             if not left:
                 return
             hint = left[0]
-        mnode = MNode(hint, match.pairings[hint], rule)
+        mnode = MNode(hint, match.substitutions[hint], rule)
         self.children.append(mnode)
         old_matches.append(hint)
-        mnode.add_nodes(match, old_matches)
+        mnode.add_mnodes(match, old_matches)
 
 
 class Varname(object):
@@ -127,24 +154,24 @@ class MNode(object, MNodeDispatcher):
         """
         if old_matches is None:
             old_matches = []
-        prev_val = match.pairings.get(self.var, None)
+        prev_val = match.substitutions.get(self.var, None)
         new_match = match.copy()
         if not prev_val:
-            new_match.pairings[self.var] = self.value
+            new_match.substitutions[self.var] = self.value
         elif prev_val != self.value:
             return
         old_matches_c = old_matches[:]
         old_matches_c.append(self.var)
         if not self.children:
-            if len(new_match.pairings) == len(self.rule.vrs):
+            if len(new_match.substitutions) == len(self.rule.vrs):
                 return [new_match]
             else:
-                self.add_nodes(new_match, old_matches_c)
+                self.add_mnodes(new_match, old_matches_c)
                 return []
         return self.dispatch_to_children(new_match, old_matches_c)
 
-    def add_nodes(self, match, old_matches, hint=None):
-        self._add_nodes(match, old_matches, self.rule, hint=None)
+    def add_mnodes(self, match, old_matches, hint=None):
+        self._add_mnodes(match, old_matches, self.rule, hint=None)
 
 
 class PVarname(object):
@@ -179,9 +206,9 @@ class Arg(object):
 class Condition(object):
 
     def __init__(self, fpath, *args):
-        self.fun = fresolve(fpath)
-        self.fpath = fpath
-        self.args = args
+        self.fun = fresolve(fpath)  # callable
+        self.fpath = fpath  # string
+        self.args = args  # terms. terms have conversors for different funs
 
     def test(self, match):
         sargs = []
@@ -207,10 +234,10 @@ class Rule(TermNode, MNodeDispatcher):
     def dispatch(self, match):
         old_matches = []
         if not self.children:
-            if len(match.pairings) == len(self.rule.vrs):
+            if len(match.substitutions) == len(self.rule.vrs):
                 matches = [match]
             else:
-                self.add_nodes(match, old_matches)
+                self.add_mnodes(match, old_matches)
                 matches = []
         else:
             matches = self.dispatch_to_children(match, old_matches)
@@ -229,8 +256,13 @@ class Rule(TermNode, MNodeDispatcher):
                 kb.factset.add_fact(con.substitute(m))
         return new or False
 
-    def add_nodes(self, match):
-        self._add_nodes(match, [], self)
+    def add_mnodes(self, match):
+        self._add_mnodes(match, [], self)
+
+    def add_term_prem(self, prem):
+        '''
+        prem is a StringSentence
+        '''
 
 
 class Network(object):
@@ -247,3 +279,44 @@ class Network(object):
         pass
 
 
+class StringSentence(object):
+    '''
+    Consecuences in rules.
+    Also used as intermediate values for predicates
+    and premises by the compiler
+    '''
+    def __init__(self, true, verb, **args):
+        '''
+        verb is a string.
+        args is a dict with strings (labels) to strings (terms)
+        '''
+        self.true = true  # boolean
+        self.verb = verb  # string
+        self.args = []  # StringObjects
+        for k, v in args.items():
+            self.args.append(StringObject(k, v))
+
+
+class StringObject(object):
+    '''
+    objects for StringSentences
+    '''
+    def __init__(self, label, obj):
+        self.label = label  # string
+        self.ty = 'string'  # string/sentence to discriminate among StringStrObject/StringSenObject
+
+
+class StringStrObject(StringObject):
+    # discriminated on self.ty
+    def __init__(self, label, obj):
+        self.label = label  # string
+        self.ty = 'string'
+        self.obj = obj  # string
+
+
+class StringSenObject(StringObject):
+    # discriminated on self.ty
+    def __init__(self, label, obj):
+        self.label = label  # string
+        self.ty = 'sentence'
+        self.obj = obj  # StringSentence
