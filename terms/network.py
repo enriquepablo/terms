@@ -30,67 +30,127 @@ def resolve(sen, path):
     path = path.split('.')
     for segment in path:
         if segment in special_resolvers:
-            obj = 
+            obj = special_resolvers[segment](obj)
+        else:
+            obj = getattr(obj, segment, None)
+    return obj
 
 
 class Match(object):
     def __init__(self, sen):
-        self.sen = sen
+        self.fact = fact  # Predicate
         self.substitutions = {}  # varname -> term
         self.prem = None
 
     def copy(self, node=None):
-        new_match = Match(self.sen)
+        new_match = Match(self.fact)
         new_match.substitutions = {k: v for k, v in self.substitutions.items()}
         new_match.prem = node or self.prem
         return new_match
 
 
-class TermNode(object):
-    def __init__(self, path, pred, term, var):
+class Node(object):
+
+    T_NEG = 0
+    T_VERB = 1
+
+    def __init__(self, path, var=0, t='arg'):
         self.path = path  # string
-        self.pred = pred  # string
-        self.term = term  # term
         self.var = var  # int
-        self.type = 'arg'  # pred/arg to discriminate PredNodes / ArgNodes
+        self.type = t  # pred/arg/prem to discriminate PredNodes / ArgNodes / PremNodes
 
-    def test(self, match):
-        """
-        test the sentence in match against this node.
-
-        return a new match for success
-        or None for failure
-        """
-        term = resolve(match.sen, self.path)
-        if self.var in match.substitutions:
-            if match.substitutions[self.var] is term:
-                return match.copy(self)
-        elif self.pred(term, self.term):
-            new_match = match.copy(self)
-            if self.var:
-                new_match.substitutions[self.var] = term
-            return new_match
-
+    def filter_siblings(self, parent, match):
+        raise NotImplementedError
 
     def dispatch(self, match):
-        for child in self.children:
-            new_match = child.test(match)
-            if new_match:
+        if self.var:
+            if self.var in match.subs:
+                if match.subs[self.var] != self.get_val():
+                    return
+            else:
+                match.subs[self.var] = self.get_val()
+        if self.children:
+            children = self.children[0].filter_siblings(self, match)
+            for child in children:
+                new_match = match.copy()
                 child.dispatch(new_match)
 
+    def get_val(self):
+        raise NotImplementedError
 
-class PredNode(TermNode):
+    def spawn(self, w):
+        raise NotImplementedError
+
+
+class NegNode(Node):
+
+    def __init__(self, true, *args, **kwargs):
+        self.true = true
+        super(NegNode, self).__init__(*args, **kwargs)
+
+    def filter_siblings(self, parent, match):
+        true = resolve(match.sen, self.path)
+        if true == self.true:
+            return (self,)
+        return (parent.children[1],)
+
+
+class SetNode(TermNode):
     # discriminate on self.type
 
-    def __init__(self, true, *args):
-        self.true = true
-        super(PredNode, self).__init__(*args)
+    def __init__(self, term, *args, **kwargs):
+        self.term = term
+        super(SetNode, self).__init__(*args, **kwargs)
+
+    def filter_siblings(self, parent, match):
+        w = resolve(match.sen, self.path)
+        words = lexicon.get_subwords(w)
+        return parent.children.filter(val_or=[|w for w in words])
+
+    def get_val(self):
+        return self.term
+
+class NameNode(TermNode):
+
+    def __init__(self, term, *args, **kwargs):
+        self.term = term
+        super(NameNode, self).__init__(*args, **kwargs)
+
+    def filter_siblings(self, parent, match):
+        w = resolve(match.sen, self.path)
+        return parent.children.filter(term=lexicon.get_term(w))
+
+    def get_val(self):
+        return self.term
+
+
+class LabelNode(TermNode):
+
+    def __init__(self, label, *args, **kwargs):
+        self.label = label
+        super(LabelNode, self).__init__(*args, **kwargs)
+
+    def filter_siblings(self, parent, match):
+        w = resolve(match.sen, self.path)
+        sibs = []
+        for sib in parent.children:
+            if hasattr(w, sib.label):
+                sibs.append(sib)
+        return sibs
 
 
 class ArgNode(TermNode):
     '''
     '''
     # discriminate on self.type
+
+    def __init__(self, term):
+
+
+class PremNode(TermNode):
+    '''
+    a terminal node for a premise
+    '''
 
 
 class MNodeDispatcher(object):
@@ -126,14 +186,9 @@ class Varname(object):
     a variable in a rule,
     it has a name
     """
-    def __init__(self, name):
+    def __init__(self, name, rule):
         self.name = name
-
-
-class idict(dict):
-    def __setitem__(self, k, v):
-        if k not in self:
-            super(idict, self).__setitem__(k, v)
+        self.rule = rule
 
 
 class MNode(object, MNodeDispatcher):
@@ -208,7 +263,7 @@ class Condition(object):
     def __init__(self, fpath, *args):
         self.fun = fresolve(fpath)  # callable
         self.fpath = fpath  # string
-        self.args = args  # terms. terms have conversors for different funs
+        self.args = args  # Arg. terms have conversors for different funs
 
     def test(self, match):
         sargs = []
@@ -221,15 +276,12 @@ class Rule(TermNode, MNodeDispatcher):
 
     def __init__(self, network):
         self.network = network
-        self.prems = []  # nodes
+        self.prems = []  # pred nodes
         self.pvars = []  # pvars
         self.vrs = []  # string
         self.network = []  # mnodes
         self.conditions = []  # conditions
         self.cons = []  # consecuences
-
-    def test(self, match):
-        return match
 
     def dispatch(self, match):
         old_matches = []
@@ -255,46 +307,52 @@ class Rule(TermNode, MNodeDispatcher):
             for con in self.cons:
                 kb.factset.add_fact(con.substitute(m))
         return new or False
+    
+    def filter_siblings(self, parent, match):
+        return parent.children
 
     def add_mnodes(self, match):
         self._add_mnodes(match, [], self)
 
-    def add_term_prem(self, prem):
-        '''
-        prem is a StringSentence
-        '''
-
 
 class Network(object):
-    
+
     def __init__(self, kb):
         self.kb = kb
 
     def add_fact(self, fact):
         m = Match(fact)
-        self.root.dispatch(m)
+        if self.children:
+            children = self.children[0].filter_siblings(self, m)
+            for ch in children:
+                ch.dispatch(m)
         self.kb.factset.add_fact(fact)
 
-    def add_rule(self, prems, cons):
-        pass
+    def add_rule(self, prems, conds, cons):
+        rule = Rule(self)
+        for prem in prems:
+            child = self.children.filter(true=prem.true)
+            pnode = child.spawn(prem)
+            pnode.children.append(rule)
+        rule.conds = conds
+        for con in cons:
+            rule.cons.append(Consecuence(con))
 
 
-class StringSentence(object):
+class Consecuence(object):
     '''
     Consecuences in rules.
-    Also used as intermediate values for predicates
-    and premises by the compiler
     '''
-    def __init__(self, true, verb, **args):
+    def __init__(self, wpred):
         '''
         verb is a string.
-        args is a dict with strings (labels) to strings (terms)
+        args is a dict with strings (labels) to ConObjects
         '''
         self.true = true  # boolean
         self.verb = verb  # string
         self.args = []  # StringObjects
         for k, v in args.items():
-            self.args.append(StringObject(k, v))
+            self.args.append(ConObject(k, v))
 
 
 class StringObject(object):
