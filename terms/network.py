@@ -18,8 +18,57 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-special_resolvers = {}
+node_types = []
 
+node_type_names = {}
+
+
+def register(tname):
+    def fun(nodeclass):
+        n = len(node_types)
+        node_type_names[tname] = n
+        node_types.append(nodeclass)
+        nodeclass.tname = tname
+        return nodeclass
+    return fun
+
+def get_tnode(tname):
+    if isinstance(tname, int):
+        return node_types[tname]
+    else:
+        return node_types[node_type_names[tname]]
+
+def get_tnum(tname):
+        return node_type_names[tname]
+
+def get_ntype(w):
+    if isinstance(w, boolean):
+        return '_neg'
+    elif isinstance(w, str):
+        return '_label'
+    elif isinstance(w, thing):
+        return '_elem'
+    elif isinstance(w, exists):
+        return '_pred'
+    elif isinstance(w, word):
+        return '_set'
+    else:
+        return get_name(w)
+
+def get_paths(w):
+    paths = []
+    recurse_paths(w, paths, ())
+    return paths
+
+def recurse_paths(pred, paths, path):
+    paths.append(path + ('neg',))
+    paths.append(path + ('verb',))
+    for l, o in pred.args:
+        paths.append(path + (l, 'label'))
+        if isinstance(o, exists):
+            recurse_paths(o, paths, path + (l,))
+        else:
+            paths.append(path + (l,))
 
 def resolve(sen, path):
     '''
@@ -27,13 +76,31 @@ def resolve(sen, path):
     pointed at by path (a string).
     '''
     obj = sen
-    path = path.split('.')
     for segment in path:
         if segment in special_resolvers:
-            obj = special_resolvers[segment](obj)
+            obj = special_resolvers[segment](obj, path)
         else:
             obj = getattr(obj, segment, None)
     return obj
+
+special_resolvers = {}
+
+def _res_neg(o, path):
+    return o.true
+
+special_resolvers['_neg'] = _res_neg
+
+
+def _res_verb(o, path):
+    return get_type(o)
+
+special_resolvers['_verb'] = _res_verb
+
+
+def _res_label(o, path):
+    return path[-2]
+
+special_resolvers['_label'] = _res_label
 
 
 class Match(object):
@@ -52,12 +119,16 @@ class Match(object):
 class Node(object):
 
     T_NEG = 0
-    T_VERB = 1
+    T_SET = 1
+    T_LABEL = 2
+    T_ELEM = 3
 
-    def __init__(self, path, var=0, t='arg'):
+    def __init__(self, path, var=0, t=T_ELEM):
         self.path = path  # string
         self.var = var  # int
         self.type = t  # pred/arg/prem to discriminate PredNodes / ArgNodes / PremNodes
+        self.children = []  # nodes
+        self.pchildren = []  # prem nodes
 
     def filter_siblings(self, parent, match):
         raise NotImplementedError
@@ -74,14 +145,20 @@ class Node(object):
             for child in children:
                 new_match = match.copy()
                 child.dispatch(new_match)
+        if self.pchildren:
+            for p in self.pchildren:
+                new_match = match.copy()
+                p.dispatch(new_match)
 
     def get_val(self):
         raise NotImplementedError
 
-    def spawn(self, w):
+    @classmethod
+    def get_node(cls, parent, w, path, var_map):
         raise NotImplementedError
 
 
+@register('_neg')
 class NegNode(Node):
 
     def __init__(self, true, *args, **kwargs):
@@ -94,7 +171,19 @@ class NegNode(Node):
             return (self,)
         return (parent.children[1],)
 
+    @classmethod
+    def get_node(cls, parent, w, path, var_map):
+        try:
+            return parent.children.filter(true=w).one()
+        except NotFound:
+            pass
+        #  build the node and append it
+        node = NegNode(true, path, t=get_type_num(cls.tname))
+        parent.children.append(node)
+        return node
 
+
+@register('_set')
 class SetNode(TermNode):
     # discriminate on self.type
 
@@ -105,11 +194,33 @@ class SetNode(TermNode):
     def filter_siblings(self, parent, match):
         w = resolve(match.sen, self.path)
         words = lexicon.get_subwords(w)
-        return parent.children.filter(val_or=[|w for w in words])
+        return parent.children.filter(val_or=[|w for w in words], var=w.var)
 
     def get_val(self):
         return self.term
 
+    @classmethod
+    def get_node(cls, parent, w, path, var_map):
+        term = lexicon.get_term(w)
+        m = p.VAR_PAT.match(get_name(w))
+        if m:
+            if name in var_map:
+                var = var_map[name]
+            else:
+                var_map.count += 1
+                var = var_map[name] = var_map.count
+        else:
+            var = 0
+        try:
+            return parent.children.filter(term=term, var=var).one()
+        except NotFound:
+            pass
+        #  build the node and append it
+        node = SetNode(term, path, var=var, t=get_type_num(cls.tname))
+        parent.children.append(node)
+        return node
+
+@register('_elem')
 class NameNode(TermNode):
 
     def __init__(self, term, *args, **kwargs):
@@ -118,12 +229,43 @@ class NameNode(TermNode):
 
     def filter_siblings(self, parent, match):
         w = resolve(match.sen, self.path)
-        return parent.children.filter(term=lexicon.get_term(w))
+        return parent.children.filter(term=lexicon.get_term(w), var=w.var)
 
     def get_val(self):
         return self.term
 
+    @classmethod
+    def get_node(cls, parent, w, path, var_map):
+        '''
+        Getting the child nodes of a node depends
+        on the node type of the children.
+        We use this class method to get
+        a child of parent,
+        were parent is a node of any class
+        and its children nodes of this class.
+        '''
+        term = lexicon.get_term(w)
+        name = get_name(w)
+        m = p.VAR_PAT.match(name)
+        if m:
+            if name in var_map:
+                var = var_map[name]
+            else:
+                var_map.count += 1
+                var = var_map[name] = var_map.count
+        else:
+            var = 0
+        try:
+            return parent.children.filter(term=term, var=var).one()
+        except NotFound:
+            pass
+        #  build the node and append it
+        node = NameNode(term, path, var=var, t=get_type_num(cls.tname))
+        parent.children.append(node)
+        return node
 
+
+@register('_label')
 class LabelNode(TermNode):
 
     def __init__(self, label, *args, **kwargs):
@@ -138,19 +280,28 @@ class LabelNode(TermNode):
                 sibs.append(sib)
         return sibs
 
-
-class ArgNode(TermNode):
-    '''
-    '''
-    # discriminate on self.type
-
-    def __init__(self, term):
+    @classmethod
+    def get_node(cls, parent, w, path, var_map):
+        try:
+            return parent.children.filter(label=w).one()
+        except NotFound:
+            pass
+        #  build the node and append it
+        node = LabelNode(w, path, t=get_tnum(cls.tname))
+        parent.children.append(node)
+        return node
 
 
 class PremNode(TermNode):
     '''
     a terminal node for a premise
     '''
+
+    def dispatch(self, match):
+        match.prem = self
+        for child in self.children:
+            new_match = match.copy()
+            child.dispatch(new_match)
 
 
 class MNodeDispatcher(object):
@@ -279,20 +430,25 @@ class Rule(TermNode, MNodeDispatcher):
         self.prems = []  # pred nodes
         self.pvars = []  # pvars
         self.vrs = []  # string
-        self.network = []  # mnodes
+        self.children = []  # mnodes
         self.conditions = []  # conditions
         self.cons = []  # consecuences
 
     def dispatch(self, match):
+        new_match = Match(match.sen)
+        for num, o in match.subs.items():
+            pvar = self.pvars.filter(prem=match.prem, num=num).one()
+            varname = pvar.name
+            new_match.subs[varname] = o
         old_matches = []
         if not self.children:
-            if len(match.substitutions) == len(self.rule.vrs):
-                matches = [match]
+            if len(new_match.subs) == len(self.rule.vrs):
+                matches = [new_match]
             else:
-                self.add_mnodes(match, old_matches)
+                self.add_mnodes(new_match, old_matches)
                 matches = []
         else:
-            matches = self.dispatch_to_children(match, old_matches)
+            matches = self.dispatch_to_children(new_match, old_matches)
 
         new = []
         for m in matches:
@@ -328,15 +484,26 @@ class Network(object):
                 ch.dispatch(m)
         self.kb.factset.add_fact(fact)
 
-    def add_rule(self, prems, conds, cons):
+    def add_rule(self, wprems, conds, wcons, orders=None):
         rule = Rule(self)
-        for prem in prems:
-            child = self.children.filter(true=prem.true)
-            pnode = child.spawn(prem)
+        for wprem in wprems:
+            var_map = []
+            paths = get_paths(wprem)
+            old_node = self
+            for path in paths:
+                w = resolve(prem, path)
+                ntype = get_ntype(w)
+                nclass = get_tnode(ntype)
+                node = nclass.get_node(old_node, w, path, var_map)
+                old_node = node
+            pnode = PremNode()
+            old_node.pchildren.append(pnode)
             pnode.children.append(rule)
+            for varname, num in var_map.items():
+                rule.pvars.append(PVarname(pnode, num, varname))
         rule.conds = conds
-        for con in cons:
-            rule.cons.append(Consecuence(con))
+        for wcon in wcons:
+            rule.cons.append(Consecuence(wcon))
 
 
 class Consecuence(object):
