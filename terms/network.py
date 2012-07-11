@@ -169,7 +169,7 @@ class Node(Base):
     '''
     __tablename__ = 'nodes'
 
-    id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
     path_str = Column(String)
     var = Column(Integer)
     parent_id = Column(Integer, ForeignKey('nodes.id'))
@@ -260,17 +260,19 @@ class NegNode(Node):
         return node
 
 
-@register('_set')
-class SetNode(TermNode):
+@register('_term')
+class TermNode(Node):
     '''
     '''
     __mapper_args__ = {'polymorphic_identity': get_tnum(self.tname)}
     id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
-    term = Column(Integer, ForeignKey('Term.id'))
+    term_id = Column(Integer, ForeignKey('Term.id'))
+    term = relationship('Term',
+                         primaryjoin="Term.id==TermNode.term_id")
 
     def __init__(self, term, *args, **kwargs):
         self.term = term
-        super(SetNode, self).__init__(*args, **kwargs)
+        super(TermNode, self).__init__(*args, **kwargs)
 
     def filter_siblings(self, parent, match):
         w = resolve(match.fact, self.path)
@@ -299,59 +301,6 @@ class SetNode(TermNode):
             pass
         #  build the node and append it
         node = SetNode(term, path, var=var, t=get_type_num(cls.tname))
-        parent.children.append(node)
-        return node
-
-@register('_elem')
-class NameNode(TermNode):
-    '''
-    '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum(self.tname)}
-    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
-    term = Column(Integer, ForeignKey('Term.id'))
-
-    def __init__(self, term, *args, **kwargs):
-        self.term = term
-        super(NameNode, self).__init__(*args, **kwargs)
-
-    def filter_siblings(self, parent, match):
-        w = resolve(match.fact, self.path)
-        return parent.children.filter(NameNode.term == lexicon.get_term(w),
-                                      NameNode.var == w.var)
-
-    def get_val(self):
-        return self.term
-
-    @classmethod
-    def get_node(cls, parent, w, path, var_map):
-        '''
-        Used when adding premises to the network.
-
-        Getting the child nodes of a node depends
-        on the node type of the children.
-        We use this class method to get
-        a child of parent,
-        were parent is a node of any class
-        and its children nodes of this class.
-        '''
-        term = lexicon.get_term(w)
-        name = get_name(w)
-        m = p.VAR_PAT.match(name)
-        if m:
-            if name in var_map:
-                var = var_map[name]
-            else:
-                var_map.count += 1
-                var = var_map[name] = var_map.count
-        else:
-            var = 0
-        try:
-            return parent.children.filter(NameNode.term == term,
-                                          NameNode.var == var).one()
-        except NotFound:
-            pass
-        #  build the node and append it
-        node = NameNode(term, path, var=var, t=get_type_num(cls.tname))
         parent.children.append(node)
         return node
 
@@ -398,7 +347,9 @@ class PremNode(Base):
     '''
     a terminal node for a premise
     '''
-    id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
+    __tablename__ = 'premnodes'
+
+    id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship('Node', backref='terminals',
                          primaryjoin="Node.id==PremNode.parent_id")
@@ -418,12 +369,64 @@ class PremNode(Base):
             child.dispatch(new_match)
 
 
-class MNodeDispatcher(object):
+class Varname(object):
+    """
+    a variable in a rule,
+    it has a name
+    """
+    __tablename__ = 'varnames'
 
-    def dispatch_to_children(self, match, old_matches):
+    id = Column(Integer, Sequence('varname_id_seq'), primary_key=True)
+    name = Column(String)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='varnames',
+                         primaryjoin="Rule.id==Varname.rule_id")
 
-        if old_matches is None:
-            old_matches = []
+    def __init__(self, name, rule):
+        self.name = name
+        self.rule = rule
+
+
+class MNode(object):
+    '''
+    '''
+    __tablename__ = 'mnodes'
+
+
+    id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
+    parent_id = Column(Integer, ForeignKey('mnodes.id'))
+    parent = relationship('MNode', backref='children',
+                         primaryjoin="MNode.id==MNode.parent_id")
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='mnodes',
+                         primaryjoin="Rule.id==MNode.rule_id")
+    term_id = Column(Integer, ForeignKey('terms.id'))
+    value = relationship('Term', backref='mnodes',
+                         primaryjoin="Term.id==MNode.term_id")
+    varname_id = Column(Integer, ForeignKey('varnames.id'))
+    var = relationship('Varname', backref='mnodes',
+                         primaryjoin="Varname.id==MNode.varname_id")
+    predicate_id = Column(Integer, ForeignKey('predicates.id'))
+    support = relationship('Predicate', backref='mnodes',
+                         primaryjoin="Predicate.id==MNode.predicate_id")
+
+    def __init__(self, var, value, rule):
+        self.var = var  # varname
+        self.value = value  # term
+        self.rule = rule
+        # self.chidren = []  # mnodes
+        # self.support = []  # facts that have supported it
+
+    def dispatch(self, match, matched=None):
+        """
+        returns
+         * None : mismatch
+         * [] : no matches
+         * [m1, m2...] : matches
+        """
+
+        if matched is None:
+            matched = []
 
         new_matches = []
         first = self.children.first()
@@ -439,60 +442,25 @@ class MNodeDispatcher(object):
             if len(new_match) == len(self.rule.vrs):
                 return [new_match]
             else:
-                old_matches_c = old_matches[:]
-                old_matches_c.append(self.var)
-                self.add_mnodes(new_match, old_matches_c)
+                new_matched = matched[:]
+                new_matched.append(self.var)
+                self.add_mnodes(new_match, new_matched)
                 return []  # XXX
 
         for child in matching:
-            new_matches.append(child.dispatch(match, old_matches))
+            new_matches.append(child.dispatch(match, matched))
         return [m for matches in new_matches for m in matches]
 
-    def _add_mnodes(self, match, old_matches, rule, hint=None):
+    def add_mnodes(self, match, matched, hint=None):
         if not hint:
-            left = filter(lambda x: x not in old_matches, match.keys())
+            left = filter(lambda x: x not in matched, match.keys())
             if not left:
                 return
             hint = left[0]
-        mnode = MNode(hint, match[hint], rule)
+        mnode = MNode(hint, match[hint], self.rule)
         self.children.append(mnode)
-        old_matches.append(hint)
-        mnode.add_mnodes(match, old_matches)
-
-    def filter_value(self, val):
-        raise NotImplementedError
-
-
-class Varname(object):
-    """
-    a variable in a rule,
-    it has a name
-    """
-    def __init__(self, name, rule):
-        self.name = name
-        self.rule = rule
-
-
-class MNode(object, MNodeDispatcher):
-
-    def __init__(self, var, value, rule):
-        self.var = var  # varname
-        self.value = value  # term
-        self.rule = rule  # rule
-        self.chidren = []  # mnodes
-        self.parents = []  # facts that have supported it
-
-    def dispatch(self, match, old_matches=None):
-        """
-        returns
-         * None : mismatch
-         * [] : no matches
-         * [m1, m2...] : matches
-        """
-        return self.dispatch_to_children(match, old_matches)
-
-    def add_mnodes(self, match, old_matches, hint=None):
-        self._add_mnodes(match, old_matches, self.rule, hint=hint)
+        matched.append(hint)
+        mnode.add_mnodes(match, matched)
 
     def filter_value(self, val):
         bases = lexicon.get_bases(val)
@@ -508,68 +476,112 @@ class PVarname(object):
     and different rules can share a premise,
     but translate differently its numbrered vars to varnames.
     """
+    __tablename__ = 'mnodes'
 
-    def __init__(self, prem, num, name):
+
+    id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='pvars',
+                         primaryjoin="Rule.id==PVarname.rule_id")
+    prem_id = Column(Integer, ForeignKey('premnodes.id'))
+    prem = relationship('PremNode', backref='pvars',
+                         primaryjoin="PremNode.id==PVarname.prem_id")
+    varname_id = Column(Integer, ForeignKey('varnames.id'))
+    varname = relationship('Varname', backref='mnodes',
+                         primaryjoin="Varname.id==PVarname.varname_id")
+    num = Column(Integer)
+
+    def __init__(self, rule, prem, num, name):
+        self.rule = rule
         self.prem = prem
         self.num = num
-        self.name = name
+        self.varname = name
 
 
-class Arg(object):
+class CondArg(object):
+    '''
+    '''
+    __tablename__ = 'condargs'
 
-    def __init__(self, val):
+    id = Column(Integer, Sequence('condarg_id_seq'), primary_key=True)
+    cond_id = Column(Integer, ForeignKey('conds.id'))
+    cond = relationship('Condition', backref='args',
+                         primaryjoin="Condition.id==CondArg.cond_id")
+    varname_id = Column(Integer, ForeignKey('varnames.id'))
+    varname = relationship('Varname', backref='mnodes',
+                         primaryjoin="Varname.id==PVarname.varname_id")
+    term_id = Column(Integer, ForeignKey('Term.id'))
+    term = relationship('Term',
+                         primaryjoin="Term.id==TermNode.term_id")
+
+    def __init__(self, val, ):
         if isinstance(val, Term):
             self.term = val
-        else:
-            self.var = val
+        elif isinstance(val, Varname):
+            self.varname = val
 
-    def resolve(self, match):
+    def solve(self, match):
         if self.var:
-            return match.substitutions[self.var]
+            return match[self.var.name]
         return self.term
 
 
 class Condition(object):
+    '''
+    '''
+    __tablename__ = 'conditions'
 
-    def __init__(self, fpath, *args):
+    id = Column(Integer, Sequence('condition_id_seq'), primary_key=True)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='pvars',
+                         primaryjoin="Rule.id==PVarname.rule_id")
+    fpath = Column(String)
+
+    def __init__(self, rule, fpath, *args):
+        self.rule = rule
         self.fun = fresolve(fpath)  # callable
         self.fpath = fpath  # string
-        self.args = args  # Arg. terms have conversors for different funs
+        for arg in args:
+            self.args.append(arg)  # Arg. terms have conversors for different funs
 
     def test(self, match):
         sargs = []
         for arg in args:
-            sargs.append(arg.resolve(match))
+            sargs.append(arg.solve(match))
         return self.fun(*sargs)
 
 
-class Rule(TermNode, MNodeDispatcher):
+class Rule(TermNode):
+    '''
+    '''
+    __tablename__ = 'rules'
+
+    id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
 
     def __init__(self, network):
         self.network = network
         self.prems = []  # pred nodes
         self.pvars = []  # pvars
         self.vrs = []  # string
-        self.children = []  # mnodes
         self.conditions = []  # conditions
         self.cons = []  # consecuences
-        self.rule = self  # for dispatch_to_children
+        self.mroot = MNode(None, None, self)  # empty mnode
 
     def dispatch(self, match):
         new_match = Match(match.sen)
-        for num, o in match.subs.items():
+        for num, o in match.items():
             pvar = self.pvars.filter(prem=match.prem, num=num).one()
             varname = pvar.name
-            new_match.subs[varname] = o
-        old_matches = []
-        if not self.children:
-            if len(new_match.subs) == len(self.rule.vrs):
+            new_match[varname] = o
+        matched = []
+        if not self.root.children:
+            if len(new_match) == len(self.vrs):
                 matches = [new_match]
             else:
-                self.add_mnodes(new_match, old_matches)
+                self.root.add_mnodes(new_match, matched)
                 matches = []
         else:
-            matches = self.dispatch_to_children(new_match, old_matches)
+            matches = self.root.dispatch(new_match, matched)
 
         new = []
         for m in matches:
@@ -580,17 +592,11 @@ class Rule(TermNode, MNodeDispatcher):
                 new.append(m)
 
         kb = self.network.kb
-        for m in matches:
+        for m in new:
             for con in self.cons:
                 kb.factset.add_fact(con.substitute(m))
         return new or False
     
-    def filter_siblings(self, parent, match):
-        return parent.children
-
-    def add_mnodes(self, match):
-        self._add_mnodes(match, [], self)
-
 
 class Network(object):
 
@@ -631,6 +637,15 @@ class Consecuence(object):
     '''
     Consecuences in rules.
     '''
+    __tablename__ = 'consecuences'
+
+    id = Column(Integer, Sequence('consecuence_id_seq'), primary_key=True)
+    true = Column(Boolean)
+    verb = Column(String)
+
+    ntype = Column(Integer)
+    __mapper_args__ = {'polymorphic_on': ntype}
+
     def __init__(self, wpred):
         '''
         verb is a string.
@@ -643,26 +658,40 @@ class Consecuence(object):
             self.args.append(ConObject(k, v))
 
 
-class StringObject(object):
+class ConObject(object):
     '''
     objects for StringSentences
     '''
-    def __init__(self, label, obj):
+    __tablename__ = 'conobjects'
+
+    id = Column(Integer, Sequence('conobject_id_seq'), primary_key=True)
+    parent_id = Column(Integer, ForeignKey('conditions.id'))
+    parent = relationship('Condition', backref='args',
+                         primaryjoin="Condition.id==ConObject.parent_id")
+    label = Column(String)
+
+    cotype = Column(Integer)
+    __mapper_args__ = {'polymorphic_on': cotype}
+
+    def __init__(self, parent, label, val):
+        self.parent = parent
         self.label = label  # string
-        self.ty = 'string'  # string/sentence to discriminate among StringStrObject/StringSenObject
+        self.value = val
 
 
-class StringStrObject(StringObject):
-    # discriminated on self.ty
-    def __init__(self, label, obj):
-        self.label = label  # string
-        self.ty = 'string'
-        self.obj = obj  # string
+class StrConObject(ConObject):
+    '''
+    '''
+    __mapper_args__ = {'polymorphic_identity': 0}
+    id = Column(Integer, ForeignKey('ConObject.id'), primary_key=True)
+    value = Column(String)
 
 
-class StringSenObject(StringObject):
-    # discriminated on self.ty
-    def __init__(self, label, obj):
-        self.label = label  # string
-        self.ty = 'sentence'
-        self.obj = obj  # StringSentence
+class SenConObject(StringObject):
+    '''
+    '''
+    __mapper_args__ = {'polymorphic_identity': 1}
+    id = Column(Integer, ForeignKey('ConObject.id'), primary_key=True)
+    con_id = Column(Integer, ForeignKey('Consecuence.id'))
+    value = relationship('Consecuence',
+                         primaryjoin="Consecuence.id==SenConObject.con_id")
