@@ -78,7 +78,7 @@ class Lexer(object):
              print tok
 
 
-class Parser(object):
+class KB(object):
 
     def __init__(
             self,
@@ -104,10 +104,9 @@ class Parser(object):
             tabmodule=yacctab)
 
     def parse(self, text, filename='', debuglevel=0):
-        """ Parses C code and returns an AST.
-        
+        """ 
             text:
-                A string containing the C source code
+                A string containing the source code
             
             filename:
                 Name of the file being parsed (for meaningful
@@ -129,8 +128,10 @@ class Parser(object):
     def p_assertion(self, p):
         '''assertion : definition DOT
                      | fact DOT'''
-        p[0] = self.network.tell(p[1])
-        p[0] = str(response)
+        if isa(p[1], exists):
+            p[0] = self.network.add_fact(p[1])
+        else:
+            p[0] = self.lexicon.save_word(p[1])
 
     def p_fact(self, p):
         '''fact : LPAREN predicate RPAREN

@@ -228,12 +228,30 @@ class Node(Base):
         raise NotImplementedError
 
 
+@register('_root')
+class RootNode(Node):
+    '''
+    A root node
+    '''
+    __mapper_args__ = {'polymorphic_identity': get_tnum('_root')}
+    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
+
+    def __init__(self, *args, **kwargs):
+        super(RootNode, self).__init__(*args, **kwargs)
+
+    def filter_siblings(self, parent, match):
+        return (self,)
+
+    def get_node(self, parent, w, var_map):
+        return (self,)
+
+
 @register('_neg')
 class NegNode(Node):
     '''
     A node that tests whether a predicate is negated
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum(self.tname)}
+    __mapper_args__ = {'polymorphic_identity': get_tnum('_neg')}
     id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
 
     true = Column(Boolean)
@@ -248,14 +266,13 @@ class NegNode(Node):
             return (self,)
         return (parent.children[1],)
 
-    @classmethod
-    def get_node(cls, parent, w, path, var_map):
+    def get_node(self, parent, w, var_map):
         try:
             return parent.children.filter(NegNode.true==w).one()
         except NotFound:
             pass
         #  build the node and append it
-        node = NegNode(true, path, t=get_type_num(cls.tname))
+        node = NegNode(true, self.path, t=get_type_num(NegNode.tname))
         parent.children.append(node)
         return node
 
@@ -264,7 +281,7 @@ class NegNode(Node):
 class TermNode(Node):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum(self.tname)}
+    __mapper_args__ = {'polymorphic_identity': get_tnum('_term')}
     id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('Term.id'))
     term = relationship('Term',
@@ -283,8 +300,7 @@ class TermNode(Node):
     def get_val(self):
         return self.term
 
-    @classmethod
-    def get_node(cls, parent, w, path, var_map):
+    def get_node(self, parent, w, var_map):
         term = lexicon.get_term(w)
         m = p.VAR_PAT.match(get_name(w))
         if m:
@@ -300,7 +316,7 @@ class TermNode(Node):
         except NotFound:
             pass
         #  build the node and append it
-        node = SetNode(term, path, var=var, t=get_type_num(cls.tname))
+        node = SetNode(term, self.path, var=var, t=get_type_num(SetNode.tname))
         parent.children.append(node)
         return node
 
@@ -309,7 +325,7 @@ class TermNode(Node):
 class LabelNode(TermNode):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum(self.tname)}
+    __mapper_args__ = {'polymorphic_identity': get_tnum('_label')}
     id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
     label = Column(String)
 
@@ -325,14 +341,13 @@ class LabelNode(TermNode):
                 sibs.append(sib)
         return sibs
 
-    @classmethod
-    def get_node(cls, parent, w, path, var_map):
+    def get_node(self, parent, w, var_map):
         try:
             return parent.children.filter(LabelNode.label == w).one()
         except NotFound:
             pass
         #  build the node and append it
-        node = LabelNode(w, path, t=get_tnum(cls.tname))
+        node = LabelNode(w, self.path, t=get_tnum(LabelNode.tname))
         parent.children.append(node)
         return node
 
@@ -600,8 +615,22 @@ class Rule(TermNode):
 
 class Network(object):
 
-    def __init__(self, kb):
-        self.kb = kb
+    def __init__(self, dbaddr='sqlite:///:memory:'):
+        self.engine = create_engine(dbaddr)
+        Session = sessionmaker()
+        Session.configure(bind=self.engine)
+        self.session = Session()
+        try:
+            self.root = self.session.query(RootNode).one()
+        except NotFound:
+            self.initialize()
+        self.lexicon = Lexicon(self.session)
+        self.factset = FactSet(self.lexicon)
+
+    def initialize(self):
+        Base.metadata.create_all(self.engine)
+        self.root = RootNode(self, '')
+        self.session.commit()
 
     def add_fact(self, fact):
         m = Match(fact)

@@ -31,10 +31,8 @@ NAME_PAT = re.compile(r'^([a-z][a-z_]*[a-z])[1-9]+$')
 
 class Lexicon(object):
 
-    def __init__(self, engine):
-        Session = sessionmaker()
-        Session.configure(bind=engine)
-        self.session = Session()
+    def __init__(self, session):
+        self.session = session
         self.terms = {'word': word,
                       'noun': noun,
                       'verb': verb,
