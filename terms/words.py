@@ -56,22 +56,29 @@ def _new_exists(cls, classname, bases, newdict):
         if obj:
             name.append(label)
             name.append(get_name(obj))
+
     name = '__'.join(name)
-    return super(exists, cls).__new__(cls, name, bases, newdict)
+    return super(exists, cls).__new__(cls, name, bases, {})
 
 def _init_exists(self, classname, bases, newdict):
     for label, obj in newdict.items():
         setattr(self, '_' + label, obj)
+    if 'true' not in newdict:
+        setattr(self, '_true', True)
 
 def _getattr_exists(self, label):
     if not label.startswith('_'):
         label = '_' + label
     return super(exists, self).__getattr__(label)
 
+def negate(self):
+    true = getattr(self, 'true', True)
+    self._true = not true
+
 exists.__new__ = _new_exists
 exists.__init__ = _init_exists
 exists.__getattr__ = _getattr_exists
-exists.objs = {'subject': word}
+exists.objs = {'subj': word}
 
 
 def get_name(w):
@@ -91,15 +98,6 @@ def isa(w1, w2):
 
 def are(w1, w2):
     return issubclass(w1, w2)
-
-
-def make_pred(verb_, **objs):
-    name = get_name(verb_)
-    obj_list = list(objs.items())
-    obj_list = sorted(obj_list, key=lambda x: x[0])
-    for label, obj in obj_list:
-        name += '__' + label + '__' + get_name(obj)
-    return verb_(name, (), objs)
 
 
 class number(int, metaclass=word):

@@ -47,6 +47,15 @@ class FactSet(object):
             self.session.commit()
         return p
 
+    @classmethod
+    def make_pred(cls, verb_, **objs):
+        name = get_name(verb_)
+        obj_list = list(objs.items())
+        obj_list = sorted(obj_list, key=lambda x: x[0])
+        for label, obj in obj_list:
+            name += '__' + label + '__' + get_name(obj)
+        return verb_(name, (), objs)
+
 
     def query(self, q):
         pass
