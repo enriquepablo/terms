@@ -21,7 +21,7 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
-from terms.patterns import TERM_PAT, VAR_PAT
+from terms.patterns import SYMBOL_PAT, VAR_PAT
 
 class Lexer(object):
 
@@ -62,7 +62,7 @@ class Lexer(object):
 
     # Error handling rule
     def t_error(self,t):
-        print "Illegal character '%s'" % t.value[0]
+        print("Illegal character '%s'" % t.value[0])
         t.lexer.skip(1)
 
     # Build the lexer
@@ -75,7 +75,7 @@ class Lexer(object):
         while True:
              tok = lexer.token()
              if not tok: break
-             print tok
+             print(tok)
 
 
 class KB(object):
@@ -100,8 +100,7 @@ class KB(object):
             module=self, 
             start='sentence',
             debug=yacc_debug,
-            optimize=yacc_optimize,
-            tabmodule=yacctab)
+            optimize=yacc_optimize)
 
     def parse(self, text, filename='', debuglevel=0):
         """ 
@@ -116,7 +115,7 @@ class KB(object):
                 Debug level to yacc
         """
         self.lex.filename = filename
-        self.lex.reset_lineno()
+        # self.lex.reset_lineno()
         return self.parser.parse(text, lexer=self.lex, debug=debuglevel)
 
     # BNF

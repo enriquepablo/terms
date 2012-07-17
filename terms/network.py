@@ -20,18 +20,23 @@
 import re
 
 from sqlalchemy import Table, Column, Sequence
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from terms.terms import Base, Term
-from terms.predicates import Predicates
+from terms.predicates import Predicate
+from terms.lexicon import Lexicon
+from terms.factset import FactSet
 
 node_types = []
 
 node_type_names = {}
 
 
+# XXX this registry should be persistent
 def register(tname):
     '''
     class decorator generator,
@@ -47,12 +52,15 @@ def register(tname):
     as a class attribute (tname) on the class.
     '''
     def fun(nodeclass):
-        n = len(node_types)
-        node_type_names[tname] = n
         node_types.append(nodeclass)
         nodeclass.tname = tname
         return nodeclass
     return fun
+
+def reg_tnum(tname):
+    n = len(node_types)
+    node_type_names[tname] = n
+    return n
 
 def get_tnode(tname):
     '''
@@ -79,17 +87,18 @@ def get_tnum(tname):
 def get_ntype(w):
     '''
     Get the registration name of the node class
-    that corresponds to the provided word w.
+    that corresponds to the provided word w,
+    as returned by resolve.
     '''
     if isinstance(w, boolean):
         return '_neg'
     elif isinstance(w, str):
         return '_label'
-    elif isinstance(w, thing):
+    elif isa(w, thing):
         return '_elem'
-    elif isinstance(w, exists):
+    elif isa(w, exists):
         return '_pred'
-    elif isinstance(w, word):
+    elif are(w, word):
         return '_set'
     else:
         return get_name(w)
@@ -109,7 +118,7 @@ def _recurse_paths(pred, paths, path):
     paths.append(path + ('verb',))
     for l, o in pred.args:
         paths.append(path + (l, 'label'))
-        if isinstance(o, exists):
+        if isa(o, exists):
             _recurse_paths(o, paths, path + (l,))
         else:
             paths.append(path + (l,))
@@ -125,7 +134,7 @@ def resolve(w, path):
         if segment in special_resolvers:
             w = special_resolvers[segment](w, path)
         else:
-            w = getattr(obj, segment, None)
+            w = getattr(w, segment, None)
     return w
 
 special_resolvers = {}
@@ -233,8 +242,7 @@ class RootNode(Node):
     '''
     A root node
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum('_root')}
-    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': reg_tnum('_root')}
 
     def __init__(self, *args, **kwargs):
         super(RootNode, self).__init__(*args, **kwargs)
@@ -251,8 +259,7 @@ class NegNode(Node):
     '''
     A node that tests whether a predicate is negated
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum('_neg')}
-    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': reg_tnum('_neg')}
 
     true = Column(Boolean)
 
@@ -269,7 +276,7 @@ class NegNode(Node):
     def get_node(self, parent, w, var_map):
         try:
             return parent.children.filter(NegNode.true==w).one()
-        except NotFound:
+        except NoResultFound:
             pass
         #  build the node and append it
         node = NegNode(true, self.path, t=get_type_num(NegNode.tname))
@@ -281,9 +288,8 @@ class NegNode(Node):
 class TermNode(Node):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum('_term')}
-    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('Term.id'))
+    __mapper_args__ = {'polymorphic_identity': reg_tnum('_term')}
+    term_id = Column(Integer, ForeignKey('terms.id'))
     term = relationship('Term',
                          primaryjoin="Term.id==TermNode.term_id")
 
@@ -313,7 +319,7 @@ class TermNode(Node):
             var = 0
         try:
             return parent.children.filter(SetNode.term==term, SetNode.var==var).one()
-        except NotFound:
+        except NoResultFound:
             pass
         #  build the node and append it
         node = SetNode(term, self.path, var=var, t=get_type_num(SetNode.tname))
@@ -325,8 +331,7 @@ class TermNode(Node):
 class LabelNode(TermNode):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': get_tnum('_label')}
-    id = Column(Integer, ForeignKey('Node.id'), primary_key=True)
+    __mapper_args__ = {'polymorphic_identity': reg_tnum('_label')}
     label = Column(String)
 
     def __init__(self, label, *args, **kwargs):
@@ -344,7 +349,7 @@ class LabelNode(TermNode):
     def get_node(self, parent, w, var_map):
         try:
             return parent.children.filter(LabelNode.label == w).one()
-        except NotFound:
+        except NoResultFound:
             pass
         #  build the node and append it
         node = LabelNode(w, self.path, t=get_tnum(LabelNode.tname))
@@ -353,7 +358,7 @@ class LabelNode(TermNode):
 
 
 prem_to_rule = Table('prem_to_rule', Base.metadata,
-    Column('prem_id', Integer, ForeignKey('prems.id'), primary_key=True),
+    Column('prem_id', Integer, ForeignKey('premnodes.id'), primary_key=True),
     Column('rule_id', Integer, ForeignKey('rules.id'), primary_key=True)
 )
 
@@ -368,8 +373,9 @@ class PremNode(Base):
     parent_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship('Node', backref='terminals',
                          primaryjoin="Node.id==PremNode.parent_id")
-    rules = relationship('RuleNode', backref='prems',
+    rules = relationship('Rule', backref='prems',
                          secondary=prem_to_rule,
+                         foreign_keys=[prem_to_rule.c.prem_id, prem_to_rule.c.rule_id],
                          primaryjoin=id==prem_to_rule.c.prem_id,
                          secondaryjoin=id==prem_to_rule.c.rule_id)
 
@@ -384,7 +390,7 @@ class PremNode(Base):
             child.dispatch(new_match)
 
 
-class Varname(object):
+class Varname(Base):
     """
     a variable in a rule,
     it has a name
@@ -402,7 +408,7 @@ class Varname(object):
         self.rule = rule
 
 
-class MNode(object):
+class MNode(Base):
     '''
     '''
     __tablename__ = 'mnodes'
@@ -410,7 +416,7 @@ class MNode(object):
 
     id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('mnodes.id'))
-    parent = relationship('MNode', backref='children',
+    parent = relationship('MNode', remote_side=[id], backref='children',
                          primaryjoin="MNode.id==MNode.parent_id")
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref='mnodes',
@@ -483,7 +489,7 @@ class MNode(object):
 
 
 
-class PVarname(object):
+class PVarname(Base):
     """
     Mapping from varnames in rules (pvars belong in rules)
     to premise, number.
@@ -491,7 +497,7 @@ class PVarname(object):
     and different rules can share a premise,
     but translate differently its numbrered vars to varnames.
     """
-    __tablename__ = 'mnodes'
+    __tablename__ = 'pvarnames'
 
 
     id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
@@ -502,7 +508,7 @@ class PVarname(object):
     prem = relationship('PremNode', backref='pvars',
                          primaryjoin="PremNode.id==PVarname.prem_id")
     varname_id = Column(Integer, ForeignKey('varnames.id'))
-    varname = relationship('Varname', backref='mnodes',
+    varname = relationship('Varname', backref='pvarnames',
                          primaryjoin="Varname.id==PVarname.varname_id")
     num = Column(Integer)
 
@@ -513,21 +519,21 @@ class PVarname(object):
         self.varname = name
 
 
-class CondArg(object):
+class CondArg(Base):
     '''
     '''
     __tablename__ = 'condargs'
 
     id = Column(Integer, Sequence('condarg_id_seq'), primary_key=True)
-    cond_id = Column(Integer, ForeignKey('conds.id'))
+    cond_id = Column(Integer, ForeignKey('conditions.id'))
     cond = relationship('Condition', backref='args',
                          primaryjoin="Condition.id==CondArg.cond_id")
     varname_id = Column(Integer, ForeignKey('varnames.id'))
-    varname = relationship('Varname', backref='mnodes',
-                         primaryjoin="Varname.id==PVarname.varname_id")
-    term_id = Column(Integer, ForeignKey('Term.id'))
+    varname = relationship('Varname', backref='condargs',
+                         primaryjoin="Varname.id==CondArg.varname_id")
+    term_id = Column(Integer, ForeignKey('terms.id'))
     term = relationship('Term',
-                         primaryjoin="Term.id==TermNode.term_id")
+                         primaryjoin="Term.id==CondArg.term_id")
 
     def __init__(self, val, ):
         if isinstance(val, Term):
@@ -541,15 +547,15 @@ class CondArg(object):
         return self.term
 
 
-class Condition(object):
+class Condition(Base):
     '''
     '''
     __tablename__ = 'conditions'
 
     id = Column(Integer, Sequence('condition_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='pvars',
-                         primaryjoin="Rule.id==PVarname.rule_id")
+    rule = relationship('Rule', backref='conditions',
+                         primaryjoin="Rule.id==Condition.rule_id")
     fpath = Column(String)
 
     def __init__(self, rule, fpath, *args):
@@ -566,7 +572,7 @@ class Condition(object):
         return self.fun(*sargs)
 
 
-class Rule(TermNode):
+class Rule(Base):
     '''
     '''
     __tablename__ = 'rules'
@@ -622,7 +628,7 @@ class Network(object):
         self.session = Session()
         try:
             self.root = self.session.query(RootNode).one()
-        except NotFound:
+        except:
             self.initialize()
         self.lexicon = Lexicon(self.session)
         self.factset = FactSet(self.lexicon)
@@ -662,7 +668,7 @@ class Network(object):
             rule.cons.append(Consecuence(wcon))
 
 
-class Consecuence(object):
+class Consecuence(Base):
     '''
     Consecuences in rules.
     '''
@@ -687,16 +693,16 @@ class Consecuence(object):
             self.args.append(ConObject(k, v))
 
 
-class ConObject(object):
+class ConObject(Base):
     '''
     objects for StringSentences
     '''
     __tablename__ = 'conobjects'
 
     id = Column(Integer, Sequence('conobject_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('conditions.id'))
-    parent = relationship('Condition', backref='args',
-                         primaryjoin="Condition.id==ConObject.parent_id")
+    parent_id = Column(Integer, ForeignKey('consecuences.id'))
+    parent = relationship('Consecuence', backref='args',
+                         primaryjoin="Consecuence.id==ConObject.parent_id")
     label = Column(String)
 
     cotype = Column(Integer)
@@ -712,15 +718,13 @@ class StrConObject(ConObject):
     '''
     '''
     __mapper_args__ = {'polymorphic_identity': 0}
-    id = Column(Integer, ForeignKey('ConObject.id'), primary_key=True)
     value = Column(String)
 
 
-class SenConObject(StringObject):
+class SenConObject(ConObject):
     '''
     '''
     __mapper_args__ = {'polymorphic_identity': 1}
-    id = Column(Integer, ForeignKey('ConObject.id'), primary_key=True)
-    con_id = Column(Integer, ForeignKey('Consecuence.id'))
+    con_id = Column(Integer, ForeignKey('consecuences.id'))
     value = relationship('Consecuence',
                          primaryjoin="Consecuence.id==SenConObject.con_id")
