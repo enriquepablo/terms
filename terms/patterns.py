@@ -23,6 +23,6 @@ VAR_PAT = r'^([A-Z][a-z_]*)(Verb|Noun|Word)?\d+$'
 
 varpat = re.compile(VAR_PAT)
 
-SYMBOL_PAT = r'^[a-z][a-z_]\d*$'
+SYMBOL_PAT = r'[a-z][a-z_]*\d*'
 
 sympat = re.compile(SYMBOL_PAT)

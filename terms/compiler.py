@@ -22,6 +22,7 @@ import ply.yacc
 from ply.lex import TOKEN
 
 from terms.patterns import SYMBOL_PAT, VAR_PAT
+from terms.words import word, verb, noun, exists, thing, get_name, isa, are
 
 class Lexer(object):
 
@@ -80,6 +81,13 @@ class Lexer(object):
 
 class KB(object):
 
+
+    precedence = (
+        ('left', 'COMMA'),
+        ('left', 'LPAREN'),)
+
+
+
     def __init__(
             self,
             network,
@@ -116,7 +124,7 @@ class KB(object):
         """
         self.lex.filename = filename
         # self.lex.reset_lineno()
-        return self.parser.parse(text, lexer=self.lex, debug=debuglevel)
+        return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
 
     # BNF
 
@@ -218,3 +226,5 @@ class KB(object):
         'mod-def : SYMBOL A term'
         p[0] = {p[1]: p[3]}
 
+    def p_error(self, p):
+        raise Exception('syntax error: ' + str(p))
