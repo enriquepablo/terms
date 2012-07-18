@@ -55,3 +55,5 @@ class Object(Base):
     def __init__(self, label, obj):
         self.label = label
         self.object = obj
+
+

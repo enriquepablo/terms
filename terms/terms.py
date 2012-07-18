@@ -21,8 +21,14 @@ from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declared_attr
 
-Base = declarative_base()
+class Base(object):
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower() + 's'
+
+Base = declarative_base(cls=Base)
 
 
 term_to_base = Table('term_to_base', Base.metadata,
@@ -32,7 +38,6 @@ term_to_base = Table('term_to_base', Base.metadata,
 
 
 class Term(Base):
-    __tablename__ = 'terms'
 
     id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
     name = Column(String)
@@ -104,7 +109,6 @@ class Term(Base):
 
 
 class ObjectType(Base):
-    __tablename__ = 'object_types'
 
     id = Column(Integer, Sequence('object_id_seq'), primary_key=True)
     label = Column(String)

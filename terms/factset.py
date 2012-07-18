@@ -21,6 +21,60 @@ from terms.words import get_name
 from terms.predicates import Predicate, Object
 
 
+def get_paths(w):
+    '''
+    build a path for each testable feature in w (a word).
+    Each path is a tuple of strings,
+    and corresponds to a node in the primary network.
+    '''
+    paths = []
+    _recurse_paths(w, paths, ())
+    return paths
+
+def _recurse_paths(pred, paths, path):
+    paths.append(path + ('_neg',))
+    paths.append(path + ('_verb',))
+    for l, o in pred.args:
+        paths.append(path + (l, '_label'))
+        if isa(o, exists):
+            _recurse_paths(o, paths, path + (l,))
+        else:
+            paths.append(path + (l, '_term'))
+
+def resolve(w, path):
+    '''
+    Get the value pointed at by path in w (a word).
+    It can be a boolean (for neg nodes),
+    a sting (for label nodes),
+    a word, or some custom value for custom node types.
+    '''
+    for segment in path:
+        if segment == '_neg':
+            return w.true
+        elif segment == '_verb':
+            return get_term(get_type(w))
+        elif segment == '_label':
+            return path[-2]
+        elif segment == '_term':
+            return get_term(w)
+        else:
+            w = getattr(w, segment)
+    return w
+
+class Match(dict):
+    def __init__(self, fact, *args, **kwargs):
+        self.fact = fact  # word
+        self.prem = None
+        super(Match, self).__init__(*args, **kwargs)
+
+    def copy(self):
+        new_match = Match(self.fact)
+        for k, v in self.items():
+            new_match[k] = v
+        new_match.prem = self.prem
+        return new_match
+
+
 class FactSet(object):
     """
     """
@@ -28,24 +82,21 @@ class FactSet(object):
     def __init__(self, lexicon):
         self.session = lexicon.session
         self.lexicon = lexicon
+        self.root = RootFNode('')
 
-    def add_fact(self, pred, _commit=True):
-        verb_ = type(pred)
-        verb_name = get_name(verb_)
-        verb_term = self.lexicon.get_term(verb_name)
-        objects = []
-        for label, otype in verb_.objs.items():
-            obj = getattr(pred, label, None)
-            if obj:
-                assert isinstance(obj, otype)
-                oname = get_name(obj)
-                oterm = self.lexicon.get_term(oname)
-                objects.append(Object(label, oterm))
-        p = Predicate(verb_term, objects)
-        self.session.add(p)
-        if _commit:
-            self.session.commit()
-        return p
+    def add_fact(self, fact, _commit=True):
+        paths = get_paths(fact)
+        old_node = self.root
+        for path in paths:
+            ntype_name = path[-1]
+            mapper = Node.__mapper__
+            nclass = mapper.base_mapper.polymorphic_map[ntype_name].class_
+            node = nclass.get_or_create(old_node, fact, path)
+            old_node = node
+        if not old_node.terminal:
+            fnode = Fact()
+            old_node.terminal = fnode
+
 
     @classmethod
     def make_pred(cls, verb_, **objs):
@@ -59,3 +110,96 @@ class FactSet(object):
 
     def query(self, q):
         pass
+
+
+
+
+class FactNode(Base):
+    '''
+    An abstact node in the network of facts.
+    It is extended by concrete node classes.
+    '''
+    __tablename__ = 'factnodes'
+
+    id = Column(Integer, Sequence('factnode_id_seq'), primary_key=True)
+    child_path_str = Column(String)
+    parent_id = Column(Integer, ForeignKey('factnodes.id'))
+    parent = relationship('FactNode', remote_side=[id], backref='children',
+                         primaryjoin="FactNode.id==FactNode.parent_id")
+
+    ntype = Column(Integer)
+    __mapper_args__ = {'polymorphic_on': ntype}
+
+
+    def _get_path(self):
+        try:
+            return self._path
+        except AttributeError:
+            try:
+                self._path = self.parent.child_path + tuple(self.child_path_str)
+            except AttributeError:
+                self._path = tuple(self.child_path_str)
+            return self._path
+
+    def _set_path(self, path):
+        self.child_path_str = path[-1]
+        self._path = path
+
+    child_path = property(_get_path, _set_path)
+
+    @classmethod
+    def get_or_create(cls, parent, w, path):
+        value = resolve(w, path)
+        try:
+            return parent.children.filter(cls.value==value).one()
+        except NoResultFound:
+            pass
+        #  build the node and append it
+        node = cls(value)
+        parent.children.append(node)
+        if not parent.child_path:
+            parent.child_path = path
+        return node
+
+
+class RootFNode(FactNode):
+    '''
+    A root factnode
+    '''
+    __tablename__ = 'rootfnodes'
+    __mapper_args__ = {'polymorphic_identity': '_root'}
+
+
+class NegFNode(FactNode):
+    '''
+    A node that tests whether a predicate is negated
+    '''
+    __tablename__ = 'negfnodes'
+    __mapper_args__ = {'polymorphic_identity': '_neg'}
+
+    value = Column(Boolean)
+
+    def __init__(self, true):
+        self.value = true
+
+
+class TermFNode(FactNode):
+    '''
+    '''
+    __mapper_args__ = {'polymorphic_identity': '_term'}
+    term_id = Column(Integer, ForeignKey('terms.id'))
+    value = relationship('Term',
+                         primaryjoin="Term.id==TermFNode.term_id")
+
+    def __init__(self, term):
+        self.value = term
+
+
+class LabelFNode(FactNode):
+    '''
+    '''
+    __mapper_args__ = {'polymorphic_identity': '_label'}
+    value = Column(String)
+
+    def __init__(self, label):
+        self.value = label

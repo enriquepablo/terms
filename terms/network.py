@@ -29,146 +29,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from terms.terms import Base, Term
 from terms.predicates import Predicate
 from terms.lexicon import Lexicon
-from terms.factset import FactSet
-
-node_types = []
-
-node_type_names = {}
-
-
-# XXX this registry should be persistent
-def register(tname):
-    '''
-    class decorator generator,
-    used for Node classes.
-
-    Takes a string (tname),
-    and when a class is created,
-    registers the name and the class
-    so they can later be retrieved through
-    get_tnode() and get_tnum().
-
-    Also sets the provided tname
-    as a class attribute (tname) on the class.
-    '''
-    def fun(nodeclass):
-        node_types.append(nodeclass)
-        nodeclass.tname = tname
-        return nodeclass
-    return fun
-
-def reg_tnum(tname):
-    n = len(node_types)
-    node_type_names[tname] = n
-    return n
-
-def get_tnode(tname):
-    '''
-    if a class has been registered with tname,
-    this returns the class.
-
-    Otherwise returns None
-    '''
-    if isinstance(tname, int):
-        return node_types[tname]
-    else:
-        return node_types[node_type_names[tname]]
-
-def get_tnum(tname):
-    '''
-    Given a string tname,
-    if it has been used to register a class,
-    returns the order in which it was registered.
-    
-    Otherwise raises KeyError
-    '''
-    return node_type_names[tname]
-
-def get_ntype(w):
-    '''
-    Get the registration name of the node class
-    that corresponds to the provided word w,
-    as returned by resolve.
-    '''
-    if isinstance(w, boolean):
-        return '_neg'
-    elif isinstance(w, str):
-        return '_label'
-    elif isa(w, thing):
-        return '_elem'
-    elif isa(w, exists):
-        return '_pred'
-    elif are(w, word):
-        return '_set'
-    else:
-        return get_name(w)
-
-def get_paths(w):
-    '''
-    build a path for each testable feature in w (a word).
-    Each path is a tuple of strings,
-    and corresponds to a node in the primary network.
-    '''
-    paths = []
-    _recurse_paths(w, paths, ())
-    return paths
-
-def _recurse_paths(pred, paths, path):
-    paths.append(path + ('neg',))
-    paths.append(path + ('verb',))
-    for l, o in pred.args:
-        paths.append(path + (l, 'label'))
-        if isa(o, exists):
-            _recurse_paths(o, paths, path + (l,))
-        else:
-            paths.append(path + (l,))
-
-def resolve(w, path):
-    '''
-    Get the value pointed at by path in w (a word).
-    It can be a boolean (for neg nodes),
-    a sting (for label nodes),
-    a word, or some custom value for custom node types.
-    '''
-    for segment in path:
-        if segment in special_resolvers:
-            w = special_resolvers[segment](w, path)
-        else:
-            w = getattr(w, segment, None)
-    return w
-
-special_resolvers = {}
-
-def _res_neg(o, path):
-    return o.true
-
-special_resolvers['_neg'] = _res_neg
-
-
-def _res_verb(o, path):
-    return get_type(o)
-
-special_resolvers['_verb'] = _res_verb
-
-
-def _res_label(o, path):
-    return path[-2]
-
-special_resolvers['_label'] = _res_label
-
-
-class Match(dict):
-    def __init__(self, fact, *args, **kwargs):
-        self.fact = fact  # word
-        self.prem = None
-        super(Match, self).__init__(*args, **kwargs)
-
-    def copy(self):
-        new_match = Match(self.fact)
-        for k, v in self.items():
-            new_match[k] = v
-        new_match.prem = self.prem
-        return new_match
+from terms.factset import FactSet, Match, get_paths, resolve
 
 
 class Node(Base):
@@ -179,20 +40,19 @@ class Node(Base):
     __tablename__ = 'nodes'
 
     id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
-    path_str = Column(String)
+    child_path_str = Column(String)
     var = Column(Integer)
     parent_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship('Node', remote_side=[id], backref='children',
                          primaryjoin="Node.id==Node.parent_id")
 
-    ntype = Column(Integer)
+    ntype = Column(String)
     __mapper_args__ = {'polymorphic_on': ntype}
 
 
-    def __init__(self, network, path, var=0):
-        self.path = path  # tuple
+    def __init__(self, path, var=0):
+        self.child_path = path  # tuple
         self.var = var  # int
-        self.ntype = get_tnum(self.tname)  #  node type num
         # self.children = []  # nodes
         # self.terminals = []  # prem nodes (terminals)
 
@@ -200,78 +60,73 @@ class Node(Base):
         try:
             return self._path
         except AttributeError:
-            self._path = tuple(self.path_str.split('.'))
+            try:
+                self._path = self.parent.child_path + tuple(self.child_path_str)
+            except AttributeError:
+                self._path = tuple(self.child_path_str)
             return self._path
 
     def _set_path(self, path):
-        self.path_str = '.'.join(path)
+        self.child_path_str = path[-1]
         self._path = path
 
-    path = property(_get_path, _set_path)
+    child_path = property(_get_path, _set_path)
 
-    def filter_siblings(self, parent, match):
-        raise NotImplementedError
+    def filter_children(self, match):
+        if not self.children:
+            return []
+        value = resolve(match.fact, self.child_path)
+        vals = self.children[0].get_values(value, match)
+        #  XXX query = not self.var and self.value.in_(vals) or self.var in match and self.value.in_(match[self.var]) or match[self.var] = self.value and isa(vals[0], self.value)
+        return self.filter(Node.var==self.var, self.__class__.value.in_(vals))
+
+    @classmethod
+    def get_values(self, value, match):
+        return (value,)
 
     def dispatch(self, match):
         if self.var:
             if self.var in match:
-                if match[self.var] != self.get_val():
+                if match[self.var] != self.value:
                     return
             else:
-                match[self.var] = self.get_val()
-        if self.children:
-            children = self.children[0].filter_siblings(self, match)
-            for child in children:
-                new_match = match.copy()
-                child.dispatch(new_match)
-        if self.terminals:
-            for p in self.terminals:
-                new_match = match.copy()
-                p.dispatch(new_match)
-
-    def get_val(self):
-        raise NotImplementedError
+                match[self.var] = self.value
+        for child in self.filter_children(match):
+            new_match = match.copy()
+            child.dispatch(new_match)
+        for p in self.terminals:
+            new_match = match.copy()
+            p.dispatch(new_match)
 
     @classmethod
     def get_node(cls, parent, w, path, var_map):
         raise NotImplementedError
 
 
-@register('_root')
 class RootNode(Node):
     '''
     A root node
     '''
-    __mapper_args__ = {'polymorphic_identity': reg_tnum('_root')}
+    __mapper_args__ = {'polymorphic_identity': '_root'}
 
     def __init__(self, *args, **kwargs):
         super(RootNode, self).__init__(*args, **kwargs)
-
-    def filter_siblings(self, parent, match):
-        return (self,)
 
     def get_node(self, parent, w, var_map):
         return (self,)
 
 
-@register('_neg')
 class NegNode(Node):
     '''
     A node that tests whether a predicate is negated
     '''
-    __mapper_args__ = {'polymorphic_identity': reg_tnum('_neg')}
+    __mapper_args__ = {'polymorphic_identity': '_neg'}
 
-    true = Column(Boolean)
+    value = Column(Boolean)
 
     def __init__(self, true, *args, **kwargs):
-        self.true = true
+        self.value = true
         super(NegNode, self).__init__(*args, **kwargs)
-
-    def filter_siblings(self, parent, match):
-        true = resolve(match.fact, self.path)
-        if true == self.true:
-            return (self,)
-        return (parent.children[1],)
 
     def get_node(self, parent, w, var_map):
         try:
@@ -283,28 +138,22 @@ class NegNode(Node):
         parent.children.append(node)
         return node
 
+    @classmethod
+    def get_values(self, val, match):
+        return (val,)
 
-@register('_term')
+
 class TermNode(Node):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': reg_tnum('_term')}
+    __mapper_args__ = {'polymorphic_identity': '_term'}
     term_id = Column(Integer, ForeignKey('terms.id'))
-    term = relationship('Term',
+    value = relationship('Term',
                          primaryjoin="Term.id==TermNode.term_id")
 
     def __init__(self, term, *args, **kwargs):
-        self.term = term
+        self.value = term
         super(TermNode, self).__init__(*args, **kwargs)
-
-    def filter_siblings(self, parent, match):
-        w = resolve(match.fact, self.path)
-        words = lexicon.get_subwords(w)
-        terms = [lexicon.get_term(w) for w in words]
-        return parent.children.filter(SetNode.var==w.var, SetNode.term.in_(terms))
-
-    def get_val(self):
-        return self.term
 
     def get_node(self, parent, w, var_map):
         term = lexicon.get_term(w)
@@ -326,25 +175,25 @@ class TermNode(Node):
         parent.children.append(node)
         return node
 
+    @classmethod
+    def get_values(self, val, match):
+        words = self.get_subwords(val)
+        return [self.lexicon.get_term(w) for w in words]
 
-@register('_label')
-class LabelNode(TermNode):
+
+class LabelNode(Node):
     '''
     '''
-    __mapper_args__ = {'polymorphic_identity': reg_tnum('_label')}
-    label = Column(String)
+    __mapper_args__ = {'polymorphic_identity': '_label'}
+    value = Column(String)
 
     def __init__(self, label, *args, **kwargs):
-        self.label = label
+        self.value = label
         super(LabelNode, self).__init__(*args, **kwargs)
 
-    def filter_siblings(self, parent, match):
-        w = resolve(match.fact, self.path)
-        sibs = []
-        for sib in parent.children:
-            if hasattr(w, sib.label):
-                sibs.append(sib)
-        return sibs
+    @classmethod
+    def get_values(self, val, match):
+        return val.objs.keys() - match.keys()
 
     def get_node(self, parent, w, var_map):
         try:
@@ -352,7 +201,7 @@ class LabelNode(TermNode):
         except NoResultFound:
             pass
         #  build the node and append it
-        node = LabelNode(w, self.path, t=get_tnum(LabelNode.tname))
+        node = LabelNode(w, self.path)
         parent.children.append(node)
         return node
 
@@ -641,10 +490,10 @@ class Network(object):
     def add_fact(self, fact):
         m = Match(fact)
         if self.children:
-            children = self.children[0].filter_siblings(self, m)
+            children = self.root.filter_children(m)
             for ch in children:
                 ch.dispatch(m)
-        self.kb.factset.add_fact(fact)
+        self.factset.add_fact(fact)
 
     def add_rule(self, wprems, conds, wcons, orders=None):
         rule = Rule(self)
@@ -654,8 +503,9 @@ class Network(object):
             old_node = self
             for path in paths:
                 w = resolve(prem, path)
-                ntype = get_ntype(w)
-                nclass = get_tnode(ntype)
+                ntype_name = path[-1]
+                mapper = Node.__mapper__
+                nclass = mapper.base_mapper.polymorphic_map[ntype_name].class_
                 node = nclass.get_node(old_node, w, path, var_map)
                 old_node = node
             pnode = PremNode()
