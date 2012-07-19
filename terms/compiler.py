@@ -153,7 +153,7 @@ class KB(object):
     def p_predicate(self, p):
         '''predicate : verb subject
                      | verb subject COMMA mods'''
-        if len(p) == 4:
+        if len(p) == 3:
             p[0] = self.factset.make_pred(p[1], subj=p[2])
         else:
             p[0] = self.factset.make_pred(p[1], subj=p[2], **p[4])
@@ -209,7 +209,7 @@ class KB(object):
 
     def p_name_def(self, p):
         '''name-def : SYMBOL IS A term'''
-        p[0] = self.lexicon.make_word(p[1], p[3])
+        p[0] = self.lexicon.make_word(p[1], p[4])
 
     def p_verb_def(self, p):
         '''verb-def :  SYMBOL IS terms COMMA mod-defs'''

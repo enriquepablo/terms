@@ -67,9 +67,10 @@ def _init_exists(self, classname, bases, newdict):
         setattr(self, '_true', True)
 
 def _getattr_exists(self, label):
-    if not label.startswith('_'):
+    if label not in ('objs',) and \
+        not label.startswith('_'):
         label = '_' + label
-    return super(exists, self).__getattr__(label)
+    return super(exists, self).__getattribute__(label)
 
 def negate(self):
     true = getattr(self, 'true', True)
@@ -77,7 +78,7 @@ def negate(self):
 
 exists.__new__ = _new_exists
 exists.__init__ = _init_exists
-exists.__getattr__ = _getattr_exists
+exists.__getattribute__ = _getattr_exists
 exists.objs = {'subj': word}
 
 

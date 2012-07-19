@@ -22,14 +22,14 @@ import re
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from terms.terms import Base, Term
+from terms.terms import Base, Term, Session
 from terms.predicates import Predicate
 from terms.lexicon import Lexicon
-from terms.factset import FactSet, Match, get_paths, resolve
+from terms.factset import FactSet, Match
 
 
 class Node(Base):
@@ -38,7 +38,6 @@ class Node(Base):
     It is extended by concrete node classes.
     '''
     __tablename__ = 'nodes'
-
     id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
     child_path_str = Column(String)
     var = Column(Integer)
@@ -74,7 +73,7 @@ class Node(Base):
     def filter_children(self, match):
         if not self.children:
             return []
-        value = resolve(match.fact, self.child_path)
+        value = self.resolve(match.fact, self.child_path)
         vals = self.children[0].get_values(value, match)
         #  XXX query = not self.var and self.value.in_(vals) or self.var in match and self.value.in_(match[self.var]) or match[self.var] = self.value and isa(vals[0], self.value)
         return self.filter(Node.var==self.var, self.__class__.value.in_(vals))
@@ -479,7 +478,6 @@ class Network(object):
 
     def __init__(self, dbaddr='sqlite:///:memory:'):
         self.engine = create_engine(dbaddr)
-        Session = sessionmaker()
         Session.configure(bind=self.engine)
         self.session = Session()
         try:
@@ -496,7 +494,7 @@ class Network(object):
 
     def add_fact(self, fact):
         m = Match(fact)
-        if self.children:
+        if self.root.children:
             children = self.root.filter_children(m)
             for ch in children:
                 ch.dispatch(m)
@@ -506,10 +504,10 @@ class Network(object):
         rule = Rule(self)
         for wprem in wprems:
             var_map = []
-            paths = get_paths(wprem)
+            paths = Node.get_paths(wprem)
             old_node = self
             for path in paths:
-                w = resolve(prem, path)
+                w = Node.resolve(prem, path)
                 ntype_name = path[-1]
                 mapper = Node.__mapper__
                 nclass = mapper.base_mapper.polymorphic_map[ntype_name].class_

@@ -19,58 +19,13 @@
 
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from terms.terms import Base
+from terms.terms import Base, Session
+from terms.words import word, verb, noun, exists, thing, isa, are
 from terms.words import get_name, get_type
 
-
-def get_paths(w):
-    '''
-    build a path for each testable feature in w (a word).
-    Each path is a tuple of strings,
-    and corresponds to a node in the primary network.
-    '''
-    paths = []
-    _recurse_paths(w, paths, ())
-    return paths
-
-def _recurse_paths(pred, paths, path):
-    paths.append(path + ('_neg',))
-    paths.append(path + ('_verb',))
-    for l, o in pred.args:
-        paths.append(path + (l, '_label'))
-        if isa(o, exists):
-            _recurse_paths(o, paths, path + (l,))
-        elif isa(o, word):
-            paths.append(path + (l, '_term'))
-        else:
-            segment = get_type(o)  # XXX __isa__
-            paths.append(path + (l, segment))
-
-def resolve(w, path):
-    '''
-    Get the value pointed at by path in w (a word).
-    It can be a boolean (for neg nodes),
-    a sting (for label nodes),
-    a word, or some custom value for custom node types.
-    '''
-    for segment in path:
-        if segment == '_neg':
-            return w.true
-        elif segment == '_verb':
-            return get_term(get_type(w))
-        elif segment == '_label':
-            return path[-2]
-        elif segment == '_term':
-            return get_term(w)
-        else:
-            nclass = Node._get_nclass(segment)
-            if nclass:
-                return nclass._get_val(w, path)
-            else:
-                w = getattr(w, segment)
-    return w
 
 class Match(dict):
 
@@ -94,13 +49,52 @@ class FactSet(object):
     def __init__(self, lexicon):
         self.session = lexicon.session
         self.lexicon = lexicon
-        self.root = RootFNode()
-
-    @classmethod
-    def _get_nclass(self, ntype):
-        mapper = Node.__mapper__
         try:
-            return mapper.base_mapper.polymorphic_map[ntype_name].class_
+            self.root = self.session.query(RootFNode).one()
+        except NoResultFound:
+            self.root = RootFNode()
+            self.session.add(self.root)
+            self.session.commit()
+
+    def get_paths(self, w):
+        '''
+        build a path for each testable feature in w (a word).
+        Each path is a tuple of strings,
+        and corresponds to a node in the primary network.
+        '''
+        paths = []
+        self._recurse_paths(w, paths, ())
+        return paths
+
+    def _recurse_paths(self, pred, paths, path):
+        paths.append(path + ('_neg',))
+        paths.append(path + ('_verb',))
+        for l in sorted(pred.objs):
+            o = pred.objs[l]
+            paths.append(path + (l, '_label'))
+            if isa(o, exists):
+                self._recurse_paths(o, paths, path + (l,))
+            elif isa(o, word):
+                paths.append(path + (l, '_term'))
+            else:
+                segment = get_type(o)  # XXX __isa__
+                paths.append(path + (l, segment))
+
+    def resolve(self, cls, w, path):
+        '''
+        Get the value pointed at by path in w (a word).
+        It can be a boolean (for neg nodes),
+        a sting (for label nodes),
+        a word, or some custom value for custom node types.
+        '''
+        for segment in path[:-1]:
+            w = getattr(w, segment)
+        return cls.get_qval(w, path, self.lexicon)
+
+    def _get_nclass(self, ntype):
+        mapper = FactNode.__mapper__
+        try:
+            return mapper.base_mapper.polymorphic_map[ntype].class_
         except KeyError:
             return None
 
@@ -109,16 +103,33 @@ class FactSet(object):
         raise NotImplementedError
 
     def add_fact(self, fact, _commit=True):
-        paths = get_paths(fact)
+        paths = self.get_paths(fact)
         old_node = self.root
         for path in paths:
-            ntype_name = path[-1]
-            nclass = self._get_nclass(ntype_name)
-            node = nclass.get_or_create(old_node, fact, path)
+            node = self.get_or_create_node(old_node, fact, path)
             old_node = node
         if not old_node.terminal:
             fnode = Fact()
+            self.session.add(fnode)
             old_node.terminal = fnode
+            self.session.commit()
+
+    def get_or_create_node(self, parent, w, path):
+        ntype_name = path[-1]
+        cls = self._get_nclass(ntype_name)
+        value = self.resolve(cls, w, path)
+        try:
+            return parent.children.filter(cls.value==value).one()
+        except NoResultFound:
+            pass
+        #  build the node and append it
+        node = cls(value)
+        self.session.add(node)
+        parent.children.append(node)
+        if not parent.child_path:
+            parent.child_path = path
+        self.session.commit()
+        return node
 
 
     @classmethod
@@ -147,12 +158,12 @@ class FactNode(Base):
     id = Column(Integer, Sequence('factnode_id_seq'), primary_key=True)
     child_path_str = Column(String)
     parent_id = Column(Integer, ForeignKey('factnodes.id'))
-    parent = relationship('FactNode', remote_side=[id], backref='children',
+    parent = relationship('FactNode',
+                         backref=backref('children', remote_side=[id], lazy='dynamic'),
                          primaryjoin="FactNode.id==FactNode.parent_id")
 
     ntype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': ntype}
-
 
     def _get_path(self):
         try:
@@ -161,7 +172,10 @@ class FactNode(Base):
             try:
                 self._path = self.parent.child_path + tuple(self.child_path_str)
             except AttributeError:
-                self._path = tuple(self.child_path_str)
+                try:
+                    self._path = tuple(self.child_path_str)
+                except TypeError:
+                    return False
             return self._path
 
     def _set_path(self, path):
@@ -171,18 +185,8 @@ class FactNode(Base):
     child_path = property(_get_path, _set_path)
 
     @classmethod
-    def get_or_create(cls, parent, w, path):
-        value = resolve(w, path)
-        try:
-            return parent.children.filter(cls.value==value).one()
-        except NoResultFound:
-            pass
-        #  build the node and append it
-        node = cls(value)
-        parent.children.append(node)
-        if not parent.child_path:
-            parent.child_path = path
-        return node
+    def get_qval(cls, w, path):
+        raise NotImplementedError
 
 
 class RootFNode(FactNode):
@@ -206,6 +210,10 @@ class NegFNode(FactNode):
 
     def __init__(self, true):
         self.value = true
+    
+    @classmethod
+    def get_qval(cls, w, path, lexicon):
+        return w.true
 
 
 class TermFNode(FactNode):
@@ -221,6 +229,28 @@ class TermFNode(FactNode):
     def __init__(self, term):
         self.value = term
 
+    @classmethod
+    def get_qval(cls, w, path, lexicon):
+        return lexicon.get_term(get_name(w))
+
+
+class VerbFNode(FactNode):
+    '''
+    '''
+    __tablename__ = 'verbfnodes'
+    __mapper_args__ = {'polymorphic_identity': '_verb'}
+    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    term_id = Column(Integer, ForeignKey('terms.id'))
+    value = relationship('Term',
+                         primaryjoin="Term.id==VerbFNode.term_id")
+
+    def __init__(self, term):
+        self.value = term
+
+    @classmethod
+    def get_qval(cls, w, path, lexicon):
+        return lexicon.get_term(get_name(get_type(w)))
+
 
 class LabelFNode(FactNode):
     '''
@@ -232,3 +262,19 @@ class LabelFNode(FactNode):
 
     def __init__(self, label):
         self.value = label
+
+    @classmethod
+    def get_qval(cls, w, path, lexicon):
+        return path[-2]
+
+
+class Fact(Base):
+    '''
+    a terminal node for a fact
+    '''
+    __tablename__ = 'facts'
+
+    id = Column(Integer, Sequence('fact_id_seq'), primary_key=True)
+    parent_id = Column(Integer, ForeignKey('factnodes.id'))
+    parent = relationship('FactNode', backref=backref('terminal', uselist=False),
+                         primaryjoin="FactNode.id==Fact.parent_id")

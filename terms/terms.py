@@ -20,7 +20,7 @@
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declared_attr
 
 class Base(object):
@@ -28,6 +28,7 @@ class Base(object):
     def __tablename__(cls):
         return cls.__name__.lower() + 's'
 
+Session = scoped_session(sessionmaker())
 Base = declarative_base(cls=Base)
 
 
