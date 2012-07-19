@@ -41,6 +41,15 @@ class Match(dict):
         new_match.prem = self.prem
         return new_match
 
+    def merge(self, m):
+        new_match = Match(self.fact)
+        for k, v in self.items() + m.items():
+            if k in m:
+                if self[k] != v:
+                    return False
+            new_match[k] = v
+        return new_match
+
 
 class FactSet(object):
     """
@@ -89,6 +98,9 @@ class FactSet(object):
         '''
         for segment in path[:-1]:
             w = getattr(w, segment)
+        name = get_name(w)
+        if patterns.varpat.match(name):
+            return w
         return cls.get_qval(w, path, self.lexicon)
 
     def _get_nclass(self, ntype):
@@ -142,10 +154,52 @@ class FactSet(object):
         return verb_(name, (), objs)
 
 
-    def query(self, q):
-        pass
+    def query(self, *q):
+        '''
+        q is a word or set of words,
+        possibly with varnames
+        '''
+        submatches = []
+        for w in q:
+            pmatches = self.root.dispatch(w)
+            submatches.append(pmatches)
+        return self.merge(submatches)
 
+    def merge(self, submatches):
+        final = []
+        while submatches:
+            sm = submatches.pop()
+            new = []
+            for m in final:
+                for n in sm:
+                    nm = m.merge(n)
+                    if nm:
+                        new.append(nm)
+            final = new
+        return final
 
+    def dispatch(self, parent, match, lexicon, matches):
+        ntype_name = parent.child_path[-1]
+        cls = self._get_nclass(ntype_name)
+        value = self.resolve(cls, match.fact, parent.child_path)
+        isvar = False
+        if isa(value, word):  # var        XXX Aquí voy añadiendo queries a factset, después hay que pasar el trabajo de factset a network
+            isvar = True
+            name = get_name(value)
+            if name in match:
+                children = parent.children.filter(cls.value==match[name])
+            else:
+                stypes = self.lexicon.get_subterms(lexicon.get_term(get_name(get_type(value))))
+                children = parent.children.filter(cls.parent.in_(stypes))
+        else:
+            children = parent.children.filter(cls.value==value)
+        for child in children:
+            new_match = match.copy()
+            if isvar and name not in match:
+                new_match[name] = child
+            self.dispatch(child, new_match, lexicon, matches)
+        if self.terminal:
+            matches.append(match)
 
 
 class FactNode(Base):
@@ -187,6 +241,7 @@ class FactNode(Base):
     @classmethod
     def get_qval(cls, w, path):
         raise NotImplementedError
+
 
 
 class RootFNode(FactNode):
