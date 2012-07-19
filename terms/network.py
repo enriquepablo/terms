@@ -50,8 +50,7 @@ class Node(Base):
     __mapper_args__ = {'polymorphic_on': ntype}
 
 
-    def __init__(self, path, var=0):
-        self.child_path = path  # tuple
+    def __init__(self, var=0):
         self.var = var  # int
         # self.children = []  # nodes
         # self.terminals = []  # prem nodes (terminals)
@@ -107,7 +106,9 @@ class RootNode(Node):
     '''
     A root node
     '''
+    __tablename__ = 'rootnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
+    id = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
 
     def __init__(self, *args, **kwargs):
         super(RootNode, self).__init__(*args, **kwargs)
@@ -120,8 +121,10 @@ class NegNode(Node):
     '''
     A node that tests whether a predicate is negated
     '''
+    __tablename__ = 'negnodes'
     __mapper_args__ = {'polymorphic_identity': '_neg'}
 
+    id = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     value = Column(Boolean)
 
     def __init__(self, true, *args, **kwargs):
@@ -146,7 +149,9 @@ class NegNode(Node):
 class TermNode(Node):
     '''
     '''
+    __tablename__ = 'termnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
+    id = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term',
                          primaryjoin="Term.id==TermNode.term_id")
@@ -184,7 +189,9 @@ class TermNode(Node):
 class LabelNode(Node):
     '''
     '''
+    __tablename__ = 'labelnodes'
     __mapper_args__ = {'polymorphic_identity': '_label'}
+    id = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     value = Column(String)
 
     def __init__(self, label, *args, **kwargs):
@@ -484,7 +491,7 @@ class Network(object):
 
     def initialize(self):
         Base.metadata.create_all(self.engine)
-        self.root = RootNode(self, '')
+        self.root = RootNode()
         self.session.commit()
 
     def add_fact(self, fact):
@@ -567,14 +574,18 @@ class ConObject(Base):
 class StrConObject(ConObject):
     '''
     '''
+    __tablename__ = 'strconobjects'
     __mapper_args__ = {'polymorphic_identity': 0}
+    id = Column(Integer, ForeignKey('conobjects.id'), primary_key=True)
     value = Column(String)
 
 
 class SenConObject(ConObject):
     '''
     '''
+    __tablename__ = 'senconobjects'
     __mapper_args__ = {'polymorphic_identity': 1}
+    id = Column(Integer, ForeignKey('conobjects.id'), primary_key=True)
     con_id = Column(Integer, ForeignKey('consecuences.id'))
     value = relationship('Consecuence',
                          primaryjoin="Consecuence.id==SenConObject.con_id")

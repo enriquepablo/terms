@@ -17,8 +17,12 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from terms.words import get_name
-from terms.predicates import Predicate, Object
+from sqlalchemy import Table, Column, Sequence
+from sqlalchemy import ForeignKey, Integer, String, Boolean
+from sqlalchemy.orm import relationship
+
+from terms.terms import Base
+from terms.words import get_name, get_type
 
 
 def get_paths(w):
@@ -38,8 +42,11 @@ def _recurse_paths(pred, paths, path):
         paths.append(path + (l, '_label'))
         if isa(o, exists):
             _recurse_paths(o, paths, path + (l,))
-        else:
+        elif isa(o, word):
             paths.append(path + (l, '_term'))
+        else:
+            segment = get_type(o)  # XXX __isa__
+            paths.append(path + (l, segment))
 
 def resolve(w, path):
     '''
@@ -58,10 +65,15 @@ def resolve(w, path):
         elif segment == '_term':
             return get_term(w)
         else:
-            w = getattr(w, segment)
+            nclass = Node._get_nclass(segment)
+            if nclass:
+                return nclass._get_val(w, path)
+            else:
+                w = getattr(w, segment)
     return w
 
 class Match(dict):
+
     def __init__(self, fact, *args, **kwargs):
         self.fact = fact  # word
         self.prem = None
@@ -82,15 +94,26 @@ class FactSet(object):
     def __init__(self, lexicon):
         self.session = lexicon.session
         self.lexicon = lexicon
-        self.root = RootFNode('')
+        self.root = RootFNode()
+
+    @classmethod
+    def _get_nclass(self, ntype):
+        mapper = Node.__mapper__
+        try:
+            return mapper.base_mapper.polymorphic_map[ntype_name].class_
+        except KeyError:
+            return None
+
+    @classmethod
+    def _get_val(self, w, path):
+        raise NotImplementedError
 
     def add_fact(self, fact, _commit=True):
         paths = get_paths(fact)
         old_node = self.root
         for path in paths:
             ntype_name = path[-1]
-            mapper = Node.__mapper__
-            nclass = mapper.base_mapper.polymorphic_map[ntype_name].class_
+            nclass = self._get_nclass(ntype_name)
             node = nclass.get_or_create(old_node, fact, path)
             old_node = node
         if not old_node.terminal:
@@ -168,6 +191,7 @@ class RootFNode(FactNode):
     '''
     __tablename__ = 'rootfnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
+    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
 
 
 class NegFNode(FactNode):
@@ -176,6 +200,7 @@ class NegFNode(FactNode):
     '''
     __tablename__ = 'negfnodes'
     __mapper_args__ = {'polymorphic_identity': '_neg'}
+    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
 
     value = Column(Boolean)
 
@@ -186,7 +211,9 @@ class NegFNode(FactNode):
 class TermFNode(FactNode):
     '''
     '''
+    __tablename__ = 'termfnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
+    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term',
                          primaryjoin="Term.id==TermFNode.term_id")
@@ -198,7 +225,9 @@ class TermFNode(FactNode):
 class LabelFNode(FactNode):
     '''
     '''
+    __tablename__ = 'labelfnodes'
     __mapper_args__ = {'polymorphic_identity': '_label'}
+    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     value = Column(String)
 
     def __init__(self, label):
