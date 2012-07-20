@@ -31,13 +31,13 @@ def test_terms(): # test generator
     d = os.path.join(here, 'examples')
     files = os.listdir(d)
 #    yield run_npl, '/home/eperez/virtualenvs/ircbot/src/nl/nl/npl_tests/lists.npl'
-    network = Network()
-    kb = KB(network,
-            lex_optimize=False,
-            yacc_optimize=False,
-            yacc_debug=True)
     for f in files:
         if f.endswith('.trm'):
+            network = Network()
+            kb = KB(network,
+                    lex_optimize=False,
+                    yacc_optimize=False,
+                    yacc_debug=True)
             yield run_terms, kb, os.path.join(d, f)
 
 

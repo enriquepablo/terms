@@ -1,0 +1,40 @@
+
+person is thing.
+
+place is thing.
+
+walks is exists, subj a person, from a place, to a place.
+
+john is a person.
+
+madrid is a place.
+
+seville is a place.
+
+(walks john, from madrid, to seville).
+
+(walks john)?
+true
+
+(walks john, from madrid)?
+true
+
+(walks john, to seville)?
+true
+
+(walks john, from madrid, to seville)?
+true
+
+juan is a person.
+
+(walks juan)?
+false
+
+(walks juan, from madrid)?
+false
+
+(walks juan, to seville)?
+false
+
+(walks juan, from madrid, to seville)?
+false

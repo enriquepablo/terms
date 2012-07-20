@@ -22,6 +22,7 @@ from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
+from terms import patterns
 from terms.terms import Base, Session
 from terms.words import word, verb, noun, exists, thing, isa, are
 from terms.words import get_name, get_type
@@ -110,10 +111,6 @@ class FactSet(object):
         except KeyError:
             return None
 
-    @classmethod
-    def _get_val(self, w, path):
-        raise NotImplementedError
-
     def add_fact(self, fact, _commit=True):
         paths = self.get_paths(fact)
         old_node = self.root
@@ -161,44 +158,56 @@ class FactSet(object):
         '''
         submatches = []
         for w in q:
-            pmatches = self.root.dispatch(w)
-            submatches.append(pmatches)
-        return self.merge(submatches)
+            m = Match(w)
+            smatches = []
+            self.dispatch(self.root, m, smatches)
+            submatches.append(smatches)
+        matches = self.merge(submatches)
+        if not matches:
+            return 'false'
+        elif not matches[0]:
+            return 'true'
+        return matches
 
     def merge(self, submatches):
-        final = []
+        final = submatches.pop()
         while submatches:
             sm = submatches.pop()
             new = []
-            for m in final:
-                for n in sm:
+            for n in sm:
+                for m in final:
                     nm = m.merge(n)
                     if nm:
                         new.append(nm)
             final = new
         return final
 
-    def dispatch(self, parent, match, lexicon, matches):
-        ntype_name = parent.child_path[-1]
-        cls = self._get_nclass(ntype_name)
-        value = self.resolve(cls, match.fact, parent.child_path)
-        isvar = False
-        if isa(value, word):  # var        XXX Aquí voy añadiendo queries a factset, después hay que pasar el trabajo de factset a network
-            isvar = True
-            name = get_name(value)
-            if name in match:
-                children = parent.children.filter(cls.value==match[name])
+    def dispatch(self, parent, match, matches):
+        if parent.child_path:
+            ntype_name = parent.child_path[-1]
+            cls = self._get_nclass(ntype_name)
+            isvar = False
+            try:
+                value = self.resolve(cls, match.fact, parent.child_path)
+            except AttributeError:
+                children = parent.children.all()
             else:
-                stypes = self.lexicon.get_subterms(lexicon.get_term(get_name(get_type(value))))
-                children = parent.children.filter(cls.parent.in_(stypes))
-        else:
-            children = parent.children.filter(cls.value==value)
-        for child in children:
-            new_match = match.copy()
-            if isvar and name not in match:
-                new_match[name] = child
-            self.dispatch(child, new_match, lexicon, matches)
-        if self.terminal:
+                if isa(value, word):  # var        XXX Aquí voy añadiendo queries a factset, después hay que pasar el trabajo de factset a network
+                    isvar = True
+                    name = get_name(value)
+                    if name in match:
+                        children = parent.children.filter(cls.value==match[name])
+                    else:
+                        stypes = self.lexicon.get_subterms(lexicon.get_term(get_name(get_type(value))))
+                        children = parent.children.filter(cls.parent.in_(stypes))
+                else:
+                    children = parent.children.filter(cls.value==value)
+            for child in children:
+                new_match = match.copy()
+                if isvar and name not in match:
+                    new_match[name] = child
+                self.dispatch(child, new_match, matches)
+        if parent.terminal:
             matches.append(match)
 
 
@@ -212,7 +221,7 @@ class FactNode(Base):
     id = Column(Integer, Sequence('factnode_id_seq'), primary_key=True)
     child_path_str = Column(String)
     parent_id = Column(Integer, ForeignKey('factnodes.id'))
-    parent = relationship('FactNode',
+    parent = relationship('FactNode', uselist=False,
                          backref=backref('children', remote_side=[id], lazy='dynamic'),
                          primaryjoin="FactNode.id==FactNode.parent_id")
 
@@ -224,16 +233,13 @@ class FactNode(Base):
             return self._path
         except AttributeError:
             try:
-                self._path = self.parent.child_path + tuple(self.child_path_str)
+                self._path = tuple(self.child_path_str.split('.'))
             except AttributeError:
-                try:
-                    self._path = tuple(self.child_path_str)
-                except TypeError:
-                    return False
-            return self._path
+                return False
+        return self._path
 
     def _set_path(self, path):
-        self.child_path_str = path[-1]
+        self.child_path_str = '.'.join(path)
         self._path = path
 
     child_path = property(_get_path, _set_path)

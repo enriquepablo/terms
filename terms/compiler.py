@@ -32,6 +32,7 @@ class Lexer(object):
             'LPAREN',
             'RPAREN',
             'DOT',
+            'QMARK',
             'NOT',
             'IS',
             'A',
@@ -46,6 +47,7 @@ class Lexer(object):
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
     t_DOT = r'\.'
+    t_QMARK = r'\?'
     t_NOT = r'!'
 
     @TOKEN(SYMBOL_PAT)
@@ -129,7 +131,8 @@ class KB(object):
     # BNF
 
     def p_sentence(self, p):
-        '''sentence : assertion'''
+        '''sentence : assertion
+                    | question'''
         p[0] = p[1]
 
     def p_assertion(self, p):
@@ -139,6 +142,14 @@ class KB(object):
             p[0] = self.network.add_fact(p[1])
         else:
             p[0] = self.lexicon.save_word(p[1])
+
+    def p_question(self, p):
+        '''question : definition QMARK
+                    | fact QMARK'''
+        if isa(p[1], exists):
+            p[0] = self.factset.query(p[1])
+        else:
+            p[0] = self.lexicon.query(p[1])
 
     def p_fact(self, p):
         '''fact : LPAREN predicate RPAREN
