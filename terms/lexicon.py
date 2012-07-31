@@ -22,11 +22,12 @@ import re
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import sessionmaker
 
-from terms.words import word, noun, thing, verb, exists, get_name, get_type
-from terms.terms import Term, ObjectType
 from terms import exceptions
-
-NAME_PAT = re.compile(r'^([a-z][a-z_]*[a-z])[1-9]+$')
+from terms import patterns
+from terms.words import word, noun, thing, verb, exists
+from terms.words import get_name, get_type, get_bases
+from terms.terms import Term, ObjectType
+from terms.utils import Match, merge_submatches
 
 
 class Lexicon(object):
@@ -45,6 +46,22 @@ class Lexicon(object):
         self.add_word('thing', noun, _commit=False)
         self.add_word('exists', verb, _commit=False)
         self.session.commit()
+
+    def query(self, *q):
+        submatches = []
+        if not q:
+            return submatches
+        for w in q:
+            smatches = self.query_one(w)
+            if smatches:
+                submatches.append(smatches)
+        return merge_submatches(submatches)
+
+    def query_one(self, w):
+        name = get_name(w)
+        tname = get_name(get_type(w))
+        bnames = [get_name(b) for b in get_bases(w)]
+        raise NotImplementedError
 
     def make_word(self, name, word_type, **objs):
         if name in self.terms:
@@ -108,11 +125,14 @@ class Lexicon(object):
         return w
 
     def get_word(self, name):
-        if name in self.terms:
+        try:
             return self.terms[name]
-        term = self.get_term(name)
-        word_type = self.terms[term.term_type.name]
-        return self._make_name(name, word_type)
+        except KeyError:
+            term = self.get_term(name)
+            word_type = self.terms[term.term_type.name]
+            w = self.make_word(name, word_type)
+            self.terms[name] = w
+            return w
 
     def get_term(self, name):
         try:
@@ -149,7 +169,7 @@ class Lexicon(object):
 
     def _make_name(self, name, noun_=None):
         if noun_ is None:
-            m = NAME_PAT.match(name)
+            m = patterns.NAME_PAT.match(name)
             if m:
                 noun_ = self.terms[m.group(1)]
                 assert isinstance(noun_, noun)

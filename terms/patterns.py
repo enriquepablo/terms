@@ -26,3 +26,6 @@ varpat = re.compile(VAR_PAT)
 SYMBOL_PAT = r'[a-z][a-z_]*\d*'
 
 sympat = re.compile(SYMBOL_PAT)
+
+
+NAME_PAT = re.compile(r'^([a-z][a-z_]*[a-z])[1-9]+$')

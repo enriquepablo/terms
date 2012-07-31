@@ -23,6 +23,7 @@ from ply.lex import TOKEN
 
 from terms.patterns import SYMBOL_PAT, VAR_PAT
 from terms.words import word, verb, noun, exists, thing, get_name, isa, are
+from terms.utils import merge_submatches
 
 class Lexer(object):
 
@@ -36,6 +37,7 @@ class Lexer(object):
             'NOT',
             'IS',
             'A',
+            'SEMICOLON',
     )
 
     reserved = {
@@ -49,6 +51,7 @@ class Lexer(object):
     t_DOT = r'\.'
     t_QMARK = r'\?'
     t_NOT = r'!'
+    t_SEMICOLON = r';'
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self,t):
@@ -108,7 +111,7 @@ class KB(object):
 
         self.parser = ply.yacc.yacc(
             module=self, 
-            start='sentence',
+            start='construct',
             debug=yacc_debug,
             optimize=yacc_optimize)
 
@@ -130,26 +133,65 @@ class KB(object):
 
     # BNF
 
-    def p_sentence(self, p):
-        '''sentence : assertion
-                    | question'''
+    def p_construct(self, p):
+        '''construct : assertion
+                     | question'''
         p[0] = p[1]
 
     def p_assertion(self, p):
-        '''assertion : definition DOT
-                     | fact DOT'''
-        if isa(p[1], exists):
-            p[0] = self.network.add_fact(p[1])
-        else:
-            p[0] = self.lexicon.save_word(p[1])
+        '''assertion : sentence-list DOT'''
+                     # | rule DOT
+        for sen in p[1]:
+            if isa(sen, exists):
+                p[0] = self.network.add_fact(sen)
+            else:
+                if sen.type == 'noun-def':
+                    p[0] = self.lexicon.add_subword(sen.name, sen.bases)
+                elif sen.type == 'verb-def':
+                    p[0] = self.lexicon.add_subword(sen.name, sen.bases, **(sen.objs))
+                elif sen.type == 'name-def':
+                    p[0] = self.lexicon.add_word(sen.name, sen.term_type)
 
     def p_question(self, p):
-        '''question : definition QMARK
-                    | fact QMARK'''
-        if isa(p[1], exists):
-            p[0] = self.factset.query(p[1])
+        '''question : sentence-list QMARK'''
+        facts, defs = [], []
+        for sen in p[1]:
+            if isa(sen, exists):
+                facts.append(sen)
+            else:
+                if sen.type == 'noun-def':
+                    defs.append(self.lexicon.make_subword(sen.name, sen.bases))
+                elif sen.type == 'verb-def':
+                    defs.append(self.lexicon.make_subword(sen.name, sen.bases, **(sen.objs)))
+                elif sen.type == 'name-def':
+                    defs.append(self.lexicon.make_word(sen.name, sen.term_type))
+        matches = []
+        if facts:
+            smatches = self.factset.query(*facts)
+            matches.append(smatches)
+        if defs:
+            smatches = self.lexicon.query(*defs)
+            matches.append(smatches)
+        matches = merge_submatches(matches)
+        if not matches:
+            matches = 'false'
+        elif not matches[0]:
+            matches = 'true'
+        p[0] = matches
+
+    def p_sentence_list(self, p):
+        '''sentence-list : sentence SEMICOLON sentence-list
+                         | sentence'''
+        if len(p) == 4:
+            p[3].append(p[1])
+            p[0] = p[3]
         else:
-            p[0] = self.lexicon.query(p[1])
+            p[0] = [p[1]]
+
+    def p_sentence(self, p):
+        '''sentence : definition
+                    | fact'''
+        p[0] = p[1]
 
     def p_fact(self, p):
         '''fact : LPAREN predicate RPAREN
@@ -172,7 +214,6 @@ class KB(object):
     def p_verb(self, p):
         '''verb : term'''
         p[0] = p[1]
-
 
     def p_subject(self, p):
         '''subject : term'''
@@ -207,7 +248,7 @@ class KB(object):
 
     def p_noun_def(self, p):
         'noun-def : SYMBOL IS terms'
-        p[0] = self.lexicon.make_subword(p[1], p[3])
+        p[0] = AstNode(p[1], 'noun-def', bases=p[3])
 
  
     def p_terms(self, p):
@@ -220,11 +261,11 @@ class KB(object):
 
     def p_name_def(self, p):
         '''name-def : SYMBOL IS A term'''
-        p[0] = self.lexicon.make_word(p[1], p[4])
+        p[0] = AstNode(p[1], 'name-def', term_type=p[4])
 
     def p_verb_def(self, p):
         '''verb-def :  SYMBOL IS terms COMMA mod-defs'''
-        p[0] = self.lexicon.make_subword(p[1], p[3], **p[5])
+        p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs=p[5])
 
     def p_mod_defs(self, p):
         '''mod-defs : mod-def COMMA mod-defs
@@ -239,3 +280,11 @@ class KB(object):
 
     def p_error(self, p):
         raise Exception('syntax error: ' + str(p))
+
+
+class AstNode(object):
+    def __init__(self, name, type, **kwargs):
+        self.name = name
+        self.type = type
+        for k, v in kwargs.items():
+            setattr(self, k, v)

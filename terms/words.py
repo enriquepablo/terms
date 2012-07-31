@@ -90,6 +90,21 @@ def get_type(w):
         return w
     return type(w)
 
+def get_bases(w):
+    try:
+        return w.bases
+    except AttributeError:
+        bases = []
+        _recurse_bases(w, bases)
+        w.bases = tuple(bases)
+        return w.bases
+
+def _recurse_bases(w, bases):
+    for b in w.__bases__:
+        if b not in bases:
+            bases.append(b)
+            _recurse_bases(b, bases)
+
 
 def isa(w1, w2):
     if w1 is word and w2 is word:

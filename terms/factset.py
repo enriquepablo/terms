@@ -26,30 +26,7 @@ from terms import patterns
 from terms.terms import Base, Session
 from terms.words import word, verb, noun, exists, thing, isa, are
 from terms.words import get_name, get_type
-
-
-class Match(dict):
-
-    def __init__(self, fact, *args, **kwargs):
-        self.fact = fact  # word
-        self.prem = None
-        super(Match, self).__init__(*args, **kwargs)
-
-    def copy(self):
-        new_match = Match(self.fact)
-        for k, v in self.items():
-            new_match[k] = v
-        new_match.prem = self.prem
-        return new_match
-
-    def merge(self, m):
-        new_match = Match(self.fact)
-        for k, v in self.items() + m.items():
-            if k in m:
-                if self[k] != v:
-                    return False
-            new_match[k] = v
-        return new_match
+from terms.utils import Match, merge_submatches
 
 
 class FactSet(object):
@@ -157,35 +134,20 @@ class FactSet(object):
         possibly with varnames
         '''
         submatches = []
+        if not q:
+            return submatches
         for w in q:
             m = Match(w)
             smatches = []
             self.dispatch(self.root, m, smatches)
             submatches.append(smatches)
-        matches = self.merge(submatches)
-        if not matches:
-            return 'false'
-        elif not matches[0]:
-            return 'true'
-        return matches
-
-    def merge(self, submatches):
-        final = submatches.pop()
-        while submatches:
-            sm = submatches.pop()
-            new = []
-            for n in sm:
-                for m in final:
-                    nm = m.merge(n)
-                    if nm:
-                        new.append(nm)
-            final = new
-        return final
+        return merge_submatches(submatches)
 
     def dispatch(self, parent, match, matches):
         if parent.child_path:
             ntype_name = parent.child_path[-1]
             cls = self._get_nclass(ntype_name)
+#            import pdb;pdb.set_trace()
             isvar = False
             try:
                 value = self.resolve(cls, match.fact, parent.child_path)

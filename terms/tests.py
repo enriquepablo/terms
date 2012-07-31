@@ -46,15 +46,16 @@ def run_terms(kb, fname):
     # tell asserions
     # compare return of questions with provided output
     with open(fname) as f:
-        resp, buff = None, ''
+        _nr = object()
+        resp, buff = _nr, ''
         for sen in f.readlines():
             logger.info(sen)
             sen = sen.strip()
-            if resp is not None:
+            if resp is not _nr:
                 sen = sen.strip('.')
                 logger.info('%s match %s' % (sen, resp))
                 assert re.compile(sen).match(resp)
-                resp = None
+                resp = _nr
             elif sen and not sen.startswith('#'):
                 buff += ' ' + sen
                 if buff.endswith('.'):
@@ -62,4 +63,5 @@ def run_terms(kb, fname):
                     buff = ''
                 elif buff.endswith('?'):
                     resp = kb.parse(buff)
+                    logger.info(resp)
                     buff = ''

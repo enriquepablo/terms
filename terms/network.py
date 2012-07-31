@@ -29,7 +29,8 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from terms.terms import Base, Term, Session
 from terms.predicates import Predicate
 from terms.lexicon import Lexicon
-from terms.factset import FactSet, Match
+from terms.factset import FactSet
+from terms.utils import Match
 
 
 class Node(Base):
@@ -482,7 +483,7 @@ class Network(object):
         self.session = Session()
         try:
             self.root = self.session.query(RootNode).one()
-        except:
+        except:  # what?
             self.initialize()
         self.lexicon = Lexicon(self.session)
         self.factset = FactSet(self.lexicon)
