@@ -38,3 +38,6 @@ false
 
 (walks juan, from madrid, to seville)?
 false
+
+(walks Person1, from madrid, to seville)?
+(walks john, from madrid, to seville)

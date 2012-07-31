@@ -47,22 +47,6 @@ class Lexicon(object):
         self.add_word('exists', verb, _commit=False)
         self.session.commit()
 
-    def query(self, *q):
-        submatches = []
-        if not q:
-            return submatches
-        for w in q:
-            smatches = self.query_one(w)
-            if smatches:
-                submatches.append(smatches)
-        return merge_submatches(submatches)
-
-    def query_one(self, w):
-        name = get_name(w)
-        tname = get_name(get_type(w))
-        bnames = [get_name(b) for b in get_bases(w)]
-        raise NotImplementedError
-
     def make_word(self, name, word_type, **objs):
         if name in self.terms:
             return self.terms[name]
