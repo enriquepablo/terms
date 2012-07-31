@@ -154,25 +154,9 @@ class KB(object):
 
     def p_question(self, p):
         '''question : sentence-list QMARK'''
-        facts, defs = [], []
-        for sen in p[1]:
-            if isa(sen, exists):
-                facts.append(sen)
-            else:
-                if sen.type == 'noun-def':
-                    defs.append(self.lexicon.make_subword(sen.name, sen.bases))
-                elif sen.type == 'verb-def':
-                    defs.append(self.lexicon.make_subword(sen.name, sen.bases, **(sen.objs)))
-                elif sen.type == 'name-def':
-                    defs.append(self.lexicon.make_word(sen.name, sen.term_type))
         matches = []
-        if facts:
-            smatches = self.factset.query(*facts)
-            matches.append(smatches)
-        if defs:
-            smatches = self.lexicon.query(*defs)
-            matches.append(smatches)
-        matches = merge_submatches(matches)
+        if p[1]:
+            matches = self.factset.query(*p[1])
         if not matches:
             matches = 'false'
         elif not matches[0]:
