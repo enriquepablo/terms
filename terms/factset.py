@@ -23,9 +23,9 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from terms import patterns
-from terms.terms import Base, Session
+from terms.terms import Base, Session, Term
 from terms.words import word, verb, noun, exists, thing, isa, are
-from terms.words import get_name, get_type
+from terms.words import get_name, get_type, get_bases
 from terms.utils import Match, merge_submatches
 
 
@@ -77,8 +77,6 @@ class FactSet(object):
         for segment in path[:-1]:
             w = getattr(w, segment)
         name = get_name(w)
-        if patterns.varpat.match(name):
-            return w
         return cls.get_qval(w, path, self.lexicon)
 
     def _get_nclass(self, ntype):
@@ -147,7 +145,6 @@ class FactSet(object):
         if parent.child_path:
             ntype_name = parent.child_path[-1]
             cls = self._get_nclass(ntype_name)
-#            import pdb;pdb.set_trace()
             isvar = False
             try:
                 value = self.resolve(cls, match.fact, parent.child_path)
@@ -160,8 +157,9 @@ class FactSet(object):
                     if name in match:
                         children = parent.children.filter(cls.value==match[name])
                     else:
-                        stypes = self.lexicon.get_subterms(lexicon.get_term(get_name(get_type(value))))
-                        children = parent.children.filter(cls.parent.in_(stypes))
+                        sbases = (get_type(value),) + self.lexicon.get_subwords(get_type(value))
+                        stypes = [self.lexicon.get_term(get_name(b)).id for b in sbases]
+                        children = parent.children.join(cls, id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(stypes))
                 else:
                     children = parent.children.filter(cls.value==value)
             for child in children:
@@ -218,7 +216,7 @@ class RootFNode(FactNode):
     '''
     __tablename__ = 'rootfnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
-    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
 
 
 class NegFNode(FactNode):
@@ -227,7 +225,7 @@ class NegFNode(FactNode):
     '''
     __tablename__ = 'negfnodes'
     __mapper_args__ = {'polymorphic_identity': '_neg'}
-    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
 
     value = Column(Boolean)
 
@@ -244,7 +242,7 @@ class TermFNode(FactNode):
     '''
     __tablename__ = 'termfnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
-    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term',
                          primaryjoin="Term.id==TermFNode.term_id")
@@ -254,6 +252,8 @@ class TermFNode(FactNode):
 
     @classmethod
     def get_qval(cls, w, path, lexicon):
+        if patterns.varpat.match(get_name(w)):
+            return w
         return lexicon.get_term(get_name(w))
 
 
@@ -262,7 +262,7 @@ class VerbFNode(FactNode):
     '''
     __tablename__ = 'verbfnodes'
     __mapper_args__ = {'polymorphic_identity': '_verb'}
-    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term',
                          primaryjoin="Term.id==VerbFNode.term_id")
@@ -272,6 +272,8 @@ class VerbFNode(FactNode):
 
     @classmethod
     def get_qval(cls, w, path, lexicon):
+        if patterns.varpat.match(get_name(w)):
+            return w
         return lexicon.get_term(get_name(get_type(w)))
 
 
@@ -280,7 +282,7 @@ class LabelFNode(FactNode):
     '''
     __tablename__ = 'labelfnodes'
     __mapper_args__ = {'polymorphic_identity': '_label'}
-    id = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     value = Column(String)
 
     def __init__(self, label):

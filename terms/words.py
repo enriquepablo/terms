@@ -48,6 +48,21 @@ class verb(word, metaclass=word):
 class exists(word, metaclass=verb):
     """ """
 
+word.bases = ()
+word.subtypes = (noun, verb)
+
+noun.bases = (word,)
+noun.subtypes = ()
+
+verb.bases = (word,)
+verb.subtypes = ()
+
+thing.bases = ()
+thing.subtypes = ()
+
+exists.bases = ()
+exists.subtypes = ()
+
 def _new_exists(cls, classname, bases, newdict):
     labels = sorted(list(cls.objs))
     name = [cls.__name__]
@@ -101,7 +116,7 @@ def get_bases(w):
 
 def _recurse_bases(w, bases):
     for b in w.__bases__:
-        if b not in bases:
+        if b not in bases and b is not type:
             bases.append(b)
             _recurse_bases(b, bases)
 

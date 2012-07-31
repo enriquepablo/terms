@@ -38,6 +38,7 @@ class Lexer(object):
             'IS',
             'A',
             'SEMICOLON',
+            'VAR',
     )
 
     reserved = {
@@ -52,6 +53,7 @@ class Lexer(object):
     t_QMARK = r'\?'
     t_NOT = r'!'
     t_SEMICOLON = r';'
+    t_VAR = VAR_PAT
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self,t):
@@ -196,16 +198,25 @@ class KB(object):
             p[0] = self.factset.make_pred(p[1], subj=p[2], **p[4])
 
     def p_verb(self, p):
-        '''verb : term'''
+        '''verb : vterm'''
         p[0] = p[1]
 
     def p_subject(self, p):
-        '''subject : term'''
+        '''subject : vterm'''
+        p[0] = p[1]
+
+    def p_vterm(self, p):
+        '''vterm : term
+                 | var'''
         p[0] = p[1]
 
     def p_term(self, p):
         '''term : SYMBOL'''
         p[0] = self.lexicon.get_word(p[1])
+
+    def p_var(self, p):
+        '''var : VAR'''
+        p[0] = self.lexicon.make_var(p[1])
 
     def p_mods(self, p):
         '''mods : mod COMMA mods
@@ -220,7 +231,7 @@ class KB(object):
     
  
     def p_object(self, p):
-        '''object : term
+        '''object : vterm
                   | fact'''
         p[0] = p[1]
 
