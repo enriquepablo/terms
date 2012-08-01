@@ -51,3 +51,15 @@ false
 
 (walks Person1, from madrid)?
 Person1: john; Person1: juan
+
+runs is walks.
+
+sue is a person.
+
+(runs sue, from seville, to salamanca).
+
+(walks Person1, from seville)?
+Person1: sue
+
+(walks Person1)?
+Person1: john; Person1: juan; Person1: sue
