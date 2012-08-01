@@ -31,6 +31,10 @@ salamanca is a place.
 
 (walks juan, from madrid, to salamanca).
 
+pete is a person.
+
+(walks pete, to madrid).
+
 (walks juan)?
 true
 
@@ -58,8 +62,8 @@ sue is a person.
 
 (runs sue, from seville, to salamanca).
 
-(walks Person1, from seville)?
-Person1: sue
+(WalksVerb1 Person1, from seville)?
+Person1: sue, WalksVerb1: runs
 
 (walks Person1)?
-Person1: john; Person1: juan; Person1: sue
+Person1: john; Person1: juan; Person1: pete

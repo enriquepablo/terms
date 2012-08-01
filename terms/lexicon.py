@@ -76,6 +76,10 @@ class Lexicon(object):
 
     def make_var(self, name):
         m = patterns.varpat.match(name)
+        if m.group(2):
+            base = m.group(1).lower()
+            bases = [self.get_word(base)]
+            return self.make_subword(name, bases)
         tname = m.group(1).lower()
         tvar = self.get_word(tname)
         return self.make_word(name, tvar)
@@ -98,7 +102,9 @@ class Lexicon(object):
                 obj_term = self.get_term(obj_tname)
                 objects.append(ObjectType(label, obj_term))
         term_type = self.get_term(get_name(word_type))
-        term = Term(name, ttype=term_type, objs=objects)
+        bases = get_bases(w)
+        bases = [self.get_term(get_name(b)) for b in bases]
+        term = Term(name, ttype=term_type, bases=bases, objs=objects)
         self.session.add(term)
         if _commit:
             self.session.commit()
@@ -133,18 +139,14 @@ class Lexicon(object):
             return w
 
     def get_subwords(self, w):
-        try:
-            return w.subtypes
-        except AttributeError:
-            term = self.get_term(get_name(w))
-            subtypes = []
-            self._recurse_subterms(term, subtypes)
-            subtypes = [self.get_word(t.name) for t in subtypes]
-            w.subtypes = tuple(subtypes)
-            return w.subtypes
+        term = self.get_term(get_name(w))
+        subtypes = []
+        self._recurse_subterms(term, subtypes)
+        subtypes = [w] + [self.get_word(t.name) for t in subtypes]
+        return tuple(subtypes)
 
     def _recurse_subterms(self, term, subterms):
-        sterms = self.session.query(Term).filter(Term.bases.contains(term))
+        sterms = term.subwords
         for st in sterms:
             if st not in subterms:
                 subterms.append(st)

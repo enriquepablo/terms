@@ -61,7 +61,9 @@ class Term(Base):
         self.name = name
         if not _bootstrap:
             self.term_type = ttype or bases[0].term_type
-        self.bases = bases or []
+        if bases:
+            for base in bases:
+                self.bases.append(base)
         self.object_types = objs or []
 
     def __str__(self):
