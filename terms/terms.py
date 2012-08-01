@@ -64,6 +64,9 @@ class Term(Base):
         self.bases = bases or []
         self.object_types = objs or []
 
+    def __str__(self):
+        return self.name
+
     def isa(self, term):
         if self.term_type == term:
             return True

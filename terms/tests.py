@@ -62,6 +62,17 @@ def run_terms(kb, fname):
                     logger.info(kb.parse(buff))
                     buff = ''
                 elif buff.endswith('?'):
-                    resp = kb.parse(buff)
+                    resp = format_results(kb.parse(buff))
                     logger.info(resp)
                     buff = ''
+
+def format_results(res):
+    if isinstance(res, str):
+        return res
+    resps = []
+    for r in res:
+        resp = []
+        for k, v in r.items():
+            resp.append(k + ': ' + str(v))
+        resps.append(', '.join(resp))
+    return '; '.join(resps)

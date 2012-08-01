@@ -27,11 +27,15 @@ true
 
 juan is a person.
 
+salamanca is a place.
+
+(walks juan, from madrid, to salamanca).
+
 (walks juan)?
-false
+true
 
 (walks juan, from madrid)?
-false
+true
 
 (walks juan, to seville)?
 false
@@ -39,5 +43,11 @@ false
 (walks juan, from madrid, to seville)?
 false
 
-(walks Person1, from madrid, to seville)?
-(walks john, from madrid, to seville)
+(walks juan, from madrid, to salamanca)?
+true
+
+(walks john, from madrid, to salamanca)?
+false
+
+(walks Person1, from madrid)?
+Person1: john; Person1: juan

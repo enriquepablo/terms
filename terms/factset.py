@@ -103,7 +103,7 @@ class FactSet(object):
         cls = self._get_nclass(ntype_name)
         value = self.resolve(cls, w, path)
         try:
-            return parent.children.filter(cls.value==value).one()
+            return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value).one()
         except NoResultFound:
             pass
         #  build the node and append it
@@ -159,13 +159,13 @@ class FactSet(object):
                     else:
                         sbases = (get_type(value),) + self.lexicon.get_subwords(get_type(value))
                         stypes = [self.lexicon.get_term(get_name(b)).id for b in sbases]
-                        children = parent.children.join(cls, id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(stypes))
+                        children = parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(stypes))
                 else:
-                    children = parent.children.filter(cls.value==value)
+                    children = parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
             for child in children:
                 new_match = match.copy()
                 if isvar and name not in match:
-                    new_match[name] = child
+                    new_match[name] = child.value
                 self.dispatch(child, new_match, matches)
         if parent.terminal:
             matches.append(match)
@@ -181,9 +181,12 @@ class FactNode(Base):
     id = Column(Integer, Sequence('factnode_id_seq'), primary_key=True)
     child_path_str = Column(String)
     parent_id = Column(Integer, ForeignKey('factnodes.id'))
-    parent = relationship('FactNode', uselist=False,
-                         backref=backref('children', remote_side=[id], lazy='dynamic'),
-                         primaryjoin="FactNode.id==FactNode.parent_id")
+    children = relationship('FactNode',
+                         backref=backref('parent',
+                                         uselist=False,
+                                         remote_side=[id]),
+                         primaryjoin="FactNode.id==FactNode.parent_id",
+                         lazy='dynamic')
 
     ntype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': ntype}
