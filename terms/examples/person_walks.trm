@@ -1,11 +1,17 @@
 
 person is thing.
 
+man is person.
+
+woman is person.
+
+boy is man.
+
 place is thing.
 
 walks is exists, subj a person, from a place, to a place.
 
-john is a person.
+john is a man.
 
 madrid is a place.
 
@@ -25,7 +31,7 @@ true
 (walks john, from madrid, to seville)?
 true
 
-juan is a person.
+juan is a boy.
 
 salamanca is a place.
 
@@ -53,12 +59,18 @@ true
 (walks john, from madrid, to salamanca)?
 false
 
+(walks pete)?
+true
+
 (walks Person1, from madrid)?
 Person1: john; Person1: juan
 
+(walks Boy1, from madrid)?
+Boy1: juan
+
 runs is walks.
 
-sue is a person.
+sue is a woman.
 
 (runs sue, from seville, to salamanca).
 

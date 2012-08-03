@@ -87,6 +87,12 @@ def _getattr_exists(self, label):
         label = '_' + label
     return super(exists, self).__getattribute__(label)
 
+def _setattr_exists(self, label, value):
+    if label not in ('objs',) and \
+        not label.startswith('_'):
+        label = '_' + label
+    return super(exists, self).__setattribute__(label, value)
+
 def negate(self):
     true = getattr(self, 'true', True)
     self._true = not true
@@ -94,11 +100,15 @@ def negate(self):
 exists.__new__ = _new_exists
 exists.__init__ = _init_exists
 exists.__getattribute__ = _getattr_exists
+exists.__setattribute__ = _setattr_exists
 exists.objs = {'subj': word}
 
 
 def get_name(w):
-    return w.__name__
+    try:
+        return w.__name__
+    except AttributeError:
+        return str(w)
 
 def get_type(w):
     if w is word:

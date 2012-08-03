@@ -142,7 +142,7 @@ class Lexicon(object):
         term = self.get_term(get_name(w))
         subtypes = []
         self._recurse_subterms(term, subtypes)
-        subtypes = [w] + [self.get_word(t.name) for t in subtypes]
+        subtypes = [] + [self.get_word(t.name) for t in subtypes]
         return tuple(subtypes)
 
     def _recurse_subterms(self, term, subterms):

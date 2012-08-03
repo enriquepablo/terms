@@ -30,16 +30,20 @@ from terms.words import get_name, get_type
 
 class Match(dict):
 
-    def __init__(self, fact, *args, **kwargs):
+    def __init__(self, fact, query=None, prem=None):
         self.fact = fact  # word
-        self.prem = None
-        super(Match, self).__init__(*args, **kwargs)
+        self.paths = []
+        self.query = query
+        self.prem = prem
+        super(Match, self).__init__()
 
     def copy(self):
         new_match = Match(self.fact)
         for k, v in self.items():
             new_match[k] = v
         new_match.prem = self.prem
+        new_match.query = self.query
+        new_match.paths = self.paths[:]
         return new_match
 
     def merge(self, m):

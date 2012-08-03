@@ -25,8 +25,19 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from terms import patterns
 from terms.terms import Base, Session, Term
 from terms.words import word, verb, noun, exists, thing, isa, are
-from terms.words import get_name, get_type, get_bases
+from terms.words import get_name, get_type, get_bases, negate
 from terms.utils import Match, merge_submatches
+
+'''
+En el match hay que poner words.
+en un query hay que ir construyendola en match.fact, con cada new_match,
+y sus valores estan dentro de match.fact.
+en las reglas tienen ya el fact de entrada,
+y se van cogiendo los valores de ese fact.
+cuando se llega a un mnetwork,
+las piezas del fact que haya que guardar se pasan a consecuences.
+
+'''
 
 
 class FactSet(object):
@@ -54,10 +65,12 @@ class FactSet(object):
         return paths
 
     def _recurse_paths(self, pred, paths, path):
-        paths.append(path + ('_neg',))
         paths.append(path + ('_verb',))
+        paths.append(path + ('_neg',))
         for l in sorted(pred.objs):
-            o = pred.objs[l]
+            if not hasattr(pred, l):
+                continue
+            o = getattr(pred, l)
             paths.append(path + (l, '_label'))
             if isa(o, exists):
                 self._recurse_paths(o, paths, path + (l,))
@@ -89,7 +102,8 @@ class FactSet(object):
     def get_or_create_node(self, parent, w, path):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
-        value = cls.resolve(w, path, self)
+        wvalue = cls.resolve(w, path, self)
+        value = cls.get_qval(wvalue, self)
         try:
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value).one()
         except NoResultFound:
@@ -107,8 +121,7 @@ class FactSet(object):
     @classmethod
     def make_pred(cls, verb_, **objs):
         name = get_name(verb_)
-        obj_list = list(objs.items())
-        obj_list = sorted(obj_list, key=lambda x: x[0])
+        obj_list = sorted(objs.items(), key=lambda x: x[0])
         for label, obj in obj_list:
             name += '__' + label + '__' + get_name(obj)
         return verb_(name, (), objs)
@@ -123,7 +136,8 @@ class FactSet(object):
         if not q:
             return submatches
         for w in q:
-            m = Match(w)
+            m = Match(word, query=w)
+            m.paths = self.get_paths(w)
             smatches = []
             ntype_name = self.root.child_path[-1]
             cls = self._get_nclass(ntype_name)
@@ -171,19 +185,33 @@ class FactNode(Base):
     @classmethod
     def dispatch(cls, parent, match, matches, factset):
         if parent.child_path:
-            ntype_name = parent.child_path[-1]
+            path = parent.child_path
+            if path in match.paths:
+                match.paths.remove(path)
+            ntype_name = path[-1]
             cls = factset._get_nclass(ntype_name)
-            value = cls.resolve(match.fact, parent.child_path, factset)
+            value = cls.resolve(match.query, path, factset)
             children = cls.get_children(parent, match, value, factset)
             for child in children:
+                if isinstance(child, LabelFNode):
+                    path = path[:-2] + (child.value, path[-1])
+                    if path in match.paths:
+                        match.paths.remove(path)
                 new_match = match.copy()
-                if isa(value, word):
+                wval = child.update_match(new_match, path, factset)
+                if isa(value, word) and patterns.varpat.match(get_name(value)):
                     name = get_name(value)
                     if name not in match:
-                        new_match[name] = child.value
+                        new_match[name] = wval
                 cls.dispatch(child, new_match, matches, factset)
-        if parent.terminal:  # XXX and all vars in match.fact are in match:
-            matches.append(match)
+        if parent.terminal:
+            if not match.paths:
+                matches.append(match)
+
+    def update_match(self, match, path, factset):
+        # get current pred (from match.fact/path)
+        # get value from self
+        pass
 
     @classmethod
     def resolve(cls, w, path, factset):
@@ -204,6 +232,14 @@ class FactNode(Base):
         a word, or some custom value for custom node types.
         '''
         raise NotImplementedError
+
+    @classmethod
+    def get_qval(cls, value, factset):
+        '''
+        From a word value, get a value
+        ready for use in a db query
+        '''
+        return value
 
 
 class RootFNode(FactNode):
@@ -230,12 +266,6 @@ class NegFNode(FactNode):
     
     @classmethod
     def resolve(cls, w, path, factset):
-        '''
-        Get the value pointed at by path in w (a word).
-        It can be a boolean (for neg nodes),
-        a sting (for label nodes),
-        a word, or some custom value for custom node types.
-        '''
         try:
             for segment in path[:-1]:
                 w = getattr(w, segment)
@@ -248,6 +278,12 @@ class NegFNode(FactNode):
         if value is None:
             return parent.children.all()
         return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
+
+    def update_match(self, match, path, factset):
+        pred = match.fact
+        for segment in path[:-1]:
+            pred = getattr(pred, segment)
+        negate(pred)
 
 
 class TermFNode(FactNode):
@@ -276,18 +312,17 @@ class TermFNode(FactNode):
                 w = getattr(w, segment)
         except AttributeError:
             return None
-        if patterns.varpat.match(get_name(w)):
-            return w
-        return factset.lexicon.get_term(get_name(w))
+        return w
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
         if value is None:
             return parent.children.all()
-        if isa(value, word):
-            name = get_name(value)
+        name = get_name(value)
+        if patterns.varpat.match(name):
             if name in match:
-                return parent.children.filter(cls.value==match[name])
+                value = factset.lexicon.get_term(get_name(match[name]))
+                return parent.children.filter(cls.value==value)
             else:
                 if isa(value, noun) or isa(value, verb) or get_type(value) is word:
                     sbases = factset.lexicon.get_subwords(get_bases(value)[0])
@@ -296,7 +331,20 @@ class TermFNode(FactNode):
                 stypes = [factset.lexicon.get_term(get_name(b)).id for b in sbases]
                 return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(stypes))
         else:
+            value = factset.lexicon.get_term(name)
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
+
+    def update_match(self, match, path, factset):
+        pred = match.fact
+        for segment in path[:-2]:
+            pred = getattr(pred, segment)
+        w = factset.lexicon.get_word(self.value.name)
+        setattr(pred, path[-2], w)
+        return w
+
+    @classmethod
+    def get_qval(cls, value, factset):
+        return factset.lexicon.get_term(get_name(value))
 
 
 class VerbFNode(FactNode):
@@ -314,30 +362,22 @@ class VerbFNode(FactNode):
     
     @classmethod
     def resolve(cls, w, path, factset):
-        '''
-        Get the value pointed at by path in w (a word).
-        It can be a boolean (for neg nodes),
-        a sting (for label nodes),
-        a word, or some custom value for custom node types.
-        '''
         try:
             for segment in path[:-1]:
                 w = getattr(w, segment)
         except AttributeError:
             return None
-        w = get_type(w)
-        if patterns.varpat.match(get_name(w)):
-            return w
-        return factset.lexicon.get_term(get_name(w))
+        return get_type(w)
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
         if value is None:
             return parent.children.all()
-        if isa(value, word):
-            name = get_name(value)
+        name = get_name(value)
+        if patterns.varpat.match(name):
             if name in match:
-                return parent.children.filter(cls.value==match[name])
+                value = factset.lexicon.get_term(get_name(match[name]))
+                return parent.children.filter(cls.value==value)
             else:
                 if isa(value, verb):
                     sbases = factset.lexicon.get_subwords(get_bases(value)[0])
@@ -346,7 +386,24 @@ class VerbFNode(FactNode):
                 stypes = [factset.lexicon.get_term(get_name(b)).id for b in sbases]
                 return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.id.in_(stypes))
         else:
+            value = factset.lexicon.get_term(name)
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
+
+    def update_match(self, match, path, factset):
+        verb_ = factset.lexicon.get_word(self.value.name)
+        npred = factset.make_pred(verb_)
+        if len(path) > 1:
+            pred = match.fact
+            for segment in path[:-2]:
+                pred = getattr(pred, segment)
+            setattr(pred, path[-2], npred)
+        else:
+            match.fact = npred
+        return npred
+
+    @classmethod
+    def get_qval(cls, value, factset):
+        return factset.lexicon.get_term(get_name(value))
 
 
 class LabelFNode(FactNode):
@@ -362,12 +419,6 @@ class LabelFNode(FactNode):
     
     @classmethod
     def resolve(cls, w, path, factset):
-        '''
-        Get the value pointed at by path in w (a word).
-        It can be a boolean (for neg nodes),
-        a sting (for label nodes),
-        a word, or some custom value for custom node types.
-        '''
         return path[-2]
 
     @classmethod
