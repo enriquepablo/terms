@@ -20,7 +20,7 @@
 import os
 import re
 
-from terms.words import get_name
+from terms.words import get_name, word, isa
 from terms.network import Network
 from terms.compiler import KB
 from terms.log import here, logger
@@ -74,6 +74,6 @@ def format_results(res):
     for r in res:
         resp = []
         for k, v in r.items():
-            resp.append(k + ': ' + get_name(v))
+            resp.append(k + ': ' + str(v))
         resps.append(', '.join(resp))
     return '; '.join(resps)

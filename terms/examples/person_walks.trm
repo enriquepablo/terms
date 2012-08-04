@@ -79,3 +79,11 @@ Person1: sue, WalksVerb1: runs
 
 (walks Person1)?
 Person1: john; Person1: juan; Person1: pete
+
+wants is exists, subj a person, what a exists.
+
+(wants john, what (walks john, to seville)).
+
+(wants john, what Exists1)?
+Exists1: \(walks john, to seville\)
+

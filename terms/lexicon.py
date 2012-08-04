@@ -56,14 +56,16 @@ class Lexicon(object):
             return self._make_name(name, word_type)
         elif are(word_type, verb):
             return self._make_verb(name, vtype=word_type, objs=objs)
+        elif are(word_type, exists):
+            return self._make_pred(word_type, name=name, **objs)
 
     def make_subword(self, name, super_words, **objs):
         if isa(super_words, word):
             super_words = (super_words,)
         for super_word in super_words:
             super_name = get_name(super_word)
-            if hasattr(super_word, 'objs'):
-                objs.update(super_word.objs)
+            if hasattr(super_word, '_objs'):
+                objs.update(super_word._objs)
         word_base = super_words[0]
         if are(word_base, noun):
             return self._make_subnoun(name, bases=super_words)
@@ -96,8 +98,8 @@ class Lexicon(object):
             if term:
                 raise exceptions.TermRepeated(name)
         objects = []
-        if hasattr(w, 'objs'):
-            for label, obj_type in w.objs.items():
+        if hasattr(w, '_objs'):
+            for label, obj_type in w._objs.items():
                 obj_tname = get_name(obj_type)
                 obj_term = self.get_term(obj_tname)
                 objects.append(ObjectType(label, obj_term))
@@ -139,7 +141,14 @@ class Lexicon(object):
             return w
 
     def get_subwords(self, w):
-        term = self.get_term(get_name(w))
+        name = get_name(w)
+        m = patterns.varpat.match(name)
+        if m:
+            if m.group(2):
+                name = m.group(1).lower()
+            else:
+                return ()
+        term = self.get_term(name)
         subtypes = []
         self._recurse_subterms(term, subtypes)
         subtypes = [] + [self.get_word(t.name) for t in subtypes]
@@ -184,6 +193,12 @@ class Lexicon(object):
         new = ntype(name, tuple(bases), {})
         return new
 
+    def _make_subnoun(self, name, bases=None):
+        if bases is None:
+            bases = (noun,)
+        new = word(name, tuple(bases), {})
+        return new
+
     def _make_name(self, name, noun_=None):
         if noun_ is None:
             m = patterns.NAME_PAT.match(name)
@@ -218,8 +233,12 @@ class Lexicon(object):
         new = word(name, tuple(bases), {})
         return new
 
-    def _make_subnoun(self, name, bases=None):
-        if bases is None:
-            bases = (noun,)
-        new = word(name, tuple(bases), {})
-        return new
+    def _make_pred(self, verb_, name=None, **objs):
+        if not name:
+            name = [get_name(verb_)]
+            obj_list = sorted(objs.items(), key=lambda x: x[0])
+            for label, obj in obj_list:
+                name.append(label)
+                name.append(get_name(obj))
+            name = '__'.join(name)
+        return verb_(name, (), objs)

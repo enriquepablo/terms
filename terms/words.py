@@ -17,11 +17,19 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+from terms.patterns import varpat
+
 class word(type): pass
 
+def _str(self):
+    return get_name(self)
+
+word.__str__ = _str
 
 class noun(word, metaclass=word):
     """ """
+
+noun.__str__ = _str
 
 
 class thing(word, metaclass=noun):
@@ -35,18 +43,32 @@ class thing(word, metaclass=noun):
         """ """
         return super(thing, self).__init__(name, (), {})
 
+thing.__str__ = _str
 
 class verb(word, metaclass=word):
     """ """
     def __new__(cls, classname, bases, newdict):
-        return super(verb, cls).__new__(cls, classname, bases, {'objs': {}})
+        return super(verb, cls).__new__(cls, classname, bases, {'_objs': {}})
 
     def __init__(self, classname, bases, newdict):
-        self.objs = newdict
+        self._objs = newdict
 
+verb.__str__ = _str
 
 class exists(word, metaclass=verb):
     """ """
+
+def _str_exists(self):
+    s = get_name(get_type(self))
+    s += ' ' + get_name(self.subj)
+    if not self.true:
+        s = '!' + s
+    for label in sorted(dir(self)):
+        if not label.startswith('_') and label not in ('true', 'subj'):
+            s += ', ' + label + ' ' + str(getattr(self, label))
+    return '(' + s + ')'
+
+exists.__str__ = _str_exists
 
 word.__bases = ()
 word.__subtypes = (noun, verb)
@@ -63,45 +85,30 @@ thing.__subtypes = ()
 exists.__bases = ()
 exists.__subtypes = ()
 
-def _new_exists(cls, classname, bases, newdict):
-    labels = sorted(list(cls.objs))
-    name = [cls.__name__]
-    for label in labels:
-        obj = newdict.get(label, None)
-        if obj:
-            name.append(label)
-            name.append(get_name(obj))
-
-    name = '__'.join(name)
+def _new_exists(cls, name, bases, newdict):
+    if not name:
+        labels = sorted(list(cls._objs))
+        name = [cls.__name__]
+        for label in labels:
+            obj = newdict.get(label, None)
+            if obj:
+                name.append(label)
+                name.append(get_name(obj))
+        name = '__'.join(name)
     return super(exists, cls).__new__(cls, name, bases, {})
 
-def _init_exists(self, classname, bases, newdict):
+def _init_exists(self, name, bases, newdict):
     for label, obj in newdict.items():
-        setattr(self, '_' + label, obj)
+        setattr(self, label, obj)
     if 'true' not in newdict:
-        setattr(self, '_true', True)
-
-def _getattr_exists(self, label):
-    if label not in ('objs',) and \
-        not label.startswith('_'):
-        label = '_' + label
-    return super(exists, self).__getattribute__(label)
-
-def _setattr_exists(self, label, value):
-    if label not in ('objs',) and \
-        not label.startswith('_'):
-        label = '_' + label
-    return super(exists, self).__setattribute__(label, value)
-
-def negate(self):
-    true = getattr(self, 'true', True)
-    self._true = not true
+        setattr(self, 'true', True)
 
 exists.__new__ = _new_exists
 exists.__init__ = _init_exists
-exists.__getattribute__ = _getattr_exists
-exists.__setattribute__ = _setattr_exists
-exists.objs = {'subj': word}
+exists._objs = {'subj': word}
+
+def negate(self):
+    self.true = not self.true
 
 
 def get_name(w):

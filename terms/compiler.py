@@ -193,9 +193,9 @@ class KB(object):
         '''predicate : verb subject
                      | verb subject COMMA mods'''
         if len(p) == 3:
-            p[0] = self.factset.make_pred(p[1], subj=p[2])
+            p[0] = self.lexicon._make_pred(p[1], subj=p[2])
         else:
-            p[0] = self.factset.make_pred(p[1], subj=p[2], **p[4])
+            p[0] = self.lexicon._make_pred(p[1], subj=p[2], **p[4])
 
     def p_verb(self, p):
         '''verb : vterm'''
