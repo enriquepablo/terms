@@ -18,7 +18,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 from sqlalchemy import Table, Column, Sequence
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declared_attr
@@ -51,6 +51,7 @@ class Term(Base):
     equals = None  # ==
     object_types = relationship('ObjectType', backref='verb',
                           primaryjoin='ObjectType.verb_id==Term.id')
+    var = Column(Boolean, default=False)
 
     def __init__(self, name,
                        ttype=None,

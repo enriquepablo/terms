@@ -102,9 +102,10 @@ class FactSet(object):
             fnode = Fact()
             self.session.add(fnode)
             old_node.terminal = fnode
+        if _commit:
             self.session.commit()
 
-    def get_or_create_node(self, parent, w, path):
+    def get_or_create_node(self, parent, w, path, _commit=False):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
         wvalue = cls.resolve(w, path, self)
@@ -119,7 +120,8 @@ class FactSet(object):
         parent.children.append(node)
         if not parent.child_path:
             parent.child_path = path
-        self.session.commit()
+        if _commit:
+            self.session.commit()
         return node
 
 
@@ -169,7 +171,7 @@ class FactNode(Base):
             try:
                 self._path = tuple(self.child_path_str.split('.'))
             except AttributeError:
-                return False
+                return ()
         return self._path
 
     def _set_path(self, path):
@@ -209,8 +211,6 @@ class FactNode(Base):
                 matches.append(match)
 
     def update_match(self, match, path, factset):
-        # get current pred (from match.fact/path)
-        # get value from self
         pass
 
     @classmethod

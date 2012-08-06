@@ -89,6 +89,19 @@ class Lexicon(object):
         tvar = self.get_word(tname)
         return self.make_word(name, tvar)
 
+    def save_var(self, w, _commit=True):
+        name = get_name(w)
+        word_type = get_type(w)
+        objects = []
+        term_type = self.get_term(get_name(word_type))
+        bases = get_bases(w)
+        bases = [self.get_term(get_name(b)) for b in bases]
+        term = Term(name, ttype=term_type, bases=bases, objs=objects, var=True)
+        self.session.add(term)
+        if _commit:
+            self.session.commit()
+        return term
+
     def save_word(self, w, _commit=True):
         name = get_name(w)
         word_type = get_type(w)
@@ -168,23 +181,9 @@ class Lexicon(object):
         try:
             return self.session.query(Term).filter_by(name=name).one()
         except MultipleResultsFound:
-            raise exceptions.TermRepeated()
+            raise exceptions.TermRepeated(name)
         except NoResultFound:
-            raise exceptions.TermNotFound()
-
-    def _load_terms(self):
-        terms = self.session.query(Term).all()
-        for term in terms:
-            type_name = term.types[0].name
-            term_type = self.words[type_name]
-            if not issubclass(term_type, thing):
-                term_types = [self.words[ttype.name] for ttype in term.types]
-                if issubclass(term_type, noun):
-                    self._make_noun(type_name, term_types)
-                elif issubclass(term_type, verb):
-                    objects = dict([(obj.label, self.words[obj.term_type.name])
-                                                for obj in term.object_types])
-                    self._make_verb(type_name, term_types, objects)
+            raise exceptions.TermNotFound(name)
 
     def _make_noun(self, name, bases=None, ntype=None):
         if bases is None:
