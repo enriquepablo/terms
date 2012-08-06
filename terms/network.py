@@ -24,13 +24,16 @@ from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
-from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import OperationalError
 
-from terms.terms import Base, Term, Session
+from terms.terms import Base, Term
 from terms.predicates import Predicate
 from terms.lexicon import Lexicon
 from terms.factset import FactSet
 from terms.utils import Match
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 class Node(Base):
@@ -479,17 +482,19 @@ class Network(object):
 
     def __init__(self, dbaddr='sqlite:///:memory:'):
         self.engine = create_engine(dbaddr)
-        Session.configure(bind=self.engine)
+        Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        try:
-            self.root = self.session.query(RootNode).one()
-        except:  # what?
-            self.initialize()
         self.lexicon = Lexicon(self.session)
         self.factset = FactSet(self.lexicon)
+        try:
+            self.root = self.session.query(RootNode).one()
+        except OperationalError:
+            self.initialize()
 
     def initialize(self):
         Base.metadata.create_all(self.engine)
+        self.lexicon.initialize()
+        self.factset.initialize()
         self.root = RootNode()
         self.session.commit()
 

@@ -21,6 +21,7 @@ import os
 import re
 
 from terms.words import get_name, word, isa
+from terms.terms import Base
 from terms.network import Network
 from terms.compiler import KB
 from terms.log import here, logger
@@ -32,8 +33,11 @@ def test_terms(): # test generator
     d = os.path.join(here, 'examples')
     files = os.listdir(d)
 #    yield run_npl, '/home/eperez/virtualenvs/ircbot/src/nl/nl/npl_tests/lists.npl'
+    network = None
     for f in files:
         if f.endswith('.trm'):
+            if network:
+                Base.metadata.drop_all(network.engine)
             network = Network()
             kb = KB(network,
                     lex_optimize=False,

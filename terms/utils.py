@@ -23,7 +23,6 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from terms import patterns
-from terms.terms import Base, Session
 from terms.words import word, verb, noun, exists, thing, isa, are
 from terms.words import get_name, get_type
 

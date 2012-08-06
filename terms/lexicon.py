@@ -39,13 +39,16 @@ class Lexicon(object):
                       'verb': verb,
                       'thing': thing,
                       'exists': exists}
+
+    def initialize(self, commit=False):
         wrd = Term('word', _bootstrap=True)
         self.session.add(wrd)
         self.add_word('noun', word, _commit=False)
         self.add_word('verb', word, _commit=False)
         self.add_word('thing', noun, _commit=False)
         self.add_word('exists', verb, _commit=False)
-        self.session.commit()
+        if commit:
+            self.session.commit()
 
     def make_word(self, name, word_type, **objs):
         if name in self.words:

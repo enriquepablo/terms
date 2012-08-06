@@ -20,10 +20,11 @@
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import OperationalError
 
 from terms import patterns
-from terms.terms import Base, Session, Term
+from terms.terms import Base, Term
 from terms.words import word, verb, noun, exists, thing, isa, are
 from terms.words import get_name, get_type, get_bases, negate
 from terms.utils import Match, merge_submatches
@@ -49,9 +50,13 @@ class FactSet(object):
         self.lexicon = lexicon
         try:
             self.root = self.session.query(RootFNode).one()
-        except NoResultFound:
-            self.root = RootFNode()
-            self.session.add(self.root)
+        except OperationalError:
+            self.root = None
+
+    def initialize(self, commit=False):
+        self.root = RootFNode()
+        self.session.add(self.root)
+        if commit:
             self.session.commit()
 
     def get_paths(self, w):
