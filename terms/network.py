@@ -22,18 +22,21 @@ import re
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError
 
-from terms.terms import Base, Term
+from terms.words import get_name, get_type, get_bases
+from terms.words import isa, exists, thing
+from terms.terms import Base, Term, term_to_base
 from terms.predicates import Predicate
 from terms.lexicon import Lexicon
 from terms.factset import FactSet
 from terms.utils import Match
-from terms.patterns import varpat
+from terms import exceptions
+from terms import patterns
     
 
 class Network(object):
@@ -54,6 +57,7 @@ class Network(object):
         self.lexicon.initialize()
         self.factset.initialize()
         self.root = RootNode()
+        self.session.add(self.root)
         self.session.commit()
 
     def _get_nclass(self, ntype):
@@ -64,41 +68,40 @@ class Network(object):
             return None
 
     def add_fact(self, fact):
-        m = Match(fact)
-        m.paths = self.factset.get_paths(w)
-        ntype_name = self.root.child_path[-1]
-        cls = self._get_nclass(ntype_name)
-        cls.dispatch(self.root, m, fact, self)
+        if self.root.child_path:
+            m = Match(fact)
+            m.paths = self.factset.get_paths(fact)
+            ntype_name = self.root.child_path[-1]
+            cls = self._get_nclass(ntype_name)
+            cls.dispatch(self.root, m, fact, self)
         self.factset.add_fact(fact)
 
     def add_rule(self, wprems, conds, wcons, orders=None, _commit=True):
         rule = Rule(self)
         for wprem in wprems:
-            var_map = []
+            vars = []
             paths = self.factset.get_paths(wprem)
             old_node = self.root
             for path in paths:
-                node = self.get_or_create_node(old_node, fact, path, var_map)
+                node = self.get_or_create_node(old_node, wprem, path, vars, rule)
                 old_node = node
-            pnode = PremNode()
-            old_node.terminals.append(pnode)
-            pnode.children.append(rule)
-            for varname, num in var_map.items():
-                rule.pvars.append(PVarname(pnode, num, varname))
+            pnode = PremNode(old_node)
+            pnode.rules.append(rule)
+            for n, varname in enumerate(vars):
+                rule.pvars.append(PVarname(pnode, n, varname))
         rule.conds = conds
         for wcon in wcons:
-            rule.cons.append(Consecuence(wcon))
+            rule.consecuences.append(Consecuence(wcon))
         if _commit:
             self.session.commit()
 
-    def get_or_create_node(self, parent, w, path, var_map, _commit=False):
+    def get_or_create_node(self, parent, w, path, vars, rule, _commit=False):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
-        wvalue = cls.resolve(w, path, self)
-        name = get_name(wvalue)
+        wvalue = cls.resolve(w, path)
         value = cls.get_qval(wvalue, self)
         try:
-            return parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value).one()
+            node = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value).one()
         except NoResultFound:
             #  build the node and append it
             node = cls(value)
@@ -108,7 +111,12 @@ class Network(object):
                 parent.child_path = path
             if _commit:
                 self.session.commit()
-            return node
+        name = get_name(wvalue)
+        m = patterns.varpat.match(name)
+        if m:
+            varname = Varname(int(m.group(3)), value, rule)
+            vars.append(varname)
+        return node
 
 
 class Node(Base):
@@ -148,7 +156,7 @@ class Node(Base):
             return self._path
 
     def _set_path(self, path):
-        self.child_path_str = path[-1]
+        self.child_path_str = '.'.join(path)
         self._path = path
 
     child_path = property(_get_path, _set_path)
@@ -173,9 +181,9 @@ class Node(Base):
 
     @classmethod
     def dispatch(cls, parent, match, value, network):
-        if self.var:
-            if self.var not in match:
-                match[self.var] = value
+        if parent.var:
+            if parent.var not in match:
+                match[parent.var] = value
         if parent.child_path:
             path = parent.child_path
             ntype_name = path[-1]
@@ -183,9 +191,10 @@ class Node(Base):
             value = cls.resolve(match.fact, path)
             name = get_name(value)
             children = cls.get_children(parent, match, value, network)
-            for child in children:
-                new_match = match.copy()
-                cls.dispatch(child, new_match, value, network)
+            for ch in children:
+                for child in ch:
+                    new_match = match.copy()
+                    cls.dispatch(child, new_match, value, network)
         for t in parent.terminals:
             new_match = match.copy()
             t.dispatch(new_match)
@@ -245,7 +254,7 @@ class NegNode(Node):
     def get_children(cls, parent, match, value, factset):
         if value is None:
             return parent.children.all()
-        return parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
+        return [parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)]
 
 
 class TermNode(Node):
@@ -279,17 +288,10 @@ class TermNode(Node):
 
     @classmethod
     def get_qval(cls, value, network):
-        name = get_name(value)
-        m = patterns.varpat.match(name)
-        if m:
-            name = ''.join(m.groups())
         try:
-            qval = network.lexicon.get_term(get_name(value))
+            return network.lexicon.get_term(get_name(value))
         except exceptions.TermNotFound:
-            if m:
-                return network.lexicon.save_var(value)
-            else:
-                raise
+            return network.lexicon.save_var(value)
 
 
     @classmethod
@@ -297,20 +299,20 @@ class TermNode(Node):
         if value is None:
             return parent.children.all()
         qval = cls.get_qval(value, network)
-        children = parent.children.join(cls, Node.id==cls.fnid).filter(cls.value==qval)
+        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==qval)
         for k, v in match.items():
-            if v == prev
+            if v == value:
                 vchildren = parent.children.filter(Node.var==k)
                 break
         else:
             types = (get_type(value),) + get_bases(get_type(value))
-            type_ids = [factset.lexicon.get_term(get_name(t)).id for t in types]
-            vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.parent_id.in_(type_ids))
-            bases = factset.lexicon.get_subwords(get_bases(value)[0])
-            if bases:
+            type_ids = [network.lexicon.get_term(get_name(t)).id for t in types]
+            vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.type_id.in_(type_ids))
+            if not isa(value, thing):
+                bases = (value,) + get_bases(value)
                 tbases = aliased(Term)
-                base_ids = [factset.lexicon.get_term(get_name(b)).id for b in bases]
-                vchildren = vchildren.join(terms_to_bases, Term.id==terms_to_bases.child_id).join(tbases, terms_to_bases.base_id==tbases.id).filter(tbases.id.in_(base_ids))
+                base_ids = [network.lexicon.get_term(get_name(b)).id for b in bases]
+                vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
         return children, vchildren
 
 
@@ -340,35 +342,29 @@ class VerbNode(Node):
 
     @classmethod
     def get_qval(cls, value, network):
-        name = get_name(value)
-        m = patterns.varpat.match(name)
-        if m:
-            name = ''.join(m.groups())
         try:
             qval = network.lexicon.get_term(get_name(value))
         except exceptions.TermNotFound:
-            if m:
-                return network.lexicon.save_var(value)
-            else:
-                raise
+            return network.lexicon.save_var(value)
 
     @classmethod
     def get_children(cls, parent, match, value, network):
         if value is None:
             return parent.children.all()
         qval = cls.get_qval(value, network)
-        children = parent.children.join(cls, Node.id==cls.fnid).filter(cls.value==qval)
+        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==qval)
+        pchildren = []
         for k, v in match.items():
-            if v == prev
+            if v == value:
                 vchildren = parent.children.filter(Node.var==k) # XXX falta poner las var
                 break
         else:
             types = (get_type(value),) + get_bases(get_type(value))
-            type_ids = [factset.lexicon.get_term(get_name(t)).id for t in types]
+            type_ids = [network.lexicon.get_term(get_name(t)).id for t in types]
             chvars = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0)
-            pchildren = chvars.filter(Term.parent_id.in_(type_ids))
+            pchildren = chvars.filter(Term.type_id.in_(type_ids))
             tbases = aliased(Term)
-            vchildren = chvars.join(terms_to_bases, Term.id==terms_to_bases.child_id).join(tbases, terms_to_bases.base_id==tbases.id).filter(tbases.id.in_(base_ids))
+            vchildren = chvars.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
@@ -377,7 +373,7 @@ class LabelNode(Node):
     '''
     __tablename__ = 'labelnodes'
     __mapper_args__ = {'polymorphic_identity': '_label'}
-    id = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
+    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     value = Column(String)
 
     def __init__(self, label, *args, **kwargs):
@@ -390,7 +386,7 @@ class LabelNode(Node):
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
-        return parent.children.all()
+        return [parent.children.all()]
 
 
 prem_to_rule = Table('prem_to_rule', Base.metadata,
@@ -410,14 +406,10 @@ class PremNode(Base):
     parent = relationship('Node', backref='terminals',
                          primaryjoin="Node.id==PremNode.parent_id")
     rules = relationship('Rule', backref='prems',
-                         secondary=prem_to_rule,
-                         foreign_keys=[prem_to_rule.c.prem_id, prem_to_rule.c.rule_id],
-                         primaryjoin=id==prem_to_rule.c.prem_id,
-                         secondaryjoin=id==prem_to_rule.c.rule_id)
+                         secondary=prem_to_rule)
 
     def __init__(self, parent):
         self.parent = parent  # node
-        self.rules = []  # rules
 
     def dispatch(self, match):
         match.prem = self
@@ -434,14 +426,23 @@ class Varname(Base):
     __tablename__ = 'varnames'
 
     id = Column(Integer, Sequence('varname_id_seq'), primary_key=True)
-    name = Column(String)
+    name_num = Column(Integer)
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref='varnames',
                          primaryjoin="Rule.id==Varname.rule_id")
+    term_id = Column(Integer, ForeignKey('terms.id'))
+    var = relationship('Term', backref='varnames',
+                         primaryjoin="Term.id==Varname.term_id")
 
-    def __init__(self, name, rule):
-        self.name = name
+    def __init__(self, name_num, var, rule):
+        self.name_num = name_num
+        self.var = var
         self.rule = rule
+
+    def _get_name(self):
+        return self.var.name + str(self.name_num)
+
+    name = property(_get_name)
 
 
 class MNode(Base):
@@ -457,6 +458,9 @@ class MNode(Base):
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref='mnodes',
                          primaryjoin="Rule.id==MNode.rule_id")
+    prule_id = Column(Integer, ForeignKey('rules.id'))
+    prule = relationship('Rule', backref=backref('mroot', uselist=False),
+                         primaryjoin="Rule.id==MNode.prule_id")
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term', backref='mnodes',
                          primaryjoin="Term.id==MNode.term_id")
@@ -548,11 +552,10 @@ class PVarname(Base):
                          primaryjoin="Varname.id==PVarname.varname_id")
     num = Column(Integer)
 
-    def __init__(self, rule, prem, num, name):
-        self.rule = rule
+    def __init__(self, prem, num, varname):
         self.prem = prem
         self.num = num
-        self.varname = name
+        self.varname = varname
 
 
 class CondArg(Base):
@@ -617,28 +620,23 @@ class Rule(Base):
 
     def __init__(self, network):
         self.network = network
-        self.prems = []  # pred nodes
-        self.pvars = []  # pvars
-        self.vrs = []  # string
-        self.conditions = []  # conditions
-        self.cons = []  # consecuences
         self.mroot = MNode(None, None, self)  # empty mnode
 
     def dispatch(self, match):
-        new_match = Match(match.sen)
+        new_match = Match(match.fact)
         for num, o in match.items():
-            pvar = self.pvars.filter(prem=match.prem, num=num).one()
-            varname = pvar.name
+            pvar = self.pvars.filter(PVarname.prem==match.prem, PVarname.num==num).one()
+            varname = pvar.varname.name
             new_match[varname] = o
         matched = []
-        if not self.root.children:
-            if len(new_match) == len(self.vrs):
+        if not self.mroot.children:
+            if len(new_match) == len(self.varnames):
                 matches = [new_match]
             else:
-                self.root.add_mnodes(new_match, matched)
+                self.mroot.add_mnodes(new_match, matched)
                 matches = []
         else:
-            matches = self.root.dispatch(new_match, matched)
+            matches = self.mroot.dispatch(new_match, matched)
 
         new = []
         for m in matches:
@@ -664,6 +662,9 @@ class Consecuence(Base):
     id = Column(Integer, Sequence('consecuence_id_seq'), primary_key=True)
     true = Column(Boolean)
     verb = Column(String)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='consecuences',
+                         primaryjoin="Rule.id==Consecuence.rule_id")
 
     ntype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': ntype}
@@ -673,11 +674,15 @@ class Consecuence(Base):
         verb is a string.
         args is a dict with strings (labels) to ConObjects
         '''
-        self.true = true  # boolean
-        self.verb = verb  # string
-        self.args = []  # StringObjects
-        for k, v in args.items():
-            self.args.append(ConObject(k, v))
+        self.true = wpred.true
+        verb_ = get_type(wpred)
+        self.verb = get_name(verb_)
+        for label in verb_._objs:
+            w = getattr(wpred, label)
+            if isa(w, exists):
+                self.args.append(SenConObject(label, w))
+            else:
+                self.args.append(StrConObject(label, w))
 
 
 class ConObject(Base):
@@ -695,11 +700,6 @@ class ConObject(Base):
     cotype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': cotype}
 
-    def __init__(self, parent, label, val):
-        self.parent = parent
-        self.label = label  # string
-        self.value = val
-
 
 class StrConObject(ConObject):
     '''
@@ -708,6 +708,10 @@ class StrConObject(ConObject):
     __mapper_args__ = {'polymorphic_identity': 0}
     id = Column(Integer, ForeignKey('conobjects.id'), primary_key=True)
     value = Column(String)
+
+    def __init__(self, label, w):
+        self.label = label
+        self.value = get_name(w)
 
 
 class SenConObject(ConObject):
@@ -719,3 +723,7 @@ class SenConObject(ConObject):
     con_id = Column(Integer, ForeignKey('consecuences.id'))
     value = relationship('Consecuence',
                          primaryjoin="Consecuence.id==SenConObject.con_id")
+
+    def __init__(self, label, w):
+        self.label = label
+        self.value = Consecuence(w)

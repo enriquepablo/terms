@@ -1,0 +1,17 @@
+
+person is thing.
+
+loves is exists, subj a person, who a person.
+
+(loves Person1, who Person2)
+->
+(loves Person2, who Person1).
+
+john is a person.
+
+yoko is a person.
+
+(loves john, who yoko).
+
+(loves yoko, who jonh)?
+true

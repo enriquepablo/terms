@@ -89,18 +89,25 @@ class Lexicon(object):
         tvar = self.get_word(tname)
         return self.make_word(name, tvar)
 
-    def save_var(self, w, _commit=True):
+    def save_var(self, w, _commit=False):
         name = get_name(w)
-        word_type = get_type(w)
-        objects = []
-        term_type = self.get_term(get_name(word_type))
-        bases = get_bases(w)
-        bases = [self.get_term(get_name(b)) for b in bases]
-        term = Term(name, ttype=term_type, bases=bases, objs=objects, var=True)
-        self.session.add(term)
-        if _commit:
-            self.session.commit()
-        return term
+        m = patterns.varpat.match(name)
+        name = m.group(1)
+        if m.group(2):
+            name += m.group(2)
+        try:
+            return self.get_term(name)
+        except exceptions.TermNotFound:
+            word_type = get_type(w)
+            objects = []
+            term_type = self.get_term(get_name(word_type))
+            bases = get_bases(w)
+            bases = [self.get_term(get_name(b)) for b in bases]
+            term = Term(name, ttype=term_type, bases=bases, objs=objects, var=True)
+            self.session.add(term)
+            if _commit:
+                self.session.commit()
+            return term
 
     def save_word(self, w, _commit=True):
         name = get_name(w)
@@ -226,8 +233,7 @@ class Lexicon(object):
                 vtype = type(bases[0])
             else:
                 vtype = verb
-        new = vtype(name, tuple(bases), objs)
-        return new
+        return vtype(name, tuple(bases), objs)
 
     def _make_subverb(self, name, bases=None):
         if bases is None:

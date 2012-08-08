@@ -51,14 +51,16 @@ class Term(Base):
     equals = None  # ==
     object_types = relationship('ObjectType', backref='verb',
                           primaryjoin='ObjectType.verb_id==Term.id')
-    var = Column(Boolean, default=False)
+    var = Column(Boolean)
 
     def __init__(self, name,
                        ttype=None,
                        bases=None,
                        objs=None,
+                       var=False,
                        _bootstrap=False):
         self.name = name
+        self.var = var
         if not _bootstrap:
             self.term_type = ttype or bases[0].term_type
         if bases:

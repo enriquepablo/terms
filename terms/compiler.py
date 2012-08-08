@@ -39,6 +39,7 @@ class Lexer(object):
             'A',
             'SEMICOLON',
             'VAR',
+            'IMPLIES',
     )
 
     reserved = {
@@ -54,6 +55,7 @@ class Lexer(object):
     t_NOT = r'!'
     t_SEMICOLON = r';'
     t_VAR = VAR_PAT
+    t_IMPLIES = r'->'
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self,t):
@@ -141,18 +143,21 @@ class KB(object):
         p[0] = p[1]
 
     def p_assertion(self, p):
-        '''assertion : sentence-list DOT'''
-                     # | rule DOT
-        for sen in p[1]:
-            if isa(sen, exists):
-                p[0] = self.network.add_fact(sen)
-            else:
-                if sen.type == 'noun-def':
-                    p[0] = self.lexicon.add_subword(sen.name, sen.bases)
-                elif sen.type == 'verb-def':
-                    p[0] = self.lexicon.add_subword(sen.name, sen.bases, **(sen.objs))
-                elif sen.type == 'name-def':
-                    p[0] = self.lexicon.add_word(sen.name, sen.term_type)
+        '''assertion : sentence-list DOT
+                     | rule DOT'''
+        if isinstance(p[1], str):  # rule
+            p[0] = p[1]
+        else:
+            for sen in p[1]:
+                if isa(sen, exists):
+                    p[0] = self.network.add_fact(sen)
+                else:
+                    if sen.type == 'noun-def':
+                        p[0] = self.lexicon.add_subword(sen.name, sen.bases)
+                    elif sen.type == 'verb-def':
+                        p[0] = self.lexicon.add_subword(sen.name, sen.bases, **(sen.objs))
+                    elif sen.type == 'name-def':
+                        p[0] = self.lexicon.add_word(sen.name, sen.term_type)
 
     def p_question(self, p):
         '''question : sentence-list QMARK'''
@@ -164,6 +169,11 @@ class KB(object):
         elif not matches[0]:
             matches = 'true'
         p[0] = matches
+
+    def p_rule(self, p):
+        '''rule : sentence-list IMPLIES sentence-list'''
+        self.network.add_rule(p[1], [], p[3])
+        p[0] = 'OK'
 
     def p_sentence_list(self, p):
         '''sentence-list : sentence SEMICOLON sentence-list

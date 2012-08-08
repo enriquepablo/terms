@@ -50,6 +50,9 @@ true
 (walks juan, to seville)?
 false
 
+(walks juan, to salamanca)?
+true
+
 (walks juan, from madrid, to seville)?
 false
 
