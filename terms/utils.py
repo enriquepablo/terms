@@ -56,6 +56,7 @@ class Match(dict):
 
 
 def merge_submatches(submatches):
+    final = []
     while submatches:
         final = submatches.pop()
         if not final:
