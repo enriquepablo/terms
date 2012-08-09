@@ -77,7 +77,7 @@ class Network(object):
         self.factset.add_fact(fact)
 
     def add_rule(self, wprems, conds, wcons, orders=None, _commit=True):
-        rule = Rule(self)
+        rule = Rule()
         for wprem in wprems:
             vars = []
             paths = self.factset.get_paths(wprem)
@@ -197,7 +197,7 @@ class Node(Base):
                     cls.dispatch(child, new_match, value, network)
         for t in parent.terminals:
             new_match = match.copy()
-            t.dispatch(new_match)
+            t.dispatch(new_match, network)
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
@@ -411,11 +411,11 @@ class PremNode(Base):
     def __init__(self, parent):
         self.parent = parent  # node
 
-    def dispatch(self, match):
+    def dispatch(self, match, network):
         match.prem = self
         for child in self.rules:
             new_match = match.copy()
-            child.dispatch(new_match)
+            child.dispatch(new_match, network)
 
 
 class Varname(Base):
@@ -478,7 +478,7 @@ class MNode(Base):
         # self.chidren = []  # mnodes
         # self.support = []  # facts that have supported it
 
-    def dispatch(self, match, matched=None):
+    def dispatch(self, match, network, matched=None):
         """
         returns
          * None : mismatch
@@ -509,12 +509,12 @@ class MNode(Base):
                 return []  # XXX
 
         for child in matching:
-            new_matches.append(child.dispatch(match, matched))
+            new_matches.append(child.dispatch(match, network, matched))
         return [m for matches in new_matches for m in matches]
 
     def add_mnodes(self, match, matched, hint=None):
         if not hint:
-            left = filter(lambda x: x not in matched, match.keys())
+            left = list(filter(lambda x: x not in matched, match.keys()))
             if not left:
                 return
             hint = left[0]
@@ -618,11 +618,10 @@ class Rule(Base):
 
     id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
 
-    def __init__(self, network):
-        self.network = network
+    def __init__(self):
         self.mroot = MNode(None, None, self)  # empty mnode
 
-    def dispatch(self, match):
+    def dispatch(self, match, network):
         new_match = Match(match.fact)
         for num, o in match.items():
             pvar = self.pvars.filter(PVarname.prem==match.prem, PVarname.num==num).one()
@@ -636,7 +635,7 @@ class Rule(Base):
                 self.mroot.add_mnodes(new_match, matched)
                 matches = []
         else:
-            matches = self.mroot.dispatch(new_match, matched)
+            matches = self.mroot.dispatch(new_match, network, matched)
 
         new = []
         for m in matches:
@@ -646,10 +645,9 @@ class Rule(Base):
             else:
                 new.append(m)
 
-        kb = self.network.kb
         for m in new:
             for con in self.cons:
-                kb.factset.add_fact(con.substitute(m))
+                network.factset.add_fact(con.substitute(m))
         return new or False
 
 
