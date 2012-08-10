@@ -41,7 +41,7 @@ from terms import patterns
 class Match(dict):
 
     def __init__(self, fact, prem=None):
-        self.fact = fact  # word
+        self.fact = fact
         self.paths = []
         self.prem = prem
         super(Match, self).__init__()
@@ -62,12 +62,6 @@ class Match(dict):
                     return False
             new_match[k] = v
         return new_match
-
-    def q(self, k):
-        return self[k][0]
-
-    def w(self, k):
-        return self[k][1]
 
 
 class Network(object):
@@ -107,31 +101,34 @@ class Network(object):
             cls.dispatch(self.root, m, fact, self)
         self.factset.add_fact(fact)
 
-    def add_rule(self, wprems, conds, wcons, orders=None, _commit=True):
+    def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
-        for wprem in wprems:
+        for prem in prems:
             vars = {}
-            paths = self.factset.get_paths(wprem)
+            paths = self.factset.get_paths(prem)
             old_node = self.root
             for path in paths:
-                node = self.get_or_create_node(old_node, wprem, path, vars, rule)
+                node = self.get_or_create_node(old_node, prem, path, vars, rule)
                 old_node = node
-            pnode = PremNode(old_node)
+            if old_node.terminal:
+                pnode = old_node.terminal
+            else:
+                pnode = PremNode(old_node)
+                old_node.terminal = pnode
             pnode.rules.append(rule)
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(pnode, n, varname))
         rule.conds = conds
-        for wcon in wcons:
-            rule.consecuences.append(Consecuence(wcon))
+        for con in cons:
+            rule.consecuences.append(con)
         if _commit:
             self.session.commit()
 
-    def get_or_create_node(self, parent, w, path, vars, rule, _commit=False):
+    def get_or_create_node(self, parent, term, path, vars, rule, _commit=False):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
-        wvalue = cls.resolve(w, path)
-        value = cls.get_qval(wvalue, self)
-        name = get_name(wvalue)
+        value = cls.resolve(w, path)
+        name = value.name
         m = patterns.varpat.match(name)
         pnum = 0
         if m:
@@ -205,38 +202,28 @@ class Node(Base):
         raise NotImplementedError
 
     @classmethod
-    def get_qval(cls, value, factset):
-        '''
-        From a word value, get a value
-        ready for use in a db query
-        '''
-        return value
-
-    @classmethod
     def dispatch(cls, parent, match, network):
         if parent.child_path:
             path = parent.child_path
             ntype_name = path[-1]
             cls = network._get_nclass(ntype_name)
             value = cls.resolve(match.fact, path)
-            qval = cls.get_qval(value, network)
             if value is None:
                 children = parent.children.all()
             else:
-                children = cls.get_children(parent, match, qval, value, network)
+                children = cls.get_children(parent, match, value, network)
             for ch in children:
                 for child in ch:
                     new_match = match.copy()
                     if child.var:
                         if child.var not in match:
-                            new_match[child.var] = (qval, value)
+                            new_match[child.var] = value
                     cls.dispatch(child, new_match, network)
-        for t in parent.terminals:
-            new_match = match.copy()
-            t.dispatch(new_match, network)
+        if parent.terminal:
+            parent.terminal.dispatch(match, network)
 
     @classmethod
-    def get_children(cls, parent, match, qval, value, factset):
+    def get_children(cls, parent, match, value, factset):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -269,17 +256,17 @@ class NegNode(Node):
     value = Column(Boolean)
     
     @classmethod
-    def resolve(cls, w, path):
+    def resolve(cls, term, path):
         try:
             for segment in path[:-1]:
-                w = getattr(w, segment)
+                term = term.get_object(segment)
         except AttributeError:
             return None
-        return w.true
+        return term.true
 
     @classmethod
-    def get_children(cls, parent, match, qval, value, factset):
-        return [parent.children.join(cls, Node.id==cls.nid).filter(cls.value==qval)]
+    def get_children(cls, parent, match, value, factset):
+        return [parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)]
 
 
 class TermNode(Node):
@@ -293,7 +280,7 @@ class TermNode(Node):
                          primaryjoin="Term.id==TermNode.term_id")
     
     @classmethod
-    def resolve(cls, w, path):
+    def resolve(cls, term, path):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -302,34 +289,26 @@ class TermNode(Node):
         '''
         try:
             for segment in path[:-1]:
-                w = getattr(w, segment)
+                term = term.get_object(segment)
         except AttributeError:
             return None
-        return w
+        return term
 
     @classmethod
-    def get_qval(cls, value, network):
-        try:
-            return network.lexicon.get_term(get_name(value))
-        except exceptions.TermNotFound:
-            return network.lexicon.save_var(value)
-
-
-    @classmethod
-    def get_children(cls, parent, match, qval, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==qval)
-        for k in match:
-            if match.q(k) == qval:
+    def get_children(cls, parent, match, value, network):
+        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
+        for k, v in match.items():
+            if v == value:
                 vchildren = parent.children.filter(Node.var==k)  # XXX poner la var al crear el nodo - si ya se ha usado
                 break
         else:
-            types = (get_type(value),) + get_bases(get_type(value))
-            type_ids = [network.lexicon.get_term(get_name(t)).id for t in types]
+            types = (value.term_type,) + get_bases(value.term_type)
+            type_ids = [t.id for t in types]
             vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.type_id.in_(type_ids))
             if not isa(value, thing):
                 bases = (value,) + get_bases(value)
                 tbases = aliased(Term)
-                base_ids = [network.lexicon.get_term(get_name(b)).id for b in bases]
+                base_ids = [b.id for b in bases]
                 vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
         return children, vchildren
 
@@ -345,34 +324,27 @@ class VerbNode(Node):
                          primaryjoin="Term.id==VerbNode.term_id")
     
     @classmethod
-    def resolve(cls, w, path):
+    def resolve(cls, term, path):
         try:
             for segment in path[:-1]:
-                w = getattr(w, segment)
+                term = term.get_object(segment)
         except AttributeError:
             return None
-        if patterns.varpat.match(get_name(w)):
+        if patterns.varpat.match(term.name):
             return w
-        return get_type(w)
+        return term.term_type
 
     @classmethod
-    def get_qval(cls, value, network):
-        try:
-            qval = network.lexicon.get_term(get_name(value))
-        except exceptions.TermNotFound:
-            return network.lexicon.save_var(value)
-
-    @classmethod
-    def get_children(cls, parent, match, qval, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==qval)
+    def get_children(cls, parent, match, value, network):
+        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
         pchildren = []
-        for k in match:
-            if match.q(k) == qval:
+        for k,v in match.items():
+            if v == value:
                 vchildren = parent.children.filter(Node.var==k) # XXX falta poner las var
                 break
         else:
-            types = (get_type(value),) + get_bases(get_type(value))
-            type_ids = [network.lexicon.get_term(get_name(t)).id for t in types]
+            types = (value.term_type,) + get_bases(value.term_type)
+            type_ids = [t.id for t in types]
             chvars = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0)
             pchildren = chvars.filter(Term.type_id.in_(type_ids))
             tbases = aliased(Term)
@@ -393,7 +365,7 @@ class LabelNode(Node):
         return path[-2]
 
     @classmethod
-    def get_children(cls, parent, match, qval, value, factset):
+    def get_children(cls, parent, match, value, factset):
         return [parent.children.all()]
 
 
@@ -411,10 +383,9 @@ class PremNode(Base):
 
     id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('nodes.id'))
-    parent = relationship('Node', backref='terminals',
+    parent = relationship('Node', backref=backref('terminal', uselist=False),
                          primaryjoin="Node.id==PremNode.parent_id")
-    rules = relationship('Rule', backref='prems',
-                         secondary=prem_to_rule)
+    rules = relationship('Rule', backref='prems', secondary=prem_to_rule)
 
     def __init__(self, parent):
         self.parent = parent  # node
@@ -685,101 +656,13 @@ class Rule(Base):
             pvar = self.get_pvarname((match.prem, num))
             varname = pvar.varname.name
             new_match[varname] = o
-        matched = []
-        if not self.mroot.children:
-            if len(new_match) == len(self.varnames):
-                matches = [new_match]
-            else:
-                self.mroot.add_mnodes(new_match, matched)
-                matches = []
-        else:
-            matches = self.mroot.dispatch(new_match, network, matched)
 
-        new = []
-        for m in matches:
-            for cond in self.conditions:
-                if not cond.test(m):
-                    break
-            else:
-                new.append(m)
+        for cond in self.conditions:
+            if not cond.test(match):
+                return
 
-        for m in new:
-            for con in self.cons:
-                network.factset.add_fact(con.substitute(m))
+        for con in self.consecuences:
+            network.add_fact(con.substitute(match))
         return new or False
 
 
-class Consecuence(Base):
-    '''
-    Consecuences in rules.
-    '''
-    __tablename__ = 'consecuences'
-
-    id = Column(Integer, Sequence('consecuence_id_seq'), primary_key=True)
-    true = Column(Boolean)
-    verb = Column(String)
-    rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='consecuences',
-                         primaryjoin="Rule.id==Consecuence.rule_id")
-
-    ntype = Column(Integer)
-    __mapper_args__ = {'polymorphic_on': ntype}
-
-    def __init__(self, wpred):
-        '''
-        verb is a string.
-        args is a dict with strings (labels) to ConObjects
-        '''
-        self.true = wpred.true
-        verb_ = get_type(wpred)
-        self.verb = get_name(verb_)
-        for label in verb_._objs:
-            w = getattr(wpred, label)
-            if isa(w, exists):
-                self.args.append(SenConObject(label, w))
-            else:
-                self.args.append(StrConObject(label, w))
-
-
-class ConObject(Base):
-    '''
-    objects for StringSentences
-    '''
-    __tablename__ = 'conobjects'
-
-    id = Column(Integer, Sequence('conobject_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('consecuences.id'))
-    parent = relationship('Consecuence', backref='args',
-                         primaryjoin="Consecuence.id==ConObject.parent_id")
-    label = Column(String)
-
-    cotype = Column(Integer)
-    __mapper_args__ = {'polymorphic_on': cotype}
-
-
-class StrConObject(ConObject):
-    '''
-    '''
-    __tablename__ = 'strconobjects'
-    __mapper_args__ = {'polymorphic_identity': 0}
-    id = Column(Integer, ForeignKey('conobjects.id'), primary_key=True)
-    value = Column(String)
-
-    def __init__(self, label, w):
-        self.label = label
-        self.value = get_name(w)
-
-
-class SenConObject(ConObject):
-    '''
-    '''
-    __tablename__ = 'senconobjects'
-    __mapper_args__ = {'polymorphic_identity': 1}
-    id = Column(Integer, ForeignKey('conobjects.id'), primary_key=True)
-    con_id = Column(Integer, ForeignKey('consecuences.id'))
-    value = relationship('Consecuence',
-                         primaryjoin="Consecuence.id==SenConObject.con_id")
-
-    def __init__(self, label, w):
-        self.label = label
-        self.value = Consecuence(w)

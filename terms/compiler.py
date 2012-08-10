@@ -22,7 +22,7 @@ import ply.yacc
 from ply.lex import TOKEN
 
 from terms.patterns import SYMBOL_PAT, VAR_PAT
-from terms.words import word, verb, noun, exists, thing, get_name, isa, are
+from terms.terms import word, verb, noun, exists, thing, isa, are
 from terms.utils import merge_submatches
 
 class Lexer(object):
@@ -153,11 +153,11 @@ class KB(object):
                     p[0] = self.network.add_fact(sen)
                 else:
                     if sen.type == 'noun-def':
-                        p[0] = self.lexicon.add_subword(sen.name, sen.bases)
+                        p[0] = self.lexicon.add_subterm(sen.name, sen.bases)
                     elif sen.type == 'verb-def':
-                        p[0] = self.lexicon.add_subword(sen.name, sen.bases, **(sen.objs))
+                        p[0] = self.lexicon.add_subterm(sen.name, sen.bases, **(sen.objs))
                     elif sen.type == 'name-def':
-                        p[0] = self.lexicon.add_word(sen.name, sen.term_type)
+                        p[0] = self.lexicon.add_term(sen.name, sen.term_type)
 
     def p_question(self, p):
         '''question : sentence-list QMARK'''
@@ -193,9 +193,8 @@ class KB(object):
         '''fact : LPAREN predicate RPAREN
                 | LPAREN NOT predicate RPAREN'''
         if len(p) == 5:
-            pred = p[3]
-            pred.negate()
-            p[0] = pred
+            p[3].true = False
+            p[0] = p[3]
         else:
             p[0] = p[2]
 
@@ -203,9 +202,9 @@ class KB(object):
         '''predicate : verb subject
                      | verb subject COMMA mods'''
         if len(p) == 3:
-            p[0] = self.lexicon._make_pred(p[1], subj=p[2])
+            p[0] = self.lexicon.make_pred(True, p[1], subj=p[2])
         else:
-            p[0] = self.lexicon._make_pred(p[1], subj=p[2], **p[4])
+            p[0] = self.lexicon.make_pred(True, p[1], subj=p[2], **p[4])
 
     def p_verb(self, p):
         '''verb : vterm'''
@@ -218,11 +217,14 @@ class KB(object):
     def p_vterm(self, p):
         '''vterm : term
                  | var'''
-        p[0] = p[1]
+        if isinstance(p[1]), str):
+            p[0] = self.lexicon.get_term(p[1])
+        else:
+            p[0] = p[1]
 
     def p_term(self, p):
         '''term : SYMBOL'''
-        p[0] = self.lexicon.get_word(p[1])
+        p[0] = p[1]
 
     def p_var(self, p):
         '''var : VAR'''
@@ -260,13 +262,13 @@ class KB(object):
         '''terms : term COMMA terms
                  | term'''
         if len(p) == 4:
-            p[0] = p[3] + (p[1],)
+            p[0] = p[3] + (self.lexicon.get_term(p[1]),)
         else:
-            p[0] = (p[1],)
+            p[0] = (self.lexicon.get_term(p[1]),)
 
     def p_name_def(self, p):
         '''name-def : SYMBOL IS A term'''
-        p[0] = AstNode(p[1], 'name-def', term_type=p[4])
+        p[0] = AstNode(p[1], 'name-def', term_type=self.lexicon.get_term(p[4]))
 
     def p_verb_def(self, p):
         '''verb-def :  SYMBOL IS terms COMMA mod-defs'''
@@ -281,7 +283,7 @@ class KB(object):
 
     def p_mod_def(self, p):
         'mod-def : SYMBOL A term'
-        p[0] = {p[1]: p[3]}
+        p[0] = {p[1]: self.lexicon.get_term(p[3])}
 
     def p_error(self, p):
         raise Exception('syntax error: ' + str(p))
