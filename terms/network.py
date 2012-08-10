@@ -426,13 +426,26 @@ class PremNode(Base):
             m.mpairs.append(MPair(var=var, val=match(var.name)))
         self.matches.append(m)
         for rule in self.rules:
+            matches = [match]
             for prem in rule.prems:
                 if prem is not self:
-                    matches = prem.matches
-                    for v in prem.vars:
-                        if v in self.vars:
-                            a = aliased(MPair)
-                            matches = matches.join(a, Match.id==a.match_id).filter(a.var==v, a.val==match[v.name])
+                    for m in matches
+                        new_matches = []
+                        pmatches = prem.matches
+                        for v in m:
+                            if v in prem.vars
+                                a = aliased(MPair)
+                                pmatches = pmatches.join(a, Match.id==a.match_id).filter(a.var==v, a.val==m[v.name])
+                        for pm in pmatches:
+                            new_match = m.copy()
+                            for mpair in pm.mpairs:
+                                vname = mpair.var.name
+                                if vname not in m:
+                                    new_match[vname] = mpair.val
+                            new_matches.append(new_match)
+                    matches = new_matches
+            for m in matches:
+                rule.dispatch(m)  # test the conditions, add the consecuences
 
 
 ## POR AQUI XXX
