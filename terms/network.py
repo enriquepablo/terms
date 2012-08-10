@@ -392,9 +392,9 @@ class PremNode(Base):
 
     def dispatch(self, match, network):
         mps = []
-        m = Match()
-        for var in self.vars:
-            m.mpairs.append(MPair(var=var, val=match(var.name)))
+        m = PMatch(self)
+        for var in match:
+            m.mpairs.append(MPair.make_pair(var, match[var.name]))
         self.matches.append(m)
         for rule in self.rules:
             matches = [match]
@@ -419,11 +419,54 @@ class PremNode(Base):
                 rule.dispatch(m)  # test the conditions, add the consecuences
 
 
-## POR AQUI XXX
-# faltan dos cosas.
-# 1- arreglar las reglas, quitar los mnodes y poner premisas con (muchos) objetos match que tienen cada uno tantas parejas var - value como vars aparezcan en la prem. cuando una frase cuadra en una prem, la prem dispatch: por cada regla a la que pertenece, selecciona los matches del  resto de las premisas de la regla que cuadran con el suyo, y los añade como consecuencias.
-# 2- definitivamente quitar words, poner predicates en el módulo de terms, manejar terms en el compiler. los predicate solo se guardan como consecuencias. no puse terms porque no podían ser variables, y ahora pueden. consecuence es más código que que predicate y más inútil y redundante. En el compiler se construyen varnames.
+class PMatch(Base):
+    __tablename__ = 'pmatches'
 
+
+    id = Column(Integer, Sequence('pmatch_id_seq'), primary_key=True)
+    prem_id = Column(Integer, ForeignKey('premnodes.id'))
+    prem = relationship('PremNode', backref=backref('matches' lazy='dynamic'),
+                         primaryjoin="PremNode.id==PMatch.prem_id")
+
+    def __init__(self, prem):
+        self.prem = prem
+
+
+class MPair(Base):
+    __tablename__ = 'mpairs'
+
+    id = Column(Integer, Sequence('mpair_id_seq'), primary_key=True)
+    parent_id = Column(Integer, ForeignKey('pmatchs.id'))
+    parent = relationship('PMatch', backref='pairs',
+                         primaryjoin="PMatch.id==MPair.parent_id")
+    varname_id = Column(Integer, ForeignKey('varnames.id'))
+    varname = relationship('Varname',
+                         primaryjoin="Varname.id==MPair.varname_id")
+
+    mtype = Column(Integer)
+    __mapper_args__ = {'polymorphic_on': mtype}
+
+    def make_pair(self, var, val):
+        if isa(val, exists):
+            return PPair(var, val)
+        else:
+            return TPair(var, val)
+
+class TPair(MPair):
+    __tablename__ = 'tpairs'
+    __mapper_args__ = {'polymorphic_identity': 0}
+    mid = Column(Integer, ForeignKey('mpairs.id'), primary_key=True)
+    term_id = Column(Integer, ForeignKey('terms.id'))
+    val = relationship('Term', primaryjoin="Term.id==TPair.term_id")
+
+
+class PPair(MPair):
+    __tablename__ = 'ppairs'
+    __mapper_args__ = {'polymorphic_identity': 1}
+    mid = Column(Integer, ForeignKey('mpairs.id'), primary_key=True)
+    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    val = relationship('Predicate',
+                         primaryjoin="Predicate.id==PPair.pred_id")
 
 class Varname(Base):
     """
@@ -450,93 +493,6 @@ class Varname(Base):
         return self.var.name + str(self.name_num)
 
     name = property(_get_name)
-
-
-class MNode(Base):
-    '''
-    '''
-    __tablename__ = 'mnodes'
-
-
-    id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('mnodes.id'))
-    parent = relationship('MNode', remote_side=[id], backref='children',
-                         primaryjoin="MNode.id==MNode.parent_id")
-    rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='mnodes',
-                         primaryjoin="Rule.id==MNode.rule_id")
-    prule_id = Column(Integer, ForeignKey('rules.id'))
-    prule = relationship('Rule', backref=backref('mroot', uselist=False),
-                         primaryjoin="Rule.id==MNode.prule_id")
-    term_id = Column(Integer, ForeignKey('terms.id'))
-    value = relationship('Term', backref='mnodes',
-                         primaryjoin="Term.id==MNode.term_id")
-    varname_id = Column(Integer, ForeignKey('varnames.id'))
-    var = relationship('Varname', backref='mnodes',
-                         primaryjoin="Varname.id==MNode.varname_id")
-    fact_id = Column(Integer, ForeignKey('facts.id'))
-    support = relationship('Fact', backref='mnodes',
-                         primaryjoin="Fact.id==MNode.fact_id")
-
-    def __init__(self, var, value, rule):
-        self.var = var  # varname
-        self.value = value  # term
-        self.rule = rule
-        # self.chidren = []  # mnodes
-        # self.support = []  # facts that have supported it
-
-    def dispatch(self, match, network, matched=None):
-        """
-        returns
-         * None : mismatch
-         * [] : no matches
-         * [m1, m2...] : matches
-        """
-
-        if matched is None:
-            matched = []
-
-        new_matches = []
-        first = self.children.first()
-        var = first.var
-        if var.name in match:
-            matching = self.filter_value(match[var])
-        else:
-            matching = []
-
-        if not matching: 
-            new_match = match.copy()
-            new_match[self.var] = self.value
-            if len(new_match) == len(self.rule.vrs):
-                return [new_match]
-            else:
-                new_matched = matched[:]
-                new_matched.append(self.var)
-                self.add_mnodes(new_match, new_matched)
-                return []  # XXX
-
-        for child in matching:
-            new_matches.append(child.dispatch(match, network, matched))
-        return [m for matches in new_matches for m in matches]
-
-    def add_mnodes(self, match, matched, hint=None):
-        if not hint:
-            left = filter(lambda x: x not in matched, match.keys())
-            for h in left:
-                hint = h
-                break
-            else:
-                return
-        varname = self.rule.get_varname(hint)
-        mnode = MNode(varname, match[hint], self.rule)
-        self.children.append(mnode)
-        matched.append(hint)
-        mnode.add_mnodes(match, matched)
-
-    def filter_value(self, val):
-        bases = get_bases(val)
-        return self.children.filter(MNode.value.in_(bases))
-
 
 
 class PVarname(Base):
@@ -628,9 +584,6 @@ class Rule(Base):
 
     id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
 
-    def __init__(self):
-        self.mroot = MNode(None, None, self)  # empty mnode
-
     def _get_vname(self, name, d, vns):
         try:
             return getattr(self, d)[name]
@@ -663,6 +616,3 @@ class Rule(Base):
 
         for con in self.consecuences:
             network.add_fact(con.substitute(match))
-        return new or False
-
-
