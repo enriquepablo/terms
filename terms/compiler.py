@@ -201,9 +201,12 @@ class KB(object):
             p[0] = p[2]
 
     def p_predicate(self, p):
-        '''predicate : verb subject
+        '''predicate : var
+                     | verb subject
                      | verb subject COMMA mods'''
-        if len(p) == 3:
+        if len(p) == 2:
+            p[0] = p[1]
+        elif len(p) == 3:
             p[0] = self.lexicon.make_pred(True, p[1], subj=p[2])
         else:
             p[0] = self.lexicon.make_pred(True, p[1], subj=p[2], **p[4])

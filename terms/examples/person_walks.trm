@@ -88,6 +88,46 @@ wants is exists, subj a person, what a exists.
 (wants john, what (walks john, to seville)).
 
 
-(wants john, what Exists1)?
+(wants john, what (Exists1))?
 Exists1: walks
 
+
+(wants john, what (walks john, to Place1))
+->
+(walks john, to Place1).
+
+(wants john, what (walks john, to salamanca)).
+
+(walks john, to salamanca)?
+true
+
+
+
+(wants Person1, what (walks Person1, to Place1))
+->
+(walks Person1, to Place1).
+
+cazalla is a place.
+
+(walks john, to cazalla)?
+false
+
+(wants john, what (walks john, to cazalla)).
+
+(walks john, to cazalla)?
+true
+
+
+(wants Person1, what (WalksVerb1 Person1, to Place1))
+->
+(WalksVerb1 Person1, to Place1).
+
+pedroso is a place.
+
+(walks john, to pedroso)?
+false
+
+(wants john, what (walks john, to pedroso)).
+
+(walks john, to pedroso)?
+true

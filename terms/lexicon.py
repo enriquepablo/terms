@@ -131,9 +131,6 @@ class Lexicon(object):
             pterm = self.get_term(name)
         except exceptions.TermNotFound:
             pass
-        else:
-            if pterm:
-                raise exceptions.TermRepeated(name)
         term = self.make_term(name, term_type, **objs)
         self.save_term(term, _commit)
 
@@ -142,9 +139,6 @@ class Lexicon(object):
             pterm = self.get_term(name)
         except exceptions.TermNotFound:
             pass
-        else:
-            if pterm:
-                raise exceptions.TermRepeated(name)
         term = self.make_subterm(name, super_terms, **objs)
         self.save_term(term, _commit)
 
@@ -167,6 +161,10 @@ class Lexicon(object):
         Its name has the original trailing digits.
         
         '''
+        try:
+            return self.get_term(name)
+        except exceptions.TermNotFound:
+            pass
         m = patterns.varpat.match(name)
         if m.group(2):
             basename = m.group(1).lower()

@@ -88,7 +88,7 @@ class Network(object):
         except KeyError:
             return None
 
-    def add_fact(self, fact):
+    def add_fact(self, fact, _commit=True):
         prev = self.factset.query(fact)
         if prev:
             return
@@ -99,6 +99,8 @@ class Network(object):
             ntype_name = self.root.child_path[-1]
             cls = self._get_nclass(ntype_name)
             cls.dispatch(self.root, m, self)
+        if _commit:
+            self.session.commit()
 
     def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
@@ -300,7 +302,7 @@ class TermNode(Node):
         thing = network.lexicon.get_term('thing')
         for k, v in match.items():
             if v == value:
-                vchildren = parent.children.filter(Node.var==k)  # XXX poner la var al crear el nodo - si ya se ha usado
+                vchildren = parent.children.filter(Node.var==k)
                 break
         else:
             types = (value.term_type,) + get_bases(value.term_type)
