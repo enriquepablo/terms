@@ -147,7 +147,7 @@ class Lexicon(object):
         m = patterns.varpat.match(name)
         if m:
             if m.group(2):
-                name = m.group(1).lower()
+                term = self.get_term(m.group(1).lower())
             else:
                 return ()
         subtypes = [term]
@@ -169,35 +169,18 @@ class Lexicon(object):
         if m.group(2):
             basename = m.group(1).lower()
             bases = self.get_term(basename)
-            return self.make_subterm(name, bases)
-        tname = m.group(1).lower()
-        tvar = self.get_term(tname)
-        verb = self.get_term('verb')
-        if isa(tvar, verb):
-            var = self._make_name(name, tvar)
+            var = self.make_subterm(name, bases)
         else:
-            var = self.make_term(name, tvar)
+            tname = m.group(1).lower()
+            tvar = self.get_term(tname)
+            verb = self.get_term('verb')
+            if isa(tvar, verb):
+                var = self._make_name(name, tvar)
+            else:
+                var = self.make_term(name, tvar)
         var.var = True
+        self.session.add(var)
         return var
-
-    def save_var(self, var, _commit=False):
-        '''
-        Save a given var term to the db.
-        It is saved without the trailing digits.
-        '''
-        name = var.name
-        m = patterns.varpat.match(name)
-        name = m.group(1)
-        if m.group(2):
-            name += m.group(2)
-        try:
-            return self.get_term(name)
-        except exceptions.TermNotFound:
-            var.name = name
-            self.session.add(var)
-            if _commit:
-                self.session.commit()
-            return var
 
     def _recurse_subterms(self, term, subterms):
         sterms = term.subwords

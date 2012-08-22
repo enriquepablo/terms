@@ -135,8 +135,7 @@ class Network(object):
         if m:
             if name not in vars:
                 pnum = len(vars) + 1
-                var = self.lexicon.save_var(value)
-                vars[name] = (pnum, Varname(int(m.group(3)), var, rule))
+                vars[name] = (pnum, Varname(value, rule))
             else:
                 pnum = vars[name][0]
         try:
@@ -346,18 +345,15 @@ class VerbNode(Node):
         pchildren = []
         for k,v in match.items():
             if v == value:
-                vchildren = parent.children.filter(Node.var==k) # XXX falta poner las var
+                vchildren = parent.children.filter(Node.var==k)
                 break
         else:
-            types = (value.term_type,) + get_bases(value.term_type)
+            types = (value,) + get_bases(value)
             type_ids = (t.id for t in types)
-            chvars = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0)
-            pchildren = ()
-            vchildren = ()
-            if type_ids:
-                pchildren = chvars.filter(Term.type_id.in_(type_ids))
-                tbases = aliased(Term)
-                vchildren = chvars.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
+            chvars = parent.children.filter(Node.var>0)
+            pchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids))
+            tbases = aliased(Term)
+            vchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
@@ -494,7 +490,6 @@ class Varname(Base):
     __tablename__ = 'varnames'
 
     id = Column(Integer, Sequence('varname_id_seq'), primary_key=True)
-    name_num = Column(Integer)
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref='varnames',
                          primaryjoin="Rule.id==Varname.rule_id")
@@ -502,13 +497,12 @@ class Varname(Base):
     var = relationship('Term', backref='varnames',
                          primaryjoin="Term.id==Varname.term_id")
 
-    def __init__(self, name_num, var, rule):
-        self.name_num = name_num
+    def __init__(self, var, rule):
         self.var = var
         self.rule = rule
 
     def _get_name(self):
-        return self.var.name + str(self.name_num)
+        return self.var.name
 
     name = property(_get_name)
 
@@ -532,9 +526,8 @@ class Rule(Base):
     def get_pvar_map(self, match, prem):
         pvar_map = {}
         for name, val in match.items():
-            name_num = int(patterns.varpat.match(name).group(3))
             try:
-                pvar = self.pvars.filter(PVarname.prem==prem).join(Varname, PVarname.varname_id==Varname.id).filter(Varname.name_num==name_num).one()
+                pvar = self.pvars.filter(PVarname.prem==prem).join(Varname, PVarname.varname_id==Varname.id).join(Term, Varname.term_id==Term.id).filter(Term.name==name).one()
             except NoResultFound:
                 continue
             pvar_map[pvar.num] = val
