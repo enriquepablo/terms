@@ -26,7 +26,7 @@ from sqlalchemy.exc import OperationalError
 from terms import patterns
 from terms.terms import get_bases
 from terms.terms import Base, Term, ObjectType
-from terms.terms import word, verb, noun, exists, thing, isa, are
+from terms.terms import isa, are
 from terms.utils import Match, merge_submatches
 
 '''
@@ -50,8 +50,8 @@ class FactSet(object):
         self.lexicon = lexicon
         try:
             self.root = self.session.query(RootFNode).one()
-        except OperationalError:
-            self.root = None
+        except NoResultFound:
+            self.initialize()
 
     def initialize(self, commit=False):
         self.root = RootFNode()
@@ -72,6 +72,8 @@ class FactSet(object):
     def _recurse_paths(self, pred, paths, path):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
+        exists = self.lexicon.get_term('exists')
+        word = self.lexicon.get_term('word')
         for ob in sorted(pred.objects, key=lambda x: x.label):
             o = ob.value
             paths.append(path + (ob.label, '_label'))
@@ -109,15 +111,17 @@ class FactSet(object):
         cls = self._get_nclass(ntype_name)
         value = cls.resolve(term, path, self)
         try:
-            return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value).one()
+            node = parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value).one()
         except NoResultFound:
-            pass
-        #  build the node and append it
-        node = cls(value)
-        self.session.add(node)
-        parent.children.append(node)
-        if not parent.child_path:
-            parent.child_path = path
+            #  build the node and append it
+            node = cls(value)
+            self.session.add(node)
+            parent.children.append(node)
+            if not parent.child_path:
+                parent.child_path = path
+#        if cls is VerbFNode:
+#            pred = TermFNode.resolve(term, path, self)
+#            node.preds.append(pred)
         if _commit:
             self.session.commit()
         return node
@@ -128,8 +132,9 @@ class FactSet(object):
         q is a word or set of words,
         possibly with varnames
         '''
+        word = self.lexicon.get_term('word')
         submatches = []
-        if not q:
+        if not q or not self.root.child_path:
             return submatches
         for w in q:
             m = Match(word, query=w)
@@ -140,6 +145,18 @@ class FactSet(object):
             cls.dispatch(self.root, m, smatches, self)
             submatches.append(smatches)
         return merge_submatches(submatches)
+
+    def facts_from_node(self, node):
+        facts = []
+        self._recurse_facts_from_node(node, node, facts)
+        return facts
+
+    def _recurse_facts_from_node(self, prim, node, facts):
+        if self.terminal:
+            facts.append(self.terminal.fact)
+        if len(node.child_path) >= len(prim.child_path):
+            for ch in self.children:
+                self._recurse_facts_from_node(prim, ch, facts)
 
 
 class FactNode(Base):
@@ -192,20 +209,18 @@ class FactNode(Base):
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, factset)
+            word = factset.lexicon.get_term('word')
+            exists = factset.lexicon.get_term('exists')
             for child in children:
                 if isinstance(child, LabelFNode):
                     path = path[:-2] + (child.value, path[-1])
                     if path in match.paths:
                         match.paths.remove(path)
                 new_match = match.copy()
-                val = 
                 m = patterns.varpat.match(name)
-                if isa(value, word) and m:
+                if m:
                     if name not in match:
-                        if m.group(2):
-                            new_match[name] = child.value.term_type
-                        else:
-                            new_match[name] = child.value
+                        new_match[name] = child.value
                 cls.dispatch(child, new_match, matches, factset)
         if parent.terminal:
             if not match.paths:
@@ -260,9 +275,9 @@ class NegFNode(FactNode):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
+            return term.true
         except AttributeError:
             return None
-        return term.true
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
@@ -293,23 +308,34 @@ class TermFNode(FactNode):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-        except AttributeError:
+        except (KeyError, AttributeError):
             return None
         return term
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
+        word = factset.lexicon.get_term('word')
         if patterns.varpat.match(value.name):
-            if name in match:
+            if value.name in match:
                 return parent.children.filter(cls.value==value)
             else:
-                if are(get_type(value), word):
-                    sbases = factset.lexicon.get_subterms(factset.lexicon.get_bases(value)[0])
+                if value.bases:
+                    sbases = factset.lexicon.get_subterms(get_bases(value)[0])
                 else:
-                    sbases = (value.term_type,) + factset.lexicon.get_subwords(value.term_type)
-                return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(sbases))
+                    sbases = (value.term_type,) + factset.lexicon.get_subterms(value.term_type)
+                sbases = (b.id for b in sbases)
+                if sbases:
+                    return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(sbases))
+                return ()
         else:
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
+
+
+#verbfnode_to_pred = Table('verbfnode_to_pred', Base.metadata,
+#    Column('verbfnode_id', Integer, ForeignKey('verbfnodes.id'), primary_key=True),
+#    Column('pred_id', Integer, ForeignKey('predicates.id'), primary_key=True)
+#)
+
 
 
 class VerbFNode(FactNode):
@@ -319,6 +345,10 @@ class VerbFNode(FactNode):
     __mapper_args__ = {'polymorphic_identity': '_verb'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
+#    predicates = relationship('Predicate',
+#                         secondary=verbfnode_to_pred,
+#                         primaryjoin=id==verbfnode_to_pred.c.verbfnode_id,
+#                         secondaryjoin=id==verbfnode_to_pred.c.pred_id)
     value = relationship('Term',
                          primaryjoin="Term.id==VerbFNode.term_id")
 
@@ -339,20 +369,21 @@ class VerbFNode(FactNode):
     @classmethod
     def get_children(cls, parent, match, value, factset):
         m = patterns.varpat.match(value.name)
+        verb = factset.lexicon.get_term('verb')
+        exists = factset.lexicon.get_term('exists')
         if m:
             if value.name in match:
                 value = match[value.name]
                 return parent.children.filter(cls.value==value)
             else:
                 if isa(value, verb):
-                    sbases = factset.lexicon.get_subterms(factset.lexicon.get_bases(value)[0])
+                    sbases = factset.lexicon.get_subterms(get_bases(value)[0])
                 elif isa(value, exists):
-                    if m.group(2):
-                        verb_ = factset.lexicon.get_bases(value)[0]
-                        sbases = factset.lexicon.get_subterms(verb_)
-                    else:
-                        sbases = factset.lexicon.get_subterms(value.term_type)
-                return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.id.in_(sbases))
+                    sbases = factset.lexicon.get_subterms(value.term_type)
+                sbases = (b.id for b in sbases)
+                if sbases:
+                    return parent.children.join(cls, FactNode.id==cls.fnid).join(Term, cls.term_id==Term.id).filter(Term.id.in_(sbases))
+                return ()
         else:
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
 

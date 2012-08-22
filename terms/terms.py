@@ -24,9 +24,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declared_attr
 
 
-word = verb = noun = exists = thing = None
-
-
 class Base(object):
     @declared_attr
     def __tablename__(cls):
@@ -47,15 +44,19 @@ class Term(Base):
     name = Column(String)
     type_id = Column(Integer, ForeignKey('terms.id'))
     term_type = relationship('Term', remote_side=[id],
-                         primaryjoin="Term.id==Term.type_id")
+                         primaryjoin="Term.id==Term.type_id",
+                         post_update=True)
     bases = relationship('Term', backref='subwords',
                          secondary=term_to_base,
                          primaryjoin=id==term_to_base.c.term_id,
                          secondaryjoin=id==term_to_base.c.base_id)
-    equals = None  # ==
+    equals = ()
     object_types = relationship('ObjectType', backref='verb',
                           primaryjoin='ObjectType.verb_id==Term.id')
     var = Column(Boolean)
+
+    # Avoid AttributeErrors
+    objects = ()
 
     def __init__(self, name,
                        ttype=None,
@@ -68,6 +69,8 @@ class Term(Base):
         if not _bootstrap:
             self.term_type = ttype or bases[0].term_type
         used = []
+        if objs is None:
+            objs = {}
         for label, otype in objs.items():
             self.object_types.append(ObjectType(label, otype))
             used.append(label)
@@ -105,15 +108,16 @@ class Predicate(Base):
 
     id = Column(Integer, Sequence('predicate_id_seq'), primary_key=True)
     true = Column(Boolean)
-    verb_id = Column(Integer, ForeignKey('terms.id'))
-    verb = relationship('Term', primaryjoin="Term.id==Predicate.verb_id")
     type_id = Column(Integer, ForeignKey('terms.id'))
-    term_type = relationship('Term', remote_side=[id],
-                         primaryjoin="Term.id==Predicate.type_id")
+    term_type = relationship('Term', primaryjoin="Term.id==Predicate.type_id")
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    value = relationship('Rule', backref='consecuences',
+                         primaryjoin="Rule.id==Predicate.rule_id")
 
     # to avoid AttributeErrors
     bases = ()
     name = ''
+    var = False
 
 
     def __init__(self, true, verb_, **objs):
@@ -122,12 +126,12 @@ class Predicate(Base):
         args is a dict with strings (labels) to ConObjects
         '''
         self.true = true
-        self.verb = verb_
-        for label, o in objs:
-            if isa(o, exists):
-                self.args.append(PObject(label, o))
+        self.term_type = verb_
+        for label, o in objs.items():
+            if isinstance(o, Predicate):
+                self.objects.append(PObject(label, o))
             else:
-                self.args.append(TObject(label, o))
+                self.objects.append(TObject(label, o))
 
     def get_object(self, label):
         try:
@@ -137,6 +141,14 @@ class Predicate(Base):
             for o in self.objects:
                 self._objects[o.label] = o.value
             return self._objects[label]
+
+    def substitute(self, match):
+        for o in self.objects:
+            if o.value.var:
+                o.value = match[o.value.name]
+            elif isinstance(o.value, Predicate):
+                o.value.substitute(match)
+        return self
 
 
 class Object(Base):
@@ -181,7 +193,11 @@ class PObject(Object):
 
 
 def isa(t1, t2):
-    return are(t1.term_type, t2)
+    try:
+        ttype = t1.term_type
+    except AttributeError:
+        return False
+    return are(ttype, t2)
 
 
 def are(t1, t2):
@@ -212,7 +228,7 @@ def get_equals(term, search=None):
 
 class SearchFound(Exception): pass
 
-def _get_desc(term, desc, search=search, bset=None):
+def _get_desc(term, desc, search=None, bset=None):
     if not bset:
         bset = set()
     bases = getattr(term, desc, None)
@@ -222,7 +238,7 @@ def _get_desc(term, desc, search=search, bset=None):
         if search and search == base:
             raise SearchFound(base)
         bset.add(base)
-        _get_desc(base, desc, bset)
+        _get_desc(base, desc, search=search, bset=bset)
         if desc != 'equals':
             for eq in base.equals:
                 bset.add(eq)

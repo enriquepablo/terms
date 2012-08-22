@@ -22,7 +22,8 @@ import ply.yacc
 from ply.lex import TOKEN
 
 from terms.patterns import SYMBOL_PAT, VAR_PAT
-from terms.terms import word, verb, noun, exists, thing, isa, are
+from terms.lexicon import Lexicon
+from terms.terms import isa, are
 from terms.utils import merge_submatches
 
 class Lexer(object):
@@ -148,6 +149,7 @@ class KB(object):
         if isinstance(p[1], str):  # rule
             p[0] = p[1]
         else:
+            exists = self.lexicon.get_term('exists')
             for sen in p[1]:
                 if isa(sen, exists):
                     p[0] = self.network.add_fact(sen)
@@ -217,7 +219,7 @@ class KB(object):
     def p_vterm(self, p):
         '''vterm : term
                  | var'''
-        if isinstance(p[1]), str):
+        if isinstance(p[1], str):
             p[0] = self.lexicon.get_term(p[1])
         else:
             p[0] = p[1]

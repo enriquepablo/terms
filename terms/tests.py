@@ -20,7 +20,6 @@
 import os
 import re
 
-from terms.words import get_name, word, isa
 from terms.terms import Base
 from terms.network import Network
 from terms.compiler import KB

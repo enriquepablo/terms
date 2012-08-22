@@ -28,10 +28,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError
 
-from terms.words import get_name, get_type, get_bases
-from terms.words import isa, exists, thing
-from terms.terms import Base, Term, term_to_base
-from terms.predicates import Predicate
+from terms.terms import isa, get_bases
+from terms.terms import Base, Term, term_to_base, Predicate
 from terms.lexicon import Lexicon
 from terms.factset import FactSet
 from terms import exceptions
@@ -70,17 +68,15 @@ class Network(object):
         self.engine = create_engine(dbaddr)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        self.lexicon = Lexicon(self.session)
-        self.factset = FactSet(self.lexicon)
         try:
             self.root = self.session.query(RootNode).one()
         except OperationalError:
             self.initialize()
+        self.lexicon = Lexicon(self.session)
+        self.factset = FactSet(self.lexicon)
 
     def initialize(self):
         Base.metadata.create_all(self.engine)
-        self.lexicon.initialize()
-        self.factset.initialize()
         self.root = RootNode()
         self.session.add(self.root)
         self.session.commit()
@@ -93,13 +89,16 @@ class Network(object):
             return None
 
     def add_fact(self, fact):
+        prev = self.factset.query(fact)
+        if prev:
+            return
+        self.factset.add_fact(fact)
         if self.root.child_path:
             m = Match(fact)
             m.paths = self.factset.get_paths(fact)
             ntype_name = self.root.child_path[-1]
             cls = self._get_nclass(ntype_name)
-            cls.dispatch(self.root, m, fact, self)
-        self.factset.add_fact(fact)
+            cls.dispatch(self.root, m, self)
 
     def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
@@ -127,14 +126,15 @@ class Network(object):
     def get_or_create_node(self, parent, term, path, vars, rule, _commit=False):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
-        value = cls.resolve(w, path)
-        name = value.name
+        value = cls.resolve(term, path)
+        name = getattr(value, 'name', '')
         m = patterns.varpat.match(name)
         pnum = 0
         if m:
             if name not in vars:
-                pnum = len(vars)
-                vars[name] = (pnum, Varname(int(m.group(3)), value, rule))
+                pnum = len(vars) + 1
+                var = self.lexicon.save_var(value)
+                vars[name] = (pnum, Varname(int(m.group(3)), var, rule))
             else:
                 pnum = vars[name][0]
         try:
@@ -297,19 +297,23 @@ class TermNode(Node):
     @classmethod
     def get_children(cls, parent, match, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
+        thing = network.lexicon.get_term('thing')
         for k, v in match.items():
             if v == value:
                 vchildren = parent.children.filter(Node.var==k)  # XXX poner la var al crear el nodo - si ya se ha usado
                 break
         else:
             types = (value.term_type,) + get_bases(value.term_type)
-            type_ids = [t.id for t in types]
-            vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.type_id.in_(type_ids))
+            type_ids = (t.id for t in types)
+            vchildren = ()
+            if type_ids:
+                vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.type_id.in_(type_ids))
             if not isa(value, thing):
                 bases = (value,) + get_bases(value)
                 tbases = aliased(Term)
-                base_ids = [b.id for b in bases]
-                vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
+                base_ids = (b.id for b in bases)
+                if base_ids and vchildren:
+                    vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
         return children, vchildren
 
 
@@ -331,7 +335,7 @@ class VerbNode(Node):
         except AttributeError:
             return None
         if patterns.varpat.match(term.name):
-            return w
+            return term
         return term.term_type
 
     @classmethod
@@ -344,11 +348,14 @@ class VerbNode(Node):
                 break
         else:
             types = (value.term_type,) + get_bases(value.term_type)
-            type_ids = [t.id for t in types]
+            type_ids = (t.id for t in types)
             chvars = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0)
-            pchildren = chvars.filter(Term.type_id.in_(type_ids))
-            tbases = aliased(Term)
-            vchildren = chvars.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
+            pchildren = ()
+            vchildren = ()
+            if type_ids:
+                pchildren = chvars.filter(Term.type_id.in_(type_ids))
+                tbases = aliased(Term)
+                vchildren = chvars.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
@@ -393,39 +400,45 @@ class PremNode(Base):
     def dispatch(self, match, network):
         mps = []
         m = PMatch(self)
-        for var in match:
-            m.mpairs.append(MPair.make_pair(var, match[var.name]))
+        for var, val in match.items():
+            m.pairs.append(MPair.make_pair(var, val))
         self.matches.append(m)
         for rule in self.rules:
-            matches = [match]
+            nmatch = Match(match.fact)
+            for num, o in match.items():
+                pvar = self.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
+                name = pvar.varname.name
+                nmatch[name] = o
+            matches = [nmatch]
             for prem in rule.prems:
+                if not matches:
+                    break
                 if prem is not self:
-                    for m in matches
-                        new_matches = []
+                    new_matches = []
+                    for m in matches:
+                        pvar_map = rule.get_pvar_map(m, prem)
                         pmatches = prem.matches
-                        for v in m:
-                            if v in prem.vars
-                                a = aliased(MPair)
-                                pmatches = pmatches.join(a, Match.id==a.match_id).filter(a.var==v, a.val==m[v.name])
+                        for var, val in pvar_map.items():
+                            a = aliased(MPair)
+                            pmatches = pmatches.join(a, Match.id==a.match_id).filter(a.var==var, a.val==val)
                         for pm in pmatches:
                             new_match = m.copy()
                             for mpair in pm.mpairs:
-                                vname = mpair.var.name
+                                vname = rule.get_varname(prem, mpair.var)
                                 if vname not in m:
                                     new_match[vname] = mpair.val
                             new_matches.append(new_match)
                     matches = new_matches
             for m in matches:
-                rule.dispatch(m)  # test the conditions, add the consecuences
+                rule.dispatch(m, network)  # test the conditions, add the consecuences
 
 
 class PMatch(Base):
-    __tablename__ = 'pmatches'
-
+    __tablename__ = 'pmatchs'
 
     id = Column(Integer, Sequence('pmatch_id_seq'), primary_key=True)
     prem_id = Column(Integer, ForeignKey('premnodes.id'))
-    prem = relationship('PremNode', backref=backref('matches' lazy='dynamic'),
+    prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
 
     def __init__(self, prem):
@@ -439,15 +452,18 @@ class MPair(Base):
     parent_id = Column(Integer, ForeignKey('pmatchs.id'))
     parent = relationship('PMatch', backref='pairs',
                          primaryjoin="PMatch.id==MPair.parent_id")
-    varname_id = Column(Integer, ForeignKey('varnames.id'))
-    varname = relationship('Varname',
-                         primaryjoin="Varname.id==MPair.varname_id")
+    var = Column(Integer)
 
     mtype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': mtype}
 
-    def make_pair(self, var, val):
-        if isa(val, exists):
+    def __init__(self, var, val):
+        self.var = var
+        self.val = val
+
+    @classmethod
+    def make_pair(cls, var, val):
+        if isinstance(val, Predicate):
             return PPair(var, val)
         else:
             return TPair(var, val)
@@ -495,6 +511,38 @@ class Varname(Base):
     name = property(_get_name)
 
 
+class Rule(Base):
+    '''
+    '''
+    __tablename__ = 'rules'
+
+    id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
+
+    def dispatch(self, match, network):
+
+        for cond in self.conditions:
+            if not cond.test(match):
+                return
+
+        for con in self.consecuences:
+            network.add_fact(con.substitute(match))
+
+    def get_pvar_map(self, match, prem):
+        pvar_map = {}
+        for name, val in match.items():
+            name_num = int(patterns.varpat.match(name).group(3))
+            try:
+                pvar = self.pvars.filter(PVarname.prem==prem).join(Varname, PVarname.varname_id==Varname.id).filter(Varname.name_num==name_num).one()
+            except NoResultFound:
+                continue
+            pvar_map[pvar.num] = val
+        return pvar_map
+
+    def get_varname(prem, num):
+        pvar = self.pvars.filter(PVarname.prem==prem, PVarname.num==num).one()
+        return pvar.varname.name
+
+
 class PVarname(Base):
     """
     Mapping from varnames in rules (pvars belong in rules)
@@ -506,12 +554,12 @@ class PVarname(Base):
     __tablename__ = 'pvarnames'
 
 
-    id = Column(Integer, Sequence('mnode_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('pvarname_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('pvars', lazy='dynamic'),
                          primaryjoin="Rule.id==PVarname.rule_id")
     prem_id = Column(Integer, ForeignKey('premnodes.id'))
-    prem = relationship('PremNode', backref='pvars',
+    prem = relationship('PremNode', backref=backref('pvars', lazy='dynamic'),
                          primaryjoin="PremNode.id==PVarname.prem_id")
     varname_id = Column(Integer, ForeignKey('varnames.id'))
     varname = relationship('Varname', backref='pvarnames',
@@ -522,6 +570,7 @@ class PVarname(Base):
         self.prem = prem
         self.num = num
         self.varname = varname
+
 
 
 class CondArg(Base):
@@ -575,44 +624,3 @@ class Condition(Base):
         for arg in args:
             sargs.append(arg.solve(match))
         return self.fun(*sargs)
-
-
-class Rule(Base):
-    '''
-    '''
-    __tablename__ = 'rules'
-
-    id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
-
-    def _get_vname(self, name, d, vns):
-        try:
-            return getattr(self, d)[name]
-        except AttributeError:
-            setattr(self, d, {})
-            target = None
-            for vn in getattr(self, vns):
-                n = vn.name
-                getattr(self, d)[n] = vn
-                if n == name:
-                    target = vn
-            return target
-
-    def get_varname(self, name):
-        return self._get_vname(name, '_vn_dict', 'varnames')
-
-    def get_pvarname(self, name):
-        return self._get_vname(name, '_pvn_dict', 'pvars')
-
-    def dispatch(self, match, network):
-        new_match = Match(match.fact)
-        for num, o in match.items():
-            pvar = self.get_pvarname((match.prem, num))
-            varname = pvar.varname.name
-            new_match[varname] = o
-
-        for cond in self.conditions:
-            if not cond.test(match):
-                return
-
-        for con in self.consecuences:
-            network.add_fact(con.substitute(match))
