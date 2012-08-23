@@ -144,7 +144,6 @@ class Network(object):
             #  build the node and append it
             node = cls(value)
             node.var = pnum
-            self.session.add(node)
             parent.children.append(node)
             if not parent.child_path:
                 parent.child_path = path
@@ -349,7 +348,7 @@ class VerbNode(Node):
                 break
         else:
             types = (value,) + get_bases(value)
-            type_ids = (t.id for t in types)
+            type_ids = [t.id for t in types]
             chvars = parent.children.filter(Node.var>0)
             pchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids))
             tbases = aliased(Term)

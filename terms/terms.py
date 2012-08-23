@@ -33,8 +33,8 @@ Base = declarative_base(cls=Base)
 
 
 term_to_base = Table('term_to_base', Base.metadata,
-    Column('term_id', Integer, ForeignKey('terms.id'), primary_key=True),
-    Column('base_id', Integer, ForeignKey('terms.id'), primary_key=True)
+    Column('term_id', Integer, ForeignKey('terms.id')),
+    Column('base_id', Integer, ForeignKey('terms.id'))
 )
 
 
@@ -143,6 +143,8 @@ class Predicate(Base):
             return self._objects[label]
 
     def substitute(self, match):
+        if self.term_type.var:
+            self.term_type = match[self.term_type.name]
         for o in self.objects:
             if o.value.var:
                 o.value = match[o.value.name]

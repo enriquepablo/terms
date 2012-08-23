@@ -131,3 +131,18 @@ false
 
 (walks john, to pedroso)?
 true
+
+
+(wants Person1, what (Exists1))
+->
+(Exists1).
+
+peda is a place.
+
+(walks john, to peda)?
+false
+
+(wants john, what (walks john, to peda)).
+
+(walks john, to peda)?
+true
