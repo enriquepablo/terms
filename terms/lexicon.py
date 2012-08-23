@@ -175,7 +175,7 @@ class Lexicon(object):
             tvar = self.get_term(tname)
             verb = self.get_term('verb')
             if isa(tvar, verb):
-                var = self._make_name(name, tvar)
+                var = Term(name, ttype=tvar)
             else:
                 var = self.make_term(name, tvar)
         var.var = True

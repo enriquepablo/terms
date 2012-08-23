@@ -120,8 +120,12 @@ class Network(object):
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(pnode, n, varname))
         rule.conds = conds
+        exists = self.lexicon.get_term('exists')
         for con in cons:
-            rule.consecuences.append(con)
+            if isinstance(con, Predicate):
+                rule.consecuences.append(con)
+            else:
+                rule.vconsecuences.append(con)
         if _commit:
             self.session.commit()
 
@@ -212,12 +216,16 @@ class Node(Base):
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, network)
+            exists = network.lexicon.get_term('exists')
             for ch in children:
                 for child in ch:
                     new_match = match.copy()
                     if child.var:
                         if child.var not in match:
-                            new_match[child.var] = value
+                            if cls is VerbNode and isa(child.value, exists):
+                                new_match[child.var] = TermNode.resolve(match.fact, path)
+                            else:
+                                new_match[child.var] = value
                     cls.dispatch(child, new_match, network)
         if parent.terminal:
             parent.terminal.dispatch(match, network)
@@ -262,7 +270,11 @@ class NegNode(Node):
                 term = term.get_object(segment)
         except AttributeError:
             return None
-        return term.true
+        try:
+            return term.true
+        except AttributeError:
+            # Predicate variable
+            return True
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
@@ -521,6 +533,9 @@ class Rule(Base):
 
         for con in self.consecuences:
             network.add_fact(con.substitute(match))
+
+        for con in self.vconsecuences:
+            network.add_fact(match[con.name])
 
     def get_pvar_map(self, match, prem):
         pvar_map = {}

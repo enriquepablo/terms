@@ -55,6 +55,10 @@ class Term(Base):
                           primaryjoin='ObjectType.verb_id==Term.id')
     var = Column(Boolean)
 
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='vconsecuences',
+                         primaryjoin="Rule.id==Term.rule_id")
+
     # Avoid AttributeErrors
     objects = ()
 
@@ -111,7 +115,7 @@ class Predicate(Base):
     type_id = Column(Integer, ForeignKey('terms.id'))
     term_type = relationship('Term', primaryjoin="Term.id==Predicate.type_id")
     rule_id = Column(Integer, ForeignKey('rules.id'))
-    value = relationship('Rule', backref='consecuences',
+    rule = relationship('Rule', backref='consecuences',
                          primaryjoin="Rule.id==Predicate.rule_id")
 
     # to avoid AttributeErrors
