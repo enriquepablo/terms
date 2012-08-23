@@ -21,11 +21,11 @@ import re
 
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy import create_engine
+from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import OperationalError
 
 from terms.terms import isa, get_bases
@@ -104,7 +104,7 @@ class Network(object):
 
     def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
-        for prem in prems:
+        for n, prem in enumerate(prems):
             vars = {}
             paths = self.factset.get_paths(prem)
             old_node = self.root
@@ -116,9 +116,10 @@ class Network(object):
             else:
                 pnode = PremNode(old_node)
                 old_node.terminal = pnode
-            pnode.rules.append(rule)
+            premise = Premise(pnode, n)
+            rule.prems.append(premise)
             for n, varname in vars.values():
-                rule.pvars.append(PVarname(pnode, n, varname))
+                rule.pvars.append(PVarname(premise, n, varname))
         rule.conds = conds
         exists = self.lexicon.get_term('exists')
         for con in cons:
@@ -385,10 +386,24 @@ class LabelNode(Node):
         return [parent.children.all()]
 
 
-prem_to_rule = Table('prem_to_rule', Base.metadata,
-    Column('prem_id', Integer, ForeignKey('premnodes.id'), primary_key=True),
-    Column('rule_id', Integer, ForeignKey('rules.id'), primary_key=True)
-)
+class Premise(Base):
+    '''
+    Relation between rules and premnodes
+    '''
+    __tablename__ = 'premises'
+
+    id = Column(Integer, Sequence('premise_id_seq'), primary_key=True)
+    prem_id = Column(Integer, ForeignKey('premnodes.id'))
+    node = relationship('PremNode', backref='prems', 
+                         primaryjoin="PremNode.id==Premise.prem_id")
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref=backref('prems', lazy='dynamic'),
+                         primaryjoin="Rule.id==Premise.rule_id")
+    order = Column(Integer)
+
+    def __init__(self, pnode, order):
+        self.node = pnode
+        self.order = order
 
 
 class PremNode(Base):
@@ -401,43 +416,49 @@ class PremNode(Base):
     parent_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship('Node', backref=backref('terminal', uselist=False),
                          primaryjoin="Node.id==PremNode.parent_id")
-    rules = relationship('Rule', backref='prems', secondary=prem_to_rule)
 
     def __init__(self, parent):
         self.parent = parent  # node
 
     def dispatch(self, match, network):
-        mps = []
         m = PMatch(self)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
         self.matches.append(m)
-        for rule in self.rules:
+        for premise in self.prems:
+            rule = premise.rule
             nmatch = Match(match.fact)
             for num, o in match.items():
-                pvar = self.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
+                pvar = premise.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
                 name = pvar.varname.name
                 nmatch[name] = o
             matches = [nmatch]
             for prem in rule.prems:
                 if not matches:
                     break
-                if prem is not self:
-                    new_matches = []
-                    for m in matches:
-                        pvar_map = rule.get_pvar_map(m, prem)
-                        pmatches = prem.matches
-                        for var, val in pvar_map.items():
-                            a = aliased(MPair)
-                            pmatches = pmatches.join(a, Match.id==a.match_id).filter(a.var==var, a.val==val)
-                        for pm in pmatches:
-                            new_match = m.copy()
-                            for mpair in pm.mpairs:
-                                vname = rule.get_varname(prem, mpair.var)
-                                if vname not in m:
-                                    new_match[vname] = mpair.val
-                            new_matches.append(new_match)
-                    matches = new_matches
+                if prem.order == premise.order:
+                    continue
+                premnode = prem.node
+                new_matches = []
+                for m in matches:
+                    pvar_map = rule.get_pvar_map(m, prem)
+                    pmatches = premnode.matches
+                    for var, val in pvar_map:
+                        apair = aliased(MPair)
+                        if isinstance(val, Predicate):
+                            cpair = aliased(PPair)
+                        else:
+                            cpair = aliased(TPair)
+                        pmatches = pmatches.join(apair, PMatch.id==apair.parent_id).filter(apair.var==var)
+                        pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
+                    for pm in pmatches:
+                        new_match = m.copy()
+                        for mpair in pm.pairs:
+                            vname = rule.get_varname(prem, mpair.var)
+                            if vname not in m:
+                                new_match[vname] = mpair.val
+                        new_matches.append(new_match)
+                matches = new_matches
             for m in matches:
                 rule.dispatch(m, network)  # test the conditions, add the consecuences
 
@@ -538,16 +559,16 @@ class Rule(Base):
             network.add_fact(match[con.name])
 
     def get_pvar_map(self, match, prem):
-        pvar_map = {}
+        pvar_map = []
         for name, val in match.items():
             try:
                 pvar = self.pvars.filter(PVarname.prem==prem).join(Varname, PVarname.varname_id==Varname.id).join(Term, Varname.term_id==Term.id).filter(Term.name==name).one()
             except NoResultFound:
                 continue
-            pvar_map[pvar.num] = val
+            pvar_map.append((pvar.num, val))
         return pvar_map
 
-    def get_varname(prem, num):
+    def get_varname(self, prem, num):
         pvar = self.pvars.filter(PVarname.prem==prem, PVarname.num==num).one()
         return pvar.varname.name
 
@@ -567,9 +588,9 @@ class PVarname(Base):
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('pvars', lazy='dynamic'),
                          primaryjoin="Rule.id==PVarname.rule_id")
-    prem_id = Column(Integer, ForeignKey('premnodes.id'))
-    prem = relationship('PremNode', backref=backref('pvars', lazy='dynamic'),
-                         primaryjoin="PremNode.id==PVarname.prem_id")
+    prem_id = Column(Integer, ForeignKey('premises.id'))
+    prem = relationship('Premise', backref=backref('pvars', lazy='dynamic'),
+                         primaryjoin="Premise.id==PVarname.prem_id")
     varname_id = Column(Integer, ForeignKey('varnames.id'))
     varname = relationship('Varname', backref='pvarnames',
                          primaryjoin="Varname.id==PVarname.varname_id")

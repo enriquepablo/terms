@@ -89,6 +89,9 @@ class Term(Base):
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return '<Term: %s>' % str(self)
+
 
 class ObjectType(Base):
 
@@ -137,6 +140,18 @@ class Predicate(Base):
             else:
                 self.objects.append(TObject(label, o))
 
+    def __str__(self):
+        p = not self.true and '!' or ''
+        p += str(self.term_type)
+        p = ['%s %s' % (p, str(self.get_object('subj')))]
+        for o in self.objects:
+            if o.label != 'subj':
+                p.append('%s %s' % (o.label, str(o.value)))
+        return '(%s)' % ', '.join(p)
+
+    def __repr__(self):
+        return '<Predicate: %s>' % str(self)
+
     def get_object(self, label):
         try:
             return self._objects[label]
@@ -148,13 +163,17 @@ class Predicate(Base):
 
     def substitute(self, match):
         if self.term_type.var:
-            self.term_type = match[self.term_type.name]
+            new = Predicate(self.true, match[self.term_type.name])
+        else:
+            new = Predicate(self.true, self.term_type)
         for o in self.objects:
-            if o.value.var:
-                o.value = match[o.value.name]
-            elif isinstance(o.value, Predicate):
-                o.value.substitute(match)
-        return self
+            obj = o.clone()
+            if isinstance(o.value, Predicate):
+                obj.value = o.value.substitute(match)
+            elif o.value.var:
+                obj.value = match[o.value.name]
+            new.objects.append(obj)
+        return new
 
 
 class Object(Base):
@@ -175,6 +194,10 @@ class Object(Base):
     def __init__(self, label, term):
         self.label = label
         self.value = term
+
+    def clone(self):
+        cls = type(self)
+        return cls(self.label, self.value)
 
 
 class TObject(Object):
