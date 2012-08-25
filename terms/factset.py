@@ -25,7 +25,7 @@ from sqlalchemy.exc import OperationalError
 
 from terms import patterns
 from terms.terms import get_bases
-from terms.terms import Base, Term, ObjectType
+from terms.terms import Base, Term, Predicate
 from terms.terms import isa, are
 from terms.utils import Match, merge_submatches
 
@@ -88,10 +88,7 @@ class FactSet(object):
 
     def _get_nclass(self, ntype):
         mapper = FactNode.__mapper__
-        try:
-            return mapper.base_mapper.polymorphic_map[ntype].class_
-        except KeyError:
-            return None
+        return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, fact, _commit=True):
         paths = self.get_paths(fact)
@@ -106,7 +103,7 @@ class FactSet(object):
         if _commit:
             self.session.commit()
 
-    def get_or_create_node(self, parent, term, path, _commit=False):
+    def get_or_create_node(self, parent, term, path):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
         value = cls.resolve(term, path, self)
@@ -122,8 +119,6 @@ class FactSet(object):
 #        if cls is VerbFNode:
 #            pred = TermFNode.resolve(term, path, self)
 #            node.preds.append(pred)
-        if _commit:
-            self.session.commit()
         return node
 
 
@@ -209,7 +204,6 @@ class FactNode(Base):
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, factset)
-            word = factset.lexicon.get_term('word')
             exists = factset.lexicon.get_term('exists')
             for child in children:
                 if isinstance(child, LabelFNode):
@@ -220,7 +214,14 @@ class FactNode(Base):
                 m = patterns.varpat.match(name)
                 if m:
                     if name not in match:
-                        new_match[name] = child.value
+                        if isa(value, exists):
+                            new_match[name] = Predicate(True, child.value)
+                            new_match.building = new_match[name]
+                            new_match.orig_path = path
+                        else:
+                            new_match[name] = child.value
+                elif new_match.building:
+                    child.update_pred(new_match, path)
                 cls.dispatch(child, new_match, matches, factset)
         if parent.terminal:
             if not match.paths:
@@ -246,6 +247,13 @@ class FactNode(Base):
         a word, or some custom value for custom node types.
         '''
         raise NotImplementedError
+
+    def update_pred(self, match, path):
+        '''
+        When a Exists var has previously matched,
+        update its match with the value of self
+        '''
+        pass
 
 
 class RootFNode(FactNode):
@@ -283,6 +291,17 @@ class NegFNode(FactNode):
     def get_children(cls, parent, match, value, factset):
         return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
 
+    def update_pred(self, match, path):
+        olen = len(match.orig_path)
+        if olen > len(path):
+            match.orig_path = ()
+            match.building = None
+            return None
+        rel_path = path[olen - 1:]
+        obj = match.building
+        for segment in rel_path[:-1]:
+            obj = obj.get_object(segment)
+        obj.true = self.value
 
 class TermFNode(FactNode):
     '''
@@ -330,12 +349,17 @@ class TermFNode(FactNode):
         else:
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
 
-
-#verbfnode_to_pred = Table('verbfnode_to_pred', Base.metadata,
-#    Column('verbfnode_id', Integer, ForeignKey('verbfnodes.id'), primary_key=True),
-#    Column('pred_id', Integer, ForeignKey('predicates.id'), primary_key=True)
-#)
-
+    def update_pred(self, match, path):
+        olen = len(match.orig_path)
+        if olen >= len(path):
+            match.orig_path = ()
+            match.building = None
+            return None
+        rel_path = path[olen - 1:]
+        obj = match.building
+        for segment in rel_path[:-2]:
+            obj = obj.get_object(segment)
+        obj.add_object(self.parent.value, self.value)
 
 
 class VerbFNode(FactNode):
@@ -345,10 +369,6 @@ class VerbFNode(FactNode):
     __mapper_args__ = {'polymorphic_identity': '_verb'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
-#    predicates = relationship('Predicate',
-#                         secondary=verbfnode_to_pred,
-#                         primaryjoin=id==verbfnode_to_pred.c.verbfnode_id,
-#                         secondaryjoin=id==verbfnode_to_pred.c.pred_id)
     value = relationship('Term',
                          primaryjoin="Term.id==VerbFNode.term_id")
 
@@ -386,6 +406,19 @@ class VerbFNode(FactNode):
                 return ()
         else:
             return parent.children.join(cls, FactNode.id==cls.fnid).filter(cls.value==value)
+
+    def update_pred(self, match, path):
+        olen = len(match.orig_path)
+        if olen >= len(path):
+            match.orig_path = ()
+            match.building = None
+            return None
+        rel_path = path[olen - 1:]
+        obj = match.building
+        for segment in rel_path[:-2]:
+            obj = obj.get_object(segment)
+        pred = Predicate(True, self.value)
+        obj.add_object(self.parent.value, pred)
 
 
 class LabelFNode(FactNode):

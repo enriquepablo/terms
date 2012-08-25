@@ -52,15 +52,6 @@ class Match(dict):
         new_match.paths = self.paths[:]
         return new_match
 
-    def merge(self, m):
-        new_match = Match(self.fact)
-        for k, v in self.items() + m.items():
-            if k in m:
-                if self[k] != v:
-                    return False
-            new_match[k] = v
-        return new_match
-
 
 class Network(object):
 
@@ -83,10 +74,7 @@ class Network(object):
 
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__
-        try:
-            return mapper.base_mapper.polymorphic_map[ntype].class_
-        except KeyError:
-            return None
+        return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, fact, _commit=True):
         prev = self.factset.query(fact)
@@ -130,7 +118,7 @@ class Network(object):
         if _commit:
             self.session.commit()
 
-    def get_or_create_node(self, parent, term, path, vars, rule, _commit=False):
+    def get_or_create_node(self, parent, term, path, vars, rule):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
         value = cls.resolve(term, path)
@@ -152,8 +140,6 @@ class Network(object):
             parent.children.append(node)
             if not parent.child_path:
                 parent.child_path = path
-            if _commit:
-                self.session.commit()
         return node
 
 

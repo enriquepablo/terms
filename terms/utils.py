@@ -33,6 +33,8 @@ class Match(dict):
         self.paths = []
         self.query = query
         self.prem = prem
+        self.building = None
+        self.orig_path = ()
         super(Match, self).__init__()
 
     def copy(self):
@@ -42,6 +44,13 @@ class Match(dict):
         new_match.prem = self.prem
         new_match.query = self.query
         new_match.paths = self.paths[:]
+        if self.building:
+            new_match.building = self.building.copy()
+            for l, o in self.items():
+                if o is self.building:
+                    new_match[l] = new_match.building
+                    break
+        new_match.orig_path = self.orig_path
         return new_match
 
     def merge(self, m):

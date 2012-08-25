@@ -89,7 +89,7 @@ wants is exists, subj a person, what a exists.
 
 
 (wants john, what (Exists1))?
-Exists1: walks
+Exists1: (walks john, to seville) 
 
 
 (wants john, what (walks john, to Place1))

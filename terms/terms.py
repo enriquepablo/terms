@@ -92,6 +92,10 @@ class Term(Base):
     def __repr__(self):
         return '<Term: %s>' % str(self)
 
+    def copy(self):
+        #  immutable
+        return self
+
 
 class ObjectType(Base):
 
@@ -135,10 +139,7 @@ class Predicate(Base):
         self.true = true
         self.term_type = verb_
         for label, o in objs.items():
-            if isinstance(o, Predicate):
-                self.objects.append(PObject(label, o))
-            else:
-                self.objects.append(TObject(label, o))
+            self.add_object(label, o)
 
     def __str__(self):
         p = not self.true and '!' or ''
@@ -151,6 +152,12 @@ class Predicate(Base):
 
     def __repr__(self):
         return '<Predicate: %s>' % str(self)
+
+    def add_object(self, label, obj):
+        if isinstance(obj, Predicate):
+            self.objects.append(PObject(label, obj))
+        else:
+            self.objects.append(TObject(label, obj))
 
     def get_object(self, label):
         try:
@@ -167,12 +174,18 @@ class Predicate(Base):
         else:
             new = Predicate(self.true, self.term_type)
         for o in self.objects:
-            obj = o.clone()
+            obj = o.copy()
             if isinstance(o.value, Predicate):
                 obj.value = o.value.substitute(match)
             elif o.value.var:
                 obj.value = match[o.value.name]
             new.objects.append(obj)
+        return new
+
+    def copy(self):
+        new = Predicate(self.true, self.term_type)
+        for o in self.objects:
+            new.objects.append(o.copy())
         return new
 
 
@@ -195,9 +208,9 @@ class Object(Base):
         self.label = label
         self.value = term
 
-    def clone(self):
+    def copy(self):
         cls = type(self)
-        return cls(self.label, self.value)
+        return cls(self.label, self.value.copy())
 
 
 class TObject(Object):

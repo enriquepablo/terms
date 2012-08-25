@@ -1,7 +1,12 @@
 
 person is thing.
 
+man is person.
+
+woman is person.
+
 loves is exists, subj a person, who a person.
+hates is exists, subj a person, who a person.
 marries is exists, subj a person, who a person.
 
 (loves Person1, who Person2);
@@ -9,9 +14,13 @@ marries is exists, subj a person, who a person.
 ->
 (marries Person2, who Person1).
 
-john is a person.
+(marries Person1, who Person2)
+->
+(hates Person2, who Person1).
 
-yoko is a person.
+john is a man.
+
+yoko is a woman.
 
 (loves john, who yoko).
 
@@ -21,4 +30,10 @@ yoko is a person.
 true
 
 (marries john, who yoko)?
+true
+
+(hates yoko, who john)?
+true
+
+(hates john, who yoko)?
 true

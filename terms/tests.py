@@ -58,7 +58,7 @@ def run_terms(kb, fname):
             if resp is not _nr:
                 sen = sen.strip('.')
                 logger.info('%s match %s' % (sen, resp))
-                assert re.compile(sen).match(resp)
+                assert sen == resp or re.compile(sen).match(resp)
                 resp = _nr
             elif sen and not sen.startswith('#'):
                 buff += ' ' + sen
