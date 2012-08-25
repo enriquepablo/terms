@@ -9,8 +9,8 @@ loves is exists, subj a person, who a person.
 hates is exists, subj a person, who a person.
 marries is exists, subj a person, who a person.
 
-(Loves1 Person1, who Person2);
-(Loves1 Person2, who Person1)
+(LovesVerb1 Person1, who Person2);
+(LovesVerb1 Person2, who Person1)
 ->
 (marries Person2, who Person1).
 
