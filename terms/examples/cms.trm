@@ -150,3 +150,8 @@ publish_tr is a transition.
 
 (located doc1, in ctx1).
 (has doc1, what private).
+
+(wants john, do (publish john, what doc1)).
+
+(publish john, what doc1)?
+true
