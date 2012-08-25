@@ -1,0 +1,152 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2007-2012 by Enrique Pérez Arnaud <enriquepablo@gmail.com>
+#
+# This file is part of nlproject.
+#
+# The nlproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The nlproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with any part of the nlproject.
+# If not, see <http://www.gnu.org/licenses/>.
+
+person is thing.
+content is thing.
+document is content.
+image is content.
+context is thing.
+
+john is a person.
+sue is a person.
+pete is a person.
+mary is a person.
+doc1 is a document.
+doc2 is a document.
+img1 is a image.
+img2 is a image.
+ctx1 is a context.
+ctx2 is a context.
+
+content_action is exists, subj a person, what a content.
+view is content_action.
+edit is content_action.
+owns is content_action.
+
+located is exists, subj a thing, in a context.
+
+(located Thing1, in Context1);
+(located Context1, in Context2)
+->
+(located Thing1, in Context2).
+
+wants is exists, subj a person, do a content_action.
+is_allowed is exists, subj a person, to a content_action.
+
+(wants Person1, do (Content_action1));
+(is_allowed Person1, to (Content_action1))
+->
+(Content_action1).
+
+may is exists, subj a person, what a verb, where a context.
+
+(wants Person1, do (Content_actionVerb1 Person1, what Content1));
+(may Person1, what Content_actionVerb1, where Context1);
+(located Content1, in Context1)
+->
+(Content_actionVerb1 Person1, what Content1).
+
+
+wf_action is content_action.
+publish is wf_action.
+hide is wf_action.
+
+status is thing.
+public is a status.
+private is a status.
+
+
+workflow is thing.
+
+
+is_assigned is exists, subj a workflow, to a noun, in a context.
+
+transition is thing.
+
+has is exists, subj a thing, what a thing.
+
+executed is exists, subj a transition, by a verb, from a status, to a status.
+
+role is thing.
+manager is a role.
+editor is a role.
+visitor is a role.
+
+permission is thing.
+basic_perm is a permission.
+edit_perm is a permission.
+manage_perm is a permission.
+
+is_protected is exists, subj a verb, by a permission, in a context, for a status.
+
+(wants Person1, do (Content_actionVerb1 Person1, what Content1));
+(located Content1, in Context1);
+(has Content1, what Status1);
+(has Person1, what Role1);
+(has Role1, what Permission1);
+(is_protected Content_actionVerb1, by Permission1, in Context1, for Status1)
+->
+(Content_actionVerb1 Person1, what Content1).
+
+# (Wf_actionVerb1 Person1, what Content1(ContentNoun1)] at I1;
+#    Workflow1 [is_assigned to ContentNoun1, in Context1] D1;
+#    Workflow1 [has what Transition1] D2;
+#    Transition1 [executed by Wf_actionVerb1, fro_m Status1, to Status2] D3;
+#    Content1 [has what Status1] D4;
+#    I1 during D1, D2, D3, D4;
+# then:
+#    finish D4 at I1;
+#    Content1 [has what Status2] since I1 until D1, D2, D3.
+# 
+# 
+(has manager, what manage_perm).
+(has manager, what edit_perm).
+(has manager, what basic_perm).
+(has editor, what edit_perm).
+(has editor, what basic_perm).
+(has visitor, what basic_perm).
+
+(is_protected publish, by manage_perm, in ctx1, for private).
+(is_protected hide, by edit_perm, in ctx1, for public).
+(is_protected edit,  by edit_perm, in ctx1, for private).
+(is_protected edit, by manage_perm, in ctx1, for public).
+(is_protected view, by edit_perm, in ctx1, for private).
+(is_protected view, by basic_perm, in ctx1, for public).
+
+wf1 is a workflow.
+
+hide_tr is a transition.
+
+(has wf1, what hide_tr).
+
+publish_tr is a transition.
+
+(has wf1, what publish_tr).
+
+(executed hide_tr, by hide, fro_m public, to private).
+(executed publish_tr, by publish, fro_m private, to public).
+
+(is_assigned wf1, to document, in ctx1).
+
+(has john ,what manager).
+(has mary, what editor).
+(has pete, what visitor).
+
+(located doc1, in ctx1).
+(has doc1, what private).
