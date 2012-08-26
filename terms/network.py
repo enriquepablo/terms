@@ -92,6 +92,7 @@ class Network(object):
 
     def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
+        prempairs = []
         for n, prem in enumerate(prems):
             vars = {}
             paths = self.factset.get_paths(prem)
@@ -104,6 +105,7 @@ class Network(object):
             else:
                 pnode = PremNode(old_node)
                 old_node.terminal = pnode
+            prempairs.append((prem, pnode))
             premise = Premise(pnode, n)
             rule.prems.append(premise)
             for n, varname in vars.values():
@@ -115,6 +117,10 @@ class Network(object):
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
+        for prem, pnode in prempairs:
+            matches = self.factset.query(prem)
+            for match in matches:
+                pnode.dispatch(match, self, _numvars=False)
         if _commit:
             self.session.commit()
 
@@ -406,19 +412,22 @@ class PremNode(Base):
     def __init__(self, parent):
         self.parent = parent  # node
 
-    def dispatch(self, match, network):
+    def dispatch(self, match, network, _numvars=True):
         m = PMatch(self)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
         self.matches.append(m)
         for premise in self.prems:
             rule = premise.rule
-            nmatch = Match(match.fact)
-            for num, o in match.items():
-                pvar = premise.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
-                name = pvar.varname.name
-                nmatch[name] = o
-            matches = [nmatch]
+            if _numvars:
+                nmatch = Match(match.fact)
+                for num, o in match.items():
+                    pvar = premise.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
+                    name = pvar.varname.name
+                    nmatch[name] = o
+                matches = [nmatch]
+            else:
+                matches = [match]
             for prem in rule.prems:
                 if not matches:
                     break
