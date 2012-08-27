@@ -22,6 +22,7 @@ import ply.yacc
 from ply.lex import TOKEN
 
 from terms.patterns import SYMBOL_PAT, VAR_PAT
+from terms.network import CondIsa, CondIs
 from terms.lexicon import Lexicon
 from terms.terms import isa, are
 from terms.utils import merge_submatches
@@ -174,7 +175,19 @@ class KB(object):
 
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list'''
-        self.network.add_rule(p[1], [], p[3])
+        prems, conds = [], []
+        exists = self.lexicon.get_term('exists')
+        for sen in p[1]:
+            if isa(sen, exists):
+                prems.append(sen)
+            else:
+                if sen.type == 'name-def':
+                    if isinstance(sen.name, str):
+                        sen.name = self.lexicon.get_term(sen.name)
+                    conds.append(CondIsa(sen.name, sen.term_type))
+                else:
+                    conds.append(CondIs(sen.name, sen.bases))
+        self.network.add_rule(prems, conds, p[3])
         p[0] = 'OK'
 
     def p_sentence_list(self, p):
@@ -259,7 +272,8 @@ class KB(object):
         p[0] = p[1]
 
     def p_noun_def(self, p):
-        'noun-def : SYMBOL IS terms'
+        '''noun-def : SYMBOL IS terms
+                    | vterm IS vterm'''
         p[0] = AstNode(p[1], 'noun-def', bases=p[3])
 
  
@@ -272,8 +286,11 @@ class KB(object):
             p[0] = (self.lexicon.get_term(p[1]),)
 
     def p_name_def(self, p):
-        '''name-def : SYMBOL IS A term'''
-        p[0] = AstNode(p[1], 'name-def', term_type=self.lexicon.get_term(p[4]))
+        '''name-def : SYMBOL IS A term
+                    | vterm IS A vterm'''
+        if isinstance(p[4], str):
+            p[4] = self.lexicon.get_term(p[4])
+        p[0] = AstNode(p[1], 'name-def', term_type=p[4])
 
     def p_verb_def(self, p):
         '''verb-def :  SYMBOL IS terms COMMA mod-defs'''

@@ -104,17 +104,16 @@ is_protected is exists, subj a verb, by a permission, in a context, for a status
 ->
 (Content_actionVerb1 Person1, what Content1).
 
-# (Wf_actionVerb1 Person1, what Content1(ContentNoun1)] at I1;
-#    Workflow1 [is_assigned to ContentNoun1, in Context1] D1;
-#    Workflow1 [has what Transition1] D2;
-#    Transition1 [executed by Wf_actionVerb1, fro_m Status1, to Status2] D3;
-#    Content1 [has what Status1] D4;
-#    I1 during D1, D2, D3, D4;
-# then:
-#    finish D4 at I1;
-#    Content1 [has what Status2] since I1 until D1, D2, D3.
-# 
-# 
+(Wf_actionVerb1 Person1, what Content1);
+(is_assigned Workflow1, to ContentNoun1, in Context1);
+(has Workflow1, what Transition1);
+(executed Transition1, by Wf_actionVerb1, fro_m Status1, to Status2);
+(has Content1, what Status1);
+Content1 is a ContentNoun1
+->
+(has Content1, what Status2).
+
+
 (has manager, what manage_perm).
 (has manager, what edit_perm).
 (has manager, what basic_perm).
@@ -151,7 +150,13 @@ publish_tr is a transition.
 (located doc1, in ctx1).
 (has doc1, what private).
 
+(has doc1, what public)?
+false
+
 (wants john, do (publish john, what doc1)).
 
 (publish john, what doc1)?
+true
+
+(has doc1, what public)?
 true

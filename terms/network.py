@@ -28,7 +28,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import OperationalError
 
-from terms.terms import isa, get_bases
+from terms.terms import isa, are, get_bases
 from terms.terms import Base, Term, term_to_base, Predicate
 from terms.lexicon import Lexicon
 from terms.factset import FactSet
@@ -607,22 +607,16 @@ class CondArg(Base):
     cond_id = Column(Integer, ForeignKey('conditions.id'))
     cond = relationship('Condition', backref='args',
                          primaryjoin="Condition.id==CondArg.cond_id")
-    varname_id = Column(Integer, ForeignKey('varnames.id'))
-    varname = relationship('Varname', backref='condargs',
-                         primaryjoin="Varname.id==CondArg.varname_id")
     term_id = Column(Integer, ForeignKey('terms.id'))
     term = relationship('Term',
                          primaryjoin="Term.id==CondArg.term_id")
 
-    def __init__(self, val, ):
-        if isinstance(val, Term):
-            self.term = val
-        elif isinstance(val, Varname):
-            self.varname = val
+    def __init__(self, term):
+        self.term = term
 
     def solve(self, match):
-        if self.var:
-            return match[self.var.name]
+        if self.term.var:
+            return match[self.term.name]
         return self.term
 
 
@@ -637,15 +631,27 @@ class Condition(Base):
                          primaryjoin="Rule.id==Condition.rule_id")
     fpath = Column(String)
 
-    def __init__(self, rule, fpath, *args):
-        self.rule = rule
-        self.fun = fresolve(fpath)  # callable
-        self.fpath = fpath  # string
+    ctype = Column(Integer)
+    __mapper_args__ = {'polymorphic_on': ctype}
+
+    def __init__(self, *args):
         for arg in args:
-            self.args.append(arg)  # Arg. terms have conversors for different funs
+            self.args.append(CondArg(arg))
+
+
+class CondIsa(Condition):
+    __tablename__ = 'condisas'
+    __mapper_args__ = {'polymorphic_identity': 0}
+    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
     def test(self, match):
-        sargs = []
-        for arg in args:
-            sargs.append(arg.solve(match))
-        return self.fun(*sargs)
+        return isa(args[0].solve(match), args[1].solve(match))
+
+
+class CondIs(Condition):
+    __tablename__ = 'condiss'
+    __mapper_args__ = {'polymorphic_identity': 1}
+    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
+
+    def test(self, match):
+        return are(args[0].solve(match), args[1].solve(match))
