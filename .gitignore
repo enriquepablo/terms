@@ -8,3 +8,9 @@ __pycache__
 .coverage
 *.pyc
 *.pyo
+.ropeproject
+parser.out
+parsetab.py
+terms.tgz
+terms/log/
+
