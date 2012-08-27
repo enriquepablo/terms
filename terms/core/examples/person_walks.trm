@@ -1,13 +1,13 @@
 
-person is thing.
+a person is a thing.
 
-man is person.
+a man is a person.
 
-woman is person.
+a woman is a person.
 
-boy is man.
+a boy is a man.
 
-place is thing.
+a place is a thing.
 
 walks is exists, subj a person, from a place, to a place.
 

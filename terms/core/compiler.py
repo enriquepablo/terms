@@ -186,7 +186,7 @@ class KB(object):
                         sen.name = self.lexicon.get_term(sen.name)
                     conds.append(CondIsa(sen.name, sen.term_type))
                 else:
-                    conds.append(CondIs(sen.name, sen.bases))
+                    conds.append(CondIs(sen.name, sen.bases[0]))
         self.network.add_rule(prems, conds, p[3])
         p[0] = 'OK'
 
@@ -273,9 +273,24 @@ class KB(object):
 
     def p_noun_def(self, p):
         '''noun-def : SYMBOL IS terms
-                    | vterm IS vterm'''
-        p[0] = AstNode(p[1], 'noun-def', bases=p[3])
+                    | A SYMBOL IS A term
+                    | vterm IS vterms
+                    | A vterm IS A vterm'''
+        if len(p) == 6:
+            if isinstance(p[5], str):
+                p[5] = self.lexicon.get_term(p[5])
+            p[0] = AstNode(p[2], 'noun-def', bases=[p[5]])
+        else:
+            p[0] = AstNode(p[1], 'noun-def', bases=p[3])
 
+ 
+    def p_vterms(self, p):
+        '''vterms : vterm COMMA vterms
+                  | vterm'''
+        if len(p) == 4:
+            p[0] = p[3] + (p[1],)
+        else:
+            p[0] = (p[1],)
  
     def p_terms(self, p):
         '''terms : term COMMA terms
