@@ -23,11 +23,11 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError
 
-from terms import patterns
-from terms.terms import get_bases
-from terms.terms import Base, Term, Predicate
-from terms.terms import isa, are
-from terms.utils import Match, merge_submatches
+from terms.core import patterns
+from terms.core.terms import get_bases
+from terms.core.terms import Base, Term, Predicate
+from terms.core.terms import isa, are
+from terms.core.utils import Match, merge_submatches
 
 '''
 En el match hay que poner words.

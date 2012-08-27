@@ -20,10 +20,10 @@
 import os
 import re
 
-from terms.terms import Base
-from terms.network import Network
-from terms.compiler import KB
-from terms.log import here, logger
+from terms.core.terms import Base
+from terms.core.network import Network
+from terms.core.compiler import KB
+from terms.core.log import here, logger
 
 
 def test_terms(): # test generator

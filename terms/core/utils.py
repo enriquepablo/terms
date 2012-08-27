@@ -22,8 +22,8 @@ from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from terms import patterns
-from terms.terms import isa, are
+from terms.core import patterns
+from terms.core.terms import isa, are
 
 
 class Match(dict):

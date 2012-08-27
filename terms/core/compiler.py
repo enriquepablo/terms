@@ -21,11 +21,11 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
-from terms.patterns import SYMBOL_PAT, VAR_PAT
-from terms.network import CondIsa, CondIs
-from terms.lexicon import Lexicon
-from terms.terms import isa, are
-from terms.utils import merge_submatches
+from terms.core.patterns import SYMBOL_PAT, VAR_PAT
+from terms.core.network import CondIsa, CondIs
+from terms.core.lexicon import Lexicon
+from terms.core.terms import isa, are
+from terms.core.utils import merge_submatches
 
 class Lexer(object):
 

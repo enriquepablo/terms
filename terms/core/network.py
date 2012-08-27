@@ -28,12 +28,12 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import OperationalError
 
-from terms.terms import isa, are, get_bases
-from terms.terms import Base, Term, term_to_base, Predicate
-from terms.lexicon import Lexicon
-from terms.factset import FactSet
-from terms import exceptions
-from terms import patterns
+from terms.core.terms import isa, are, get_bases
+from terms.core.terms import Base, Term, term_to_base, Predicate
+from terms.core.lexicon import Lexicon
+from terms.core.factset import FactSet
+from terms.core import exceptions
+from terms.core import patterns
 
 
 class Match(dict):

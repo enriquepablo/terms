@@ -22,11 +22,10 @@ import re
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import sessionmaker
 
-from terms import exceptions
-from terms import patterns
-from terms.terms import get_bases
-from terms.terms import Term, ObjectType, Predicate, isa, are
-from terms.utils import Match, merge_submatches
+from terms.core import exceptions
+from terms.core import patterns
+from terms.core.terms import get_bases
+from terms.core.terms import Term, ObjectType, Predicate, isa, are
 
 
 class Lexicon(object):
