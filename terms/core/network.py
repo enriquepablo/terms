@@ -80,6 +80,11 @@ class Network(object):
         prev = self.factset.query(fact)
         if prev:
             return
+        neg = fact.copy()
+        neg.true = not neg.true
+        contradiction = self.factset.query(neg)
+        if contradiction:
+            raise exceptions.Contradiction('we already have ' + str(neg))
         self.factset.add_fact(fact)
         if self.root.child_path:
             m = Match(fact)

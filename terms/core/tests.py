@@ -24,6 +24,7 @@ from terms.core.terms import Base
 from terms.core.network import Network
 from terms.core.compiler import KB
 from terms.core.log import here, logger
+from terms.core.exceptions import Contradiction
 
 
 def test_terms(): # test generator
@@ -63,7 +64,10 @@ def run_terms(kb, fname):
             elif sen and not sen.startswith('#'):
                 buff += ' ' + sen
                 if buff.endswith('.'):
-                    logger.info(kb.parse(buff))
+                    try:
+                        logger.info(kb.parse(buff))
+                    except Contradiction as e:
+                        logger.error('Contradiction: ' + e.args[0])
                     buff = ''
                 elif buff.endswith('?'):
                     resp = format_results(kb.parse(buff))

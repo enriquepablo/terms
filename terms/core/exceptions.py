@@ -23,3 +23,7 @@ class TermRepeated(Exception):
 
 class TermNotFound(Exception):
     pass
+
+
+class Contradiction(Exception):
+    pass

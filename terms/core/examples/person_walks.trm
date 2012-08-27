@@ -146,3 +146,12 @@ false
 
 (walks john, to peda)?
 true
+
+here is a place.
+
+(!walks john, from madrid, to here).
+
+(walks john, from madrid, to here).
+
+(walks john, from madrid, to here)?
+false
