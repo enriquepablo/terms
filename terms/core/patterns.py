@@ -19,13 +19,13 @@
 
 import re
 
-VAR_PAT = r'([A-Z][a-z_]*)([A-Z][a-z_]*)?(\d*)'
+VAR_PAT = r'([A-Z][a-z-]*)([A-Z][a-z-]*)?(\d*)'
 
 varpat = re.compile(VAR_PAT)
 
-SYMBOL_PAT = r'[a-z][a-z_]*\d*'
+SYMBOL_PAT = r'[a-z][a-z-]*\d*'
 
 sympat = re.compile(SYMBOL_PAT)
 
 
-NAME_PAT = re.compile(r'^([a-z][a-z_]*[a-z])[1-9]+$')
+NAME_PAT = re.compile(r'^([a-z][a-z-]*[a-z])[1-9]+$')

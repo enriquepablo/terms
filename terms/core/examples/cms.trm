@@ -34,10 +34,10 @@ img2 is a image.
 ctx1 is a context.
 ctx2 is a context.
 
-content_action is exists, subj a person, what a content.
-view is content_action.
-edit is content_action.
-owns is content_action.
+content-action is exists, subj a person, what a content.
+view is content-action.
+edit is content-action.
+owns is content-action.
 
 located is exists, subj a thing, in a context.
 
@@ -46,26 +46,26 @@ located is exists, subj a thing, in a context.
 ->
 (located Thing1, in Context2).
 
-wants is exists, subj a person, do a content_action.
-is_allowed is exists, subj a person, to a content_action.
+wants is exists, subj a person, do a content-action.
+is-allowed is exists, subj a person, to a content_action.
 
-(wants Person1, do (Content_action1));
-(is_allowed Person1, to (Content_action1))
+(wants Person1, do (Content-action1));
+(is-allowed Person1, to (Content_action1))
 ->
-(Content_action1).
+(Content-action1).
 
 may is exists, subj a person, what a verb, where a context.
 
-(wants Person1, do (Content_actionVerb1 Person1, what Content1));
-(may Person1, what Content_actionVerb1, where Context1);
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
+(may Person1, what Content-actionVerb1, where Context1);
 (located Content1, in Context1)
 ->
-(Content_actionVerb1 Person1, what Content1).
+(Content-actionVerb1 Person1, what Content1).
 
 
-wf_action is content_action.
-publish is wf_action.
-hide is wf_action.
+wf-action is content_action.
+publish is wf-action.
+hide is wf-action.
 
 status is thing.
 public is a status.
@@ -75,7 +75,7 @@ private is a status.
 workflow is thing.
 
 
-is_assigned is exists, subj a workflow, to a noun, in a context.
+is-assigned is exists, subj a workflow, to a noun, in a context.
 
 transition is thing.
 
@@ -89,59 +89,59 @@ editor is a role.
 visitor is a role.
 
 permission is thing.
-basic_perm is a permission.
-edit_perm is a permission.
-manage_perm is a permission.
+basic-perm is a permission.
+edit-perm is a permission.
+manage-perm is a permission.
 
-is_protected is exists, subj a verb, by a permission, in a context, for a status.
+is-protected is exists, subj a verb, by a permission, in a context, for a status.
 
-(wants Person1, do (Content_actionVerb1 Person1, what Content1));
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
 (located Content1, in Context1);
 (has Content1, what Status1);
 (has Person1, what Role1);
 (has Role1, what Permission1);
-(is_protected Content_actionVerb1, by Permission1, in Context1, for Status1)
+(is-protected Content_actionVerb1, by Permission1, in Context1, for Status1)
 ->
-(Content_actionVerb1 Person1, what Content1).
+(Content-actionVerb1 Person1, what Content1).
 
-(Wf_actionVerb1 Person1, what Content1);
-(is_assigned Workflow1, to ContentNoun1, in Context1);
+(Wf-actionVerb1 Person1, what Content1);
+(is-assigned Workflow1, to ContentNoun1, in Context1);
 (has Workflow1, what Transition1);
-(executed Transition1, by Wf_actionVerb1, fro_m Status1, to Status2);
+(executed Transition1, by Wf-actionVerb1, fro_m Status1, to Status2);
 (has Content1, what Status1);
 Content1 is a ContentNoun1
 ->
 (has Content1, what Status2).
 
 
-(has manager, what manage_perm).
-(has manager, what edit_perm).
-(has manager, what basic_perm).
-(has editor, what edit_perm).
-(has editor, what basic_perm).
-(has visitor, what basic_perm).
+(has manager, what manage-perm).
+(has manager, what edit-perm).
+(has manager, what basic-perm).
+(has editor, what edit-perm).
+(has editor, what basic-perm).
+(has visitor, what basic-perm).
 
-(is_protected publish, by manage_perm, in ctx1, for private).
-(is_protected hide, by edit_perm, in ctx1, for public).
-(is_protected edit,  by edit_perm, in ctx1, for private).
-(is_protected edit, by manage_perm, in ctx1, for public).
-(is_protected view, by edit_perm, in ctx1, for private).
-(is_protected view, by basic_perm, in ctx1, for public).
+(is-protected publish, by manage_perm, in ctx1, for private).
+(is-protected hide, by edit_perm, in ctx1, for public).
+(is-protected edit,  by edit_perm, in ctx1, for private).
+(is-protected edit, by manage_perm, in ctx1, for public).
+(is-protected view, by edit_perm, in ctx1, for private).
+(is-protected view, by basic_perm, in ctx1, for public).
 
 wf1 is a workflow.
 
-hide_tr is a transition.
+hide-tr is a transition.
 
-(has wf1, what hide_tr).
+(has wf1, what hide-tr).
 
-publish_tr is a transition.
+publish-tr is a transition.
 
-(has wf1, what publish_tr).
+(has wf1, what publish-tr).
 
-(executed hide_tr, by hide, fro_m public, to private).
-(executed publish_tr, by publish, fro_m private, to public).
+(executed hide-tr, by hide, fro_m public, to private).
+(executed publish-tr, by publish, fro_m private, to public).
 
-(is_assigned wf1, to document, in ctx1).
+(is-assigned wf1, to document, in ctx1).
 
 (has john ,what manager).
 (has mary, what editor).
