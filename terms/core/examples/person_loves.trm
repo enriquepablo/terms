@@ -61,3 +61,13 @@ true
 
 (hates yoko, who john)?
 true
+
+_RM_ (loves yoko, who john).
+
+_RM_ (marries john, who yoko).
+
+(marries john, who yoko)?
+false
+
+(hates yoko, who john)?
+true
