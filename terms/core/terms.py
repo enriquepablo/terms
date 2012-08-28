@@ -20,7 +20,7 @@
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declared_attr
 
 
@@ -52,11 +52,12 @@ class Term(Base):
                          secondaryjoin=id==term_to_base.c.base_id)
     equals = ()
     object_types = relationship('ObjectType', backref='verb',
+                           cascade='all,delete-orphan',
                           primaryjoin='ObjectType.verb_id==Term.id')
     var = Column(Boolean)
 
     rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='vconsecuences',
+    rule = relationship('Rule', backref=backref('vconsecuences', cascade='all'),
                          primaryjoin="Rule.id==Term.rule_id")
 
     # Avoid AttributeErrors
@@ -122,7 +123,7 @@ class Predicate(Base):
     type_id = Column(Integer, ForeignKey('terms.id'))
     term_type = relationship('Term', primaryjoin="Term.id==Predicate.type_id")
     rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='consecuences',
+    rule = relationship('Rule', backref=backref('consecuences', cascade='all'),
                          primaryjoin="Rule.id==Predicate.rule_id")
 
     # to avoid AttributeErrors
@@ -197,7 +198,7 @@ class Object(Base):
 
     id = Column(Integer, Sequence('object_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('predicates.id'))
-    parent = relationship('Predicate', backref='objects',
+    parent = relationship('Predicate', backref=backref('objects', cascade='all,delete-orphan'),
                          primaryjoin="Predicate.id==Object.parent_id")
     label = Column(String)
 
@@ -230,7 +231,7 @@ class PObject(Object):
     __mapper_args__ = {'polymorphic_identity': 1}
     oid = Column(Integer, ForeignKey('objects.id'), primary_key=True)
     pred_id = Column(Integer, ForeignKey('predicates.id'))
-    value = relationship('Predicate',
+    value = relationship('Predicate', cascade='all',
                          primaryjoin="Predicate.id==PObject.pred_id")
 
 

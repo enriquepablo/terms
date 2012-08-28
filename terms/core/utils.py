@@ -35,6 +35,8 @@ class Match(dict):
         self.prem = prem
         self.building = None
         self.orig_path = ()
+        self.fnode = None
+        self.ancestor = None
         super(Match, self).__init__()
 
     def copy(self):
@@ -51,6 +53,9 @@ class Match(dict):
                     new_match[l] = new_match.building
                     break
         new_match.orig_path = self.orig_path
+        new_match.fnode = self.fnode
+        if self.ancestor:
+            new_match.ancestor = self.ancestor.copy()
         return new_match
 
     def merge(self, m):

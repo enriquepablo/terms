@@ -29,17 +29,6 @@ from terms.core.terms import Base, Term, Predicate
 from terms.core.terms import isa, are
 from terms.core.utils import Match, merge_submatches
 
-'''
-En el match hay que poner words.
-en un query hay que ir construyendola en match.fact, con cada new_match,
-y sus valores estan dentro de match.fact.
-en las reglas tienen ya el fact de entrada,
-y se van cogiendo los valores de ese fact.
-cuando se llega a un mnetwork,
-las piezas del fact que haya que guardar se pasan a consecuences.
-
-'''
-
 
 class FactSet(object):
     """
@@ -98,10 +87,13 @@ class FactSet(object):
             old_node = node
         if not old_node.terminal:
             fnode = Fact(fact)
-            self.session.add(fnode)
             old_node.terminal = fnode
         if _commit:
             self.session.commit()
+        return old_node.terminal
+
+    def del_fact(self, match):
+        FactNode.dispatch_rm(self.root, match, self)
 
     def get_or_create_node(self, parent, term, path):
         ntype_name = path[-1]
@@ -135,9 +127,7 @@ class FactSet(object):
             m = Match(word, query=w)
             m.paths = self.get_paths(w)
             smatches = []
-            ntype_name = self.root.child_path[-1]
-            cls = self._get_nclass(ntype_name)
-            cls.dispatch(self.root, m, smatches, self)
+            FactNode.dispatch(self.root, m, smatches, self)
             submatches.append(smatches)
         return merge_submatches(submatches)
 
@@ -167,6 +157,7 @@ class FactNode(Base):
     children = relationship('FactNode',
                          backref=backref('parent',
                                          uselist=False,
+                                         cascade='all',
                                          remote_side=[id]),
                          primaryjoin="FactNode.id==FactNode.parent_id",
                          lazy='dynamic')
@@ -225,8 +216,36 @@ class FactNode(Base):
                 cls.dispatch(child, new_match, matches, factset)
         if parent.terminal:
             if not match.paths:
+                match.fnode = parent.terminal
                 match.fact = parent.terminal.fact
                 matches.append(match)
+
+    @classmethod
+    def dispatch_rm(cls, parent, match, factset):
+        if parent.child_path:
+            path = parent.child_path
+            if path in match.paths:
+                match.paths.remove(path)
+            ntype_name = path[-1]
+            cls = factset._get_nclass(ntype_name)
+            value = cls.resolve(match.query, path, factset)
+            if value is None:
+                children = parent.children.all()
+            else:
+                children = cls.get_children(parent, match, value, factset)
+            exists = factset.lexicon.get_term('exists')
+            for child in children:
+                if isinstance(child, LabelFNode):
+                    path = path[:-2] + (child.value, path[-1])
+                    if path in match.paths:
+                        match.paths.remove(path)
+                new_match = match.copy()
+                cls.dispatch_rm(child, new_match, factset)
+        if parent.terminal:
+            if not match.paths:
+                for ancestor in factset.session.query(Ancestor, ancestor.parents==parent.terminal):
+                    factset.session.delete(ancestor)
+                factset.session.delete(parent.terminal)
 
     @classmethod
     def resolve(cls, w, path, factset):
@@ -450,9 +469,48 @@ class Fact(Base):
     id = Column(Integer, Sequence('fact_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('factnodes.id'))
     parent = relationship('FactNode', backref=backref('terminal', uselist=False),
+                         cascade='all',
                          primaryjoin="FactNode.id==Fact.parent_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'))
-    fact = relationship('Predicate', primaryjoin="Predicate.id==Fact.pred_id")
+    fact = relationship('Predicate', backref=backref('facts'),
+                         cascade='all',
+                         primaryjoin="Predicate.id==Fact.pred_id")
 
     def __init__(self, fact):
         self.fact = fact
+        self.ancestors = []
+
+ancestor_child = Table('ancestor_child', Base.metadata,
+    Column('ancestor_id', Integer, ForeignKey('ancestors.id')),
+    Column('child_id', Integer, ForeignKey('facts.id'))
+)
+
+ancestor_parent = Table('ancestor_parent', Base.metadata,
+    Column('ancestor_id', Integer, ForeignKey('ancestors.id')),
+    Column('parent_id', Integer, ForeignKey('facts.id'))
+)
+
+class Ancestor(Base):
+    __tablename__ = 'ancestors'
+
+    id = Column(Integer, Sequence('ancestor_id_seq'), primary_key=True)
+    children = relationship('Fact', backref='ancestors',
+                         cascade='all',
+                         secondary=ancestor_child,
+                         primaryjoin=id==ancestor_child.c.ancestor_id,
+                         secondaryjoin=Fact.id==ancestor_child.c.child_id)
+    parents = relationship('Fact', backref=backref('descent', cascade='all'),
+                         secondary=ancestor_parent,
+                         primaryjoin=id==ancestor_parent.c.ancestor_id,
+                         secondaryjoin=Fact.id==ancestor_parent.c.parent_id)
+
+    def __init__(self, fact=None):
+        if fact:
+            self.parents.append(fact)
+
+
+    def copy(self):
+        new = Ancestor()
+        for p in self.parents:
+            new.parents.append(p)
+        return new

@@ -31,26 +31,10 @@ from sqlalchemy.exc import OperationalError
 from terms.core.terms import isa, are, get_bases
 from terms.core.terms import Base, Term, term_to_base, Predicate
 from terms.core.lexicon import Lexicon
-from terms.core.factset import FactSet
+from terms.core.factset import FactSet, Ancestor
 from terms.core import exceptions
 from terms.core import patterns
-
-
-class Match(dict):
-
-    def __init__(self, fact, prem=None):
-        self.fact = fact
-        self.paths = []
-        self.prem = prem
-        super(Match, self).__init__()
-
-    def copy(self):
-        new_match = Match(self.fact)
-        for k, v in self.items():
-            new_match[k] = v
-        new_match.prem = self.prem
-        new_match.paths = self.paths[:]
-        return new_match
+from terms.core.utils import Match
 
 
 class Network(object):
@@ -85,13 +69,20 @@ class Network(object):
         contradiction = self.factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        self.factset.add_fact(fact)
+        fnode = self.factset.add_fact(fact)
         if self.root.child_path:
             m = Match(fact)
             m.paths = self.factset.get_paths(fact)
-            ntype_name = self.root.child_path[-1]
-            cls = self._get_nclass(ntype_name)
-            cls.dispatch(self.root, m, self)
+            m.fnode = fnode
+            Node.dispatch(self.root, m, self)
+        if _commit:
+            self.session.commit()
+        return fnode
+
+    def del_fact(self, fact, _commit=True):
+        match = Match(fact)
+        match.paths = self.factset.get_paths(fact)
+        self.factset.dispatch_rm(match)
         if _commit:
             self.session.commit()
 
@@ -169,6 +160,7 @@ class Node(Base):
                                          uselist=False,
                                          remote_side=[id]),
                          primaryjoin="Node.id==Node.parent_id",
+                         cascade='all',
                          lazy='dynamic')
 
     ntype = Column(Integer)
@@ -208,23 +200,23 @@ class Node(Base):
         if parent.child_path:
             path = parent.child_path
             ntype_name = path[-1]
-            cls = network._get_nclass(ntype_name)
-            value = cls.resolve(match.fact, path)
+            chcls = network._get_nclass(ntype_name)
+            value = chcls.resolve(match.fact, path)
             if value is None:
                 children = parent.children.all()
             else:
-                children = cls.get_children(parent, match, value, network)
+                children = chcls.get_children(parent, match, value, network)
             exists = network.lexicon.get_term('exists')
             for ch in children:
                 for child in ch:
                     new_match = match.copy()
                     if child.var:
                         if child.var not in match:
-                            if cls is VerbNode and isa(child.value, exists):
+                            if chcls is VerbNode and isa(child.value, exists):
                                 new_match[child.var] = TermNode.resolve(match.fact, path)
                             else:
                                 new_match[child.var] = value
-                    cls.dispatch(child, new_match, network)
+                    chcls.dispatch(child, new_match, network)
         if parent.terminal:
             parent.terminal.dispatch(match, network)
 
@@ -418,18 +410,20 @@ class PremNode(Base):
         self.parent = parent  # node
 
     def dispatch(self, match, network, _numvars=True):
-        m = PMatch(self)
+        m = PMatch(self, match.fnode)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
         self.matches.append(m)
+        match.ancestor = Ancestor(match.fnode)
         for premise in self.prems:
             rule = premise.rule
             if _numvars:
-                nmatch = Match(match.fact)
+                nmatch = match.copy()
                 for num, o in match.items():
                     pvar = premise.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
                     name = pvar.varname.name
                     nmatch[name] = o
+                    del nmatch[num]
                 matches = [nmatch]
             else:
                 matches = [match]
@@ -453,6 +447,7 @@ class PremNode(Base):
                         pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
                     for pm in pmatches:
                         new_match = m.copy()
+                        m.ancestor.parents.append(pm.fact)
                         for mpair in pm.pairs:
                             vname = rule.get_varname(prem, mpair.var)
                             if vname not in m:
@@ -470,9 +465,13 @@ class PMatch(Base):
     prem_id = Column(Integer, ForeignKey('premnodes.id'))
     prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
+    fact_id = Column(Integer, ForeignKey('facts.id'))
+    fact = relationship('Fact', backref=backref('matches', cascade='all,delete-orphan'),
+                         primaryjoin="Fact.id==PMatch.fact_id")
 
-    def __init__(self, prem):
+    def __init__(self, prem, fact):
         self.prem = prem
+        self.fact = fact
 
 
 class MPair(Base):
@@ -551,12 +550,28 @@ class Rule(Base):
         for cond in self.conditions:
             if not cond.test(match):
                 return
-
+        cons = []
         for con in self.consecuences:
-            network.add_fact(con.substitute(match))
+            cons.append(con.substitute(match))
 
         for con in self.vconsecuences:
-            network.add_fact(match[con.name])
+            cons.append(match[con.name])
+
+        for con in cons:
+            prev = network.factset.query(con)
+            fnode = network.factset.add_fact(con)
+            if fnode.ancestors or not prev:
+                fnode.ancestors.append(match.ancestor)
+            neg = con.copy()
+            neg.true = not neg.true
+            contradiction = network.factset.query(neg)
+            if contradiction:
+                raise exceptions.Contradiction('we already have ' + str(neg))
+            if network.root.child_path:
+                m = Match(con)
+                m.paths = network.factset.get_paths(con)
+                m.fnode = fnode
+                Node.dispatch(network.root, m, network)
 
     def get_pvar_map(self, match, prem):
         pvar_map = []
