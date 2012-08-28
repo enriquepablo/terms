@@ -67,7 +67,9 @@ def run_terms(kb, fname):
                     try:
                         logger.info(kb.parse(buff))
                     except Contradiction as e:
-                        logger.error('Contradiction: ' + e.args[0])
+                        msg = 'Contradiction: ' + e.args[0]
+                        logger.error(msg)
+                        resp = msg
                     buff = ''
                 elif buff.endswith('?'):
                     resp = format_results(kb.parse(buff))

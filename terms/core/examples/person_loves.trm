@@ -22,9 +22,13 @@ john is a man.
 
 yoko is a woman.
 
+(hates yoko, who john).
+
 (loves john, who yoko).
 
 (loves yoko, who john).
+
+(marries john, who yoko).
 
 (marries yoko, who john)?
 true
@@ -36,4 +40,24 @@ true
 true
 
 (hates john, who yoko)?
+true
+
+_RM_ (hates john, who yoko).
+Contradiction: Cannot retract (hates john, who yoko)
+
+_RM_ (marries john, who yoko).
+Contradiction: Cannot retract (marries john, who yoko)
+
+_RM_ (loves yoko, who john).
+
+(hates john, who yoko)?
+false
+
+(loves john, who yoko)?
+true
+
+(marries john, who yoko)?
+true
+
+(hates yoko, who john)?
 true

@@ -61,15 +61,19 @@ class Network(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, fact, _commit=True):
-        prev = self.factset.query(fact)
-        if prev:
-            return
         neg = fact.copy()
         neg.true = not neg.true
         contradiction = self.factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
+        prev = self.factset.query(fact)
         fnode = self.factset.add_fact(fact)
+        ancestor = Ancestor(fnode)
+        ancestor.children.append(fnode)
+        if prev:
+            if _commit:
+                self.session.commit()
+            return
         if self.root.child_path:
             m = Match(fact)
             m.paths = self.factset.get_paths(fact)
@@ -82,7 +86,7 @@ class Network(object):
     def del_fact(self, fact, _commit=True):
         match = Match(fact)
         match.paths = self.factset.get_paths(fact)
-        self.factset.dispatch_rm(match)
+        self.factset.del_fact(match)
         if _commit:
             self.session.commit()
 
@@ -466,7 +470,7 @@ class PMatch(Base):
     prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
     fact_id = Column(Integer, ForeignKey('facts.id'))
-    fact = relationship('Fact', backref=backref('matches', cascade='all,delete-orphan'),
+    fact = relationship('Fact', backref=backref('matches', cascade='all'),
                          primaryjoin="Fact.id==PMatch.fact_id")
 
     def __init__(self, prem, fact):
@@ -560,8 +564,7 @@ class Rule(Base):
         for con in cons:
             prev = network.factset.query(con)
             fnode = network.factset.add_fact(con)
-            if fnode.ancestors or not prev:
-                fnode.ancestors.append(match.ancestor)
+            fnode.ancestors.append(match.ancestor)
             neg = con.copy()
             neg.true = not neg.true
             contradiction = network.factset.query(neg)

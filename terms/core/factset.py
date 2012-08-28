@@ -23,7 +23,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError
 
-from terms.core import patterns
+from terms.core import patterns, exceptions
 from terms.core.terms import get_bases
 from terms.core.terms import Base, Term, Predicate
 from terms.core.terms import isa, are
@@ -228,7 +228,7 @@ class FactNode(Base):
                 match.paths.remove(path)
             ntype_name = path[-1]
             cls = factset._get_nclass(ntype_name)
-            value = cls.resolve(match.query, path, factset)
+            value = cls.resolve(match.fact, path, factset)
             if value is None:
                 children = parent.children.all()
             else:
@@ -242,10 +242,13 @@ class FactNode(Base):
                 new_match = match.copy()
                 cls.dispatch_rm(child, new_match, factset)
         if parent.terminal:
+            for a in parent.terminal.ancestors:
+                if not len(a.parents) == 1 or not a.parents[0].id == parent.terminal.id:
+                    raise exceptions.Contradiction('Cannot retract ' + str(parent.terminal.fact))
             if not match.paths:
-                for ancestor in factset.session.query(Ancestor, ancestor.parents==parent.terminal):
-                    factset.session.delete(ancestor)
+                parent.terminal.rm_descent(factset)
                 factset.session.delete(parent.terminal)
+
 
     @classmethod
     def resolve(cls, w, path, factset):
@@ -469,7 +472,6 @@ class Fact(Base):
     id = Column(Integer, Sequence('fact_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('factnodes.id'))
     parent = relationship('FactNode', backref=backref('terminal', uselist=False),
-                         cascade='all',
                          primaryjoin="FactNode.id==Fact.parent_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'))
     fact = relationship('Predicate', backref=backref('facts'),
@@ -479,6 +481,16 @@ class Fact(Base):
     def __init__(self, fact):
         self.fact = fact
         self.ancestors = []
+
+    def rm_descent(self, factset):
+        for d in self.descent:
+            for ch in d.children:
+                for a in ch.ancestors:
+                    if len(a.parents) == 1 and a.parents[0].id == ch.id:
+                        break
+                else:
+                    ch.rm_descent(factset)
+                    factset.session.delete(ch)
 
 ancestor_child = Table('ancestor_child', Base.metadata,
     Column('ancestor_id', Integer, ForeignKey('ancestors.id')),
@@ -495,7 +507,6 @@ class Ancestor(Base):
 
     id = Column(Integer, Sequence('ancestor_id_seq'), primary_key=True)
     children = relationship('Fact', backref='ancestors',
-                         cascade='all',
                          secondary=ancestor_child,
                          primaryjoin=id==ancestor_child.c.ancestor_id,
                          secondaryjoin=Fact.id==ancestor_child.c.child_id)

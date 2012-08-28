@@ -42,6 +42,7 @@ class Lexer(object):
             'SEMICOLON',
             'VAR',
             'IMPLIES',
+            'RM',
     )
 
     reserved = {
@@ -58,6 +59,7 @@ class Lexer(object):
     t_SEMICOLON = r';'
     t_VAR = VAR_PAT
     t_IMPLIES = r'->'
+    t_RM = r'_RM_'
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self,t):
@@ -141,7 +143,8 @@ class KB(object):
 
     def p_construct(self, p):
         '''construct : assertion
-                     | question'''
+                     | question
+                     | removal'''
         p[0] = p[1]
 
     def p_assertion(self, p):
@@ -172,6 +175,12 @@ class KB(object):
         elif not matches[0]:
             matches = 'true'
         p[0] = matches
+
+    def p_removal(self, p):
+        '''removal : RM sentence-list DOT'''
+        for pred in p[2]:
+            self.network.del_fact(pred)
+        p[0] = 'ok'
 
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list'''
