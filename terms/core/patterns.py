@@ -27,5 +27,8 @@ SYMBOL_PAT = r'[a-z][a-z-]*\d*'
 
 sympat = re.compile(SYMBOL_PAT)
 
-
 NAME_PAT = re.compile(r'^([a-z][a-z-]*[a-z])[1-9]+$')
+
+NUM_PAT = r'(([+]|[-])?([0-9]*)(\.)?([0-9]+)(\.)?)+(j)?((e|E)([0-9]+))?'
+
+numpat = re.compile(NUM_PAT)

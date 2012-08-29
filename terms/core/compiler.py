@@ -24,7 +24,7 @@ from ply.lex import TOKEN
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from terms.core.patterns import SYMBOL_PAT, VAR_PAT
+from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs
 from terms.core.lexicon import Lexicon
 from terms.core.terms import isa, are
@@ -34,6 +34,7 @@ class Lexer(object):
 
     tokens = (
             'SYMBOL',
+            'NUMBER',
             'COMMA',
             'LPAREN',
             'RPAREN',
@@ -53,6 +54,7 @@ class Lexer(object):
             'a': 'A',
             }
 
+    t_NUMBER = NUM_PAT
     t_COMMA = r','
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
@@ -278,8 +280,12 @@ class KnowledgeBase(object):
  
     def p_object(self, p):
         '''object : vterm
-                  | fact'''
-        p[0] = p[1]
+                  | fact
+                  | NUMBER'''
+        if isinstance(p[1], str):
+            p[0] = self.lexicon.make_term(p[1], self.lexicon.number)
+        else:
+            p[0] = p[1]
 
     def p_definition(self, p):
         '''definition : noun-def

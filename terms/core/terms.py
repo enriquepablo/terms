@@ -55,6 +55,7 @@ class Term(Base):
                            cascade='all,delete-orphan',
                           primaryjoin='ObjectType.verb_id==Term.id')
     var = Column(Boolean)
+    number = Column(Boolean, default=False)
 
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('vconsecuences', cascade='all'),

@@ -42,19 +42,21 @@ class Lexicon(object):
         '''
         Create basic terms.
         '''
-        word = Term('word', _bootstrap=True)
-        self.session.add(word)
+        self.word = Term('word', _bootstrap=True)
+        self.session.add(self.word)
         self.session.commit()
-        word.term_type = word
+        self.word.term_type = self.word
         self.session.commit()
-        verb = Term('verb', ttype=word, bases=(word,))
-        self.session.add(verb)
-        noun = Term('noun', ttype=word, bases=(word,))
-        self.session.add(noun)
-        exists = Term('exists', ttype=verb, objs={'subj': word})
-        self.session.add(exists)
-        thing = Term('thing', ttype=noun, bases=(word,))
-        self.session.add(thing)
+        self.verb = Term('verb', ttype=self.word, bases=(self.word,))
+        self.session.add(self.verb)
+        self.noun = Term('noun', ttype=self.word, bases=(self.word,))
+        self.session.add(self.noun)
+        self.number = Term('number', ttype=self.word, bases=(self.word,))
+        self.session.add(self.number)
+        self.exists = Term('exists', ttype=self.verb, objs={'subj': self.word})
+        self.session.add(self.exists)
+        self.thing = Term('thing', ttype=self.noun, bases=(self.word,))
+        self.session.add(self.thing)
         self.session.commit()
 
     def get_term(self, name):
@@ -75,22 +77,20 @@ class Lexicon(object):
         Can also produce a predicate.
         The term is not saved or added to the session.
         '''
-        verb = self.get_term('verb')
-        noun = self.get_term('noun')
-        exists = self.get_term('exists')
-        thing = self.get_term('thing')
         try:
             return self.get_term(name)
         except exceptions.TermNotFound:
             pass
-        if are(term_type, noun):
+        if are(term_type, self.noun):
             return self._make_noun(name, ntype=term_type)
-        elif are(term_type, thing):
+        elif are(term_type, self.thing):
             return self._make_name(name, term_type)
-        elif are(term_type, verb):
+        elif are(term_type, self.verb):
             return self._make_verb(name, vtype=term_type, objs=objs)
-        elif are(term_type, exists):
+        elif are(term_type, self.exists):
             return self.make_pred(name, term_type, **objs)
+        elif term_type == self.number:
+            return self.make_number(name)
 
     def make_subterm(self, name, super_terms, **objs):
         '''
@@ -99,25 +99,20 @@ class Lexicon(object):
         and can be a tuple of terms or a single term.
         The term is not saved or added to the session.
         '''
-        word = self.get_term('word')
-        verb = self.get_term('verb')
-        noun = self.get_term('noun')
-        exists = self.get_term('exists')
-        thing = self.get_term('thing')
         try:
             return self.get_term(name)
         except exceptions.TermNotFound:
             pass
-        if isa(super_terms, word):
+        if isa(super_terms, self.word):
             super_terms = (super_terms,)
         term_base = super_terms[0]
-        if are(term_base, noun):
+        if are(term_base, self.noun):
             return self._make_subnoun(name, bases=super_terms)
-        elif are(term_base, thing):
+        elif are(term_base, self.thing):
             return self._make_noun(name, bases=super_terms)
-        elif are(term_base, verb):
+        elif are(term_base, self.verb):
             return self._make_subverb(name, bases=super_terms)
-        elif are(term_base, exists):
+        elif are(term_base, self.exists):
             return self._make_verb(name, bases=super_terms, objs=objs)
 
     def save_term(self, term, _commit=True):
@@ -173,8 +168,7 @@ class Lexicon(object):
         else:
             tname = m.group(1).lower()
             tvar = self.get_term(tname)
-            verb = self.get_term('verb')
-            if isa(tvar, verb):
+            if isa(tvar, self.verb):
                 var = Term(name, ttype=tvar)
             else:
                 var = self.make_term(name, tvar)
@@ -190,42 +184,33 @@ class Lexicon(object):
                 self._recurse_subterms(st, subterms)
 
     def _make_noun(self, name, bases=None, ntype=None):
-        word = self.get_term('word')
-        noun = self.get_term('noun')
-        thing = self.get_term('thing')
         if bases is None:
-            bases = (thing,)
-        elif isa(bases, word):
+            bases = (self.thing,)
+        elif isa(bases, self.word):
             bases = (bases,)
         if ntype is None:
-            ntype = noun
+            ntype = self.noun
         return Term(name, ttype=ntype, bases=tuple(bases))
 
     def _make_subnoun(self, name, bases=None):
-        word = self.get_term('word')
-        noun = self.get_term('noun')
         if bases is None:
-            bases = (noun,)
-        return Term(name, ttype=word, bases=tuple(bases))
+            bases = (self.noun,)
+        return Term(name, ttype=self.word, bases=tuple(bases))
 
     def _make_name(self, name, noun_=None):
         if noun_ is None:
-            noun = self.get_term('noun')
-            thing = self.get_term('thing')
             m = patterns.NAME_PAT.match(name)
             if m:
                 noun_ = self.get_term(m.group(1))
-                assert isa(noun_, noun)
+                assert isa(noun_, self.noun)
             else:
-                noun_ = thing
+                noun_ = self.thing
         return Term(name, ttype=noun_)
 
     def _make_verb(self, name, bases=None, vtype=None, objs=None):
-        verb = self.get_term('verb')
-        exists = self.get_term('exists')
         if not bases:
-            bases = (exists,)
-        elif isa(bases, verb):
+            bases = (self.exists,)
+        elif isa(bases, self.verb):
             bases = (bases,)
         if objs is None:
             objs = {}
@@ -233,15 +218,18 @@ class Lexicon(object):
             if bases:
                 vtype = bases[0].term_type
             else:
-                vtype = verb
+                vtype = self.verb
         return Term(name, ttype=vtype, bases=tuple(bases), objs=objs)
 
     def _make_subverb(self, name, bases=None):
-        word = self.get_term('word')
-        verb = self.get_term('verb')
         if bases is None:
-            bases = (verb,)
-        return Term(name, ttype=word, bases=tuple(bases))
+            bases = (self.verb,)
+        return Term(name, ttype=self.word, bases=tuple(bases))
+
+    def make_number(self, num):
+        number = Term(num, ttype=self.number)
+        number.number = True
+        return number
 
     def make_pred(self, true, verb_, **objs):
         return Predicate(true, verb_, **objs)
