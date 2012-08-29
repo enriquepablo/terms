@@ -25,12 +25,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
-from terms.core.network import Network, CondIsa, CondIs
+from terms.core.network import Network, CondIsa, CondIs, CondCode
 from terms.core.lexicon import Lexicon
 from terms.core.terms import isa, are
 from terms.core.utils import merge_submatches
 
 class Lexer(object):
+
+    states = (
+            ('pycode', 'exclusive'),
+    )
 
     tokens = (
             'SYMBOL',
@@ -47,6 +51,7 @@ class Lexer(object):
             'VAR',
             'IMPLIES',
             'RM',
+            'PYCODE',
     )
 
     reserved = {
@@ -72,15 +77,49 @@ class Lexer(object):
         return t
 
     # Define a rule so we can track line numbers
-    def t_newline(self,t):
+    def t_newline(self, t):
         r'\n+'
         t.lexer.lineno += len(t.value)
 
     # A string containing ignored characters (spaces and tabs)
     t_ignore  = ' \t'
 
+
+    def t_pycode(self, t):
+        r'\{'
+        t.lexer.code_start = t.lexer.lexpos        # Record the starting position
+        t.lexer.level = 1                          # Initial brace level
+        t.lexer.push_state('pycode')                     # Enter 'ccode' state
+
+    # Rules for the ccode state
+    def t_pycode_lbrace(self, t):     
+        r'\{'
+        t.lexer.level +=1                
+
+    def t_pycode_rbrace(self, t):
+        r'\}'
+        t.lexer.level -=1
+
+        if t.lexer.level == 0:
+            t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos+1]
+            t.type = "PYCODE"
+            t.lexer.lineno += t.value.count('\n')
+            t.lexer.pop_state()           
+            return t
+
+    # C character literal
+    def t_pycode_char(self, t):
+        r"'[^\n]*?'"
+
+    # Any sequence of non-whitespace characters (not braces, strings)
+    def t_pycode_nonspace(self, t):
+        r"[^\s\{\}\']+"
+
+    # Ignored characters (whitespace)
+    t_pycode_ignore = " \t\n"
+
     # Error handling rule
-    def t_error(self,t):
+    def t_pycode_INITIAL_error(self,t):
         print("Illegal character '%s'" % t.value[0])
         t.lexer.skip(1)
 
@@ -192,11 +231,18 @@ class KnowledgeBase(object):
         p[0] = 'ok'
 
     def p_rule(self, p):
-        '''rule : sentence-list IMPLIES sentence-list'''
-        prems, conds = [], []
-        exists = self.lexicon.get_term('exists')
+        '''rule : sentence-list IMPLIES sentence-list
+                | sentence-list PYCODE IMPLIES sentence-list'''
+        if len(p) == 5:
+            code_str = p[2]
+            conds = [CondCode(code_str)]
+            cons = p[4]
+        else:
+            conds = []
+            cons = p[3]
+        prems = []
         for sen in p[1]:
-            if isa(sen, exists):
+            if isa(sen, self.lexicon.exists):
                 prems.append(sen)
             else:
                 if sen.type == 'name-def':
@@ -205,7 +251,7 @@ class KnowledgeBase(object):
                     conds.append(CondIsa(sen.name, sen.term_type))
                 else:
                     conds.append(CondIs(sen.name, sen.bases[0]))
-        self.network.add_rule(prems, conds, p[3])
+        self.network.add_rule(prems, conds, cons)
         p[0] = 'OK'
 
     def p_sentence_list(self, p):

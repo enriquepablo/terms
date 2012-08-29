@@ -167,7 +167,10 @@ class Lexicon(object):
             var = self.make_subterm(name, bases)
         else:
             tname = m.group(1).lower()
-            tvar = self.get_term(tname)
+            if tname == 'n':
+                tvar = self.number
+            else:
+                tvar = self.get_term(tname)
             if isa(tvar, self.verb):
                 var = Term(name, ttype=tvar)
             else:

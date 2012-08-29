@@ -109,8 +109,7 @@ class Network(object):
             rule.prems.append(premise)
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(premise, n, varname))
-        rule.conds = conds
-        exists = self.lexicon.get_term('exists')
+        rule.conditions = conds
         for con in cons:
             if isinstance(con, Predicate):
                 rule.consecuences.append(con)
@@ -209,13 +208,12 @@ class Node(Base):
                 children = parent.children.all()
             else:
                 children = chcls.get_children(parent, match, value, network)
-            exists = network.lexicon.get_term('exists')
             for ch in children:
                 for child in ch:
                     new_match = match.copy()
                     if child.var:
                         if child.var not in match:
-                            if chcls is VerbNode and isa(child.value, exists):
+                            if chcls is VerbNode and isa(child.value, network.lexicon.exists):
                                 new_match[child.var] = TermNode.resolve(match.fact, path)
                             else:
                                 new_match[child.var] = value
@@ -551,7 +549,7 @@ class Rule(Base):
     def dispatch(self, match, network):
 
         for cond in self.conditions:
-            if not cond.test(match):
+            if not cond.test(match, network):
                 return
         cons = []
         for con in self.consecuences:
@@ -666,8 +664,8 @@ class CondIsa(Condition):
     __mapper_args__ = {'polymorphic_identity': 0}
     cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
-    def test(self, match):
-        return isa(args[0].solve(match), args[1].solve(match))
+    def test(self, match, network):
+        return isa(self.args[0].solve(match), self.args[1].solve(match))
 
 
 class CondIs(Condition):
@@ -675,5 +673,29 @@ class CondIs(Condition):
     __mapper_args__ = {'polymorphic_identity': 1}
     cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
-    def test(self, match):
-        return are(args[0].solve(match), args[1].solve(match))
+    def test(self, match, network):
+        return are(self.args[0].solve(match), self.args[1].solve(match))
+
+
+class CondCode(Condition):
+    __tablename__ = 'condcodes'
+    __mapper_args__ = {'polymorphic_identity': 2}
+    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
+
+    code = Column(String)
+
+    def test(self, match, network):
+        match['condition'] = True
+        for k, v in match.items():
+            if getattr(v, 'number', False):
+                match[k] = eval(v.name)
+        exec(self.code, {}, match)
+        for k, v in match.items():
+            try:
+                match[k] = network.lexicon.make_term(str(0 + v), self.lexicon.number)
+            except TypeError:
+                pass
+        return match['condition']
+
+    def __init__(self, code):
+        self.code = code
