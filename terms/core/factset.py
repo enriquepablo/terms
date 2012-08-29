@@ -34,7 +34,8 @@ class FactSet(object):
     """
     """
 
-    def __init__(self, lexicon):
+    def __init__(self, lexicon, config):
+        self.config = config
         self.session = lexicon.session
         self.lexicon = lexicon
         try:
@@ -42,11 +43,9 @@ class FactSet(object):
         except NoResultFound:
             self.initialize()
 
-    def initialize(self, commit=False):
+    def initialize(self):
         self.root = RootFNode()
         self.session.add(self.root)
-        if commit:
-            self.session.commit()
 
     def get_paths(self, pred):
         '''

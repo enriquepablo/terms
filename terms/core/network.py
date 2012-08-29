@@ -21,11 +21,8 @@ import re
 
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
-from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, backref, aliased
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import OperationalError
 
 from terms.core.terms import isa, are, get_bases
@@ -39,22 +36,24 @@ from terms.core.utils import Match
 
 class Network(object):
 
-    def __init__(self, dbaddr='sqlite:///:memory:'):
-        self.engine = create_engine(dbaddr)
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+    def __init__(self, session, config):
+        self.session = session
+        self.config = config
+        initialize = False
         try:
             self.root = self.session.query(RootNode).one()
         except OperationalError:
+            initialize =  True
             self.initialize()
-        self.lexicon = Lexicon(self.session)
-        self.factset = FactSet(self.lexicon)
+        self.lexicon = Lexicon(self.session, config)
+        self.factset = FactSet(self.lexicon, config)
+        if initialize:
+            self.session.commit()
 
     def initialize(self):
-        Base.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.session.connection().engine)
         self.root = RootNode()
         self.session.add(self.root)
-        self.session.commit()
 
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__

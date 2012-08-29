@@ -19,12 +19,19 @@
 
 import os
 import re
+from configparser import ConfigParser
 
 from terms.core.terms import Base
 from terms.core.network import Network
-from terms.core.compiler import KB
+from terms.core.compiler import KnowledgeBase
 from terms.core.log import here, logger
 from terms.core.exceptions import Contradiction
+
+
+CONFIG = '''
+[database]
+address = sqlite:///:memory:
+'''
 
 
 def test_terms(): # test generator
@@ -32,14 +39,14 @@ def test_terms(): # test generator
     # feed each content to run_npl
     d = os.path.join(here, 'examples')
     files = os.listdir(d)
-#    yield run_npl, '/home/eperez/virtualenvs/ircbot/src/nl/nl/npl_tests/lists.npl'
-    network = None
+    kb = None
+    config = ConfigParser()
+    config.read_string(CONFIG)
     for f in files:
         if f.endswith('.trm'):
-            if network:
-                Base.metadata.drop_all(network.engine)
-            network = Network()
-            kb = KB(network,
+            if kb:
+                Base.metadata.drop_all(kb.engine)
+            kb = KnowledgeBase(config,
                     lex_optimize=False,
                     yacc_optimize=False,
                     yacc_debug=True)

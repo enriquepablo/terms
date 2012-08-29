@@ -30,7 +30,8 @@ from terms.core.terms import Term, ObjectType, Predicate, isa, are
 
 class Lexicon(object):
 
-    def __init__(self, session):
+    def __init__(self, session, config):
+        self.config = config
         self.session = session
         try:
             self.session.query(Term).filter(Term.name=='word').one()

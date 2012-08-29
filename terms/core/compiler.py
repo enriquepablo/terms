@@ -21,8 +21,11 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT
-from terms.core.network import CondIsa, CondIs
+from terms.core.network import Network, CondIsa, CondIs
 from terms.core.lexicon import Lexicon
 from terms.core.terms import isa, are
 from terms.core.utils import merge_submatches
@@ -92,7 +95,7 @@ class Lexer(object):
              print(tok)
 
 
-class KB(object):
+class KnowledgeBase(object):
 
 
     precedence = (
@@ -103,14 +106,18 @@ class KB(object):
 
     def __init__(
             self,
-            network,
+            config,
             lex_optimize=True,
             yacc_optimize=True,
             yacc_debug=False):
 
-        self.network = network
-        self.lexicon = network.lexicon
-        self.factset = network.factset
+        self.engine = create_engine(config['database']['address'])
+        Session = sessionmaker(bind=self.engine)
+        self.session = Session()
+        self.config = config
+        self.network = Network(self.session, config)
+        self.lexicon = self.network.lexicon
+        self.factset = self.network.factset
         self.lex = Lexer()
 
         self.lex.build(
