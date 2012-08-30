@@ -122,20 +122,14 @@ class Lexicon(object):
         return term
 
     def add_term(self, name, term_type, _commit=False, **objs):
-        try:
-            pterm = self.get_term(name)
-        except exceptions.TermNotFound:
-            pass
         term = self.make_term(name, term_type, **objs)
         self.save_term(term, _commit)
+        return term
 
     def add_subterm(self, name, super_terms, _commit=False, **objs):
-        try:
-            pterm = self.get_term(name)
-        except exceptions.TermNotFound:
-            pass
         term = self.make_subterm(name, super_terms, **objs)
         self.save_term(term, _commit)
+        return term
 
     def get_subterms(self, term):
         name = term.name
@@ -167,11 +161,11 @@ class Lexicon(object):
             var = self.make_subterm(name, bases)
         else:
             tname = m.group(1).lower()
-            if tname == 'n':
+            if len(tname) == 1:
                 tvar = self.number
             else:
                 tvar = self.get_term(tname)
-            if isa(tvar, self.verb):
+            if isa(tvar, self.verb) or tvar == self.number:
                 var = Term(name, ttype=tvar)
             else:
                 var = self.make_term(name, tvar)
@@ -230,6 +224,7 @@ class Lexicon(object):
         return Term(name, ttype=self.word, bases=tuple(bases))
 
     def make_number(self, num):
+        num = str(0 + eval(num))
         number = Term(num, ttype=self.number)
         number.number = True
         return number

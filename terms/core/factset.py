@@ -215,6 +215,7 @@ class FactNode(Base):
                 cls.dispatch(child, new_match, matches, factset)
         if parent.terminal:
             if not match.paths:
+                match.paths = factset.get_paths(match.fact)
                 match.fnode = parent.terminal
                 match.fact = parent.terminal.fact
                 matches.append(match)

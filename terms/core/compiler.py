@@ -210,14 +210,16 @@ class KnowledgeBase(object):
             exists = self.lexicon.get_term('exists')
             for sen in p[1]:
                 if isa(sen, exists):
-                    p[0] = self.network.add_fact(sen)
+                    self.network.add_fact(sen)
                 else:
                     if sen.type == 'noun-def':
-                        p[0] = self.lexicon.add_subterm(sen.name, sen.bases)
+                        term = self.lexicon.add_subterm(sen.name, sen.bases)
                     elif sen.type == 'verb-def':
-                        p[0] = self.lexicon.add_subterm(sen.name, sen.bases, **(sen.objs))
+                        term = self.lexicon.add_subterm(sen.name, sen.bases, **(sen.objs))
                     elif sen.type == 'name-def':
-                        p[0] = self.lexicon.add_term(sen.name, sen.term_type)
+                        term = self.lexicon.add_term(sen.name, sen.term_type)
+                    self.session.add(term)
+            p[0] = 'OK'
 
     def p_question(self, p):
         '''question : sentence-list QMARK'''
@@ -264,7 +266,7 @@ class KnowledgeBase(object):
         '''pylines : PYCODE pylines
                    | PYCODE'''
         if len(p) == 3:
-            p[0] = p[2] + (p[1],)
+            p[0] = (p[1],) + p[2]
         else:
             p[0] = (p[1],)
 
@@ -272,7 +274,7 @@ class KnowledgeBase(object):
         '''sentence-list : sentence SEMICOLON sentence-list
                          | sentence'''
         if len(p) == 4:
-            p[0] = p[3] + (p[1],)
+            p[0] = (p[1],) + p[3]
         else:
             p[0] = (p[1],)
 
@@ -296,10 +298,12 @@ class KnowledgeBase(object):
                      | verb subject COMMA mods'''
         if len(p) == 2:
             p[0] = p[1]
-        elif len(p) == 3:
-            p[0] = self.lexicon.make_pred(True, p[1], subj=p[2])
         else:
-            p[0] = self.lexicon.make_pred(True, p[1], subj=p[2], **p[4])
+            if len(p) == 3:
+                p[0] = self.lexicon.make_pred(True, p[1], subj=p[2])
+            else:
+                p[0] = self.lexicon.make_pred(True, p[1], subj=p[2], **p[4])
+            self.session.add(p[0])
 
     def p_verb(self, p):
         '''verb : vterm'''
@@ -324,6 +328,8 @@ class KnowledgeBase(object):
     def p_var(self, p):
         '''var : VAR'''
         p[0] = self.lexicon.make_var(p[1])
+        self.session.add(p[0])
+
 
     def p_mods(self, p):
         '''mods : mod COMMA mods
@@ -343,6 +349,7 @@ class KnowledgeBase(object):
                   | NUMBER'''
         if isinstance(p[1], str):
             p[0] = self.lexicon.make_term(p[1], self.lexicon.number)
+            self.session.add(p[0])
         else:
             p[0] = p[1]
 
@@ -369,7 +376,7 @@ class KnowledgeBase(object):
         '''vterms : vterm COMMA vterms
                   | vterm'''
         if len(p) == 4:
-            p[0] = p[3] + (p[1],)
+            p[0] = (p[1],) + p[3]
         else:
             p[0] = (p[1],)
  

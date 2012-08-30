@@ -104,9 +104,8 @@ class Network(object):
             else:
                 pnode = PremNode(old_node)
                 old_node.terminal = pnode
-            premise = Premise(pnode, n)
+            premise = Premise(pnode, n, pred)
             rule.prems.append(premise)
-            prempairs.append((pred, premise))
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(premise, n, varname))
         rule.conditions = conds
@@ -115,8 +114,8 @@ class Network(object):
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
-        for pred, prem in prempairs:
-            matches = self.factset.query(pred)
+        for prem in rule.prems:
+            matches = self.factset.query(prem.pred)
             for match in matches:
                 prem.dispatch(match, self, _numvars=False)
         if _commit:
@@ -205,17 +204,19 @@ class Node(Base):
             chcls = network._get_nclass(ntype_name)
             value = chcls.resolve(match.fact, path)
             if value is None:
-                children = parent.children.all()
+                children = [parent.children.all()]
             else:
                 children = chcls.get_children(parent, match, value, network)
             for ch in children:
                 for child in ch:
                     new_match = match.copy()
                     if child.var:
+                        #if child.value.name == 'M7':
+                        #    import pdb;pdb.set_trace()
                         if child.var not in match:
                             if chcls is VerbNode and isa(child.value, network.lexicon.exists):
                                 new_match[child.var] = TermNode.resolve(match.fact, path)
-                            else:
+                            elif value:
                                 new_match[child.var] = value
                     chcls.dispatch(child, new_match, network)
         if parent.terminal:
@@ -293,25 +294,24 @@ class TermNode(Node):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-        except AttributeError:
+        except (AttributeError, KeyError):
             return None
         return term
 
     @classmethod
     def get_children(cls, parent, match, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
-        thing = network.lexicon.get_term('thing')
+        vchildren = ()
         for k, v in match.items():
             if v == value:
                 vchildren = parent.children.filter(Node.var==k)
                 break
         else:
             types = (value.term_type,) + get_bases(value.term_type)
-            type_ids = (t.id for t in types)
-            vchildren = ()
+            type_ids = [t.id for t in types]
             if type_ids:
-                vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var>0).filter(Term.type_id.in_(type_ids))
-            if not isa(value, thing):
+                vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
+            if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
                 bases = (value,) + get_bases(value)
                 tbases = aliased(Term)
                 base_ids = (b.id for b in bases)
@@ -335,7 +335,7 @@ class VerbNode(Node):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-        except AttributeError:
+        except (AttributeError, KeyError):
             return None
         if patterns.varpat.match(term.name):
             return term
@@ -389,12 +389,23 @@ class Premise(Base):
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('prems', lazy='dynamic'),
                          primaryjoin="Rule.id==Premise.rule_id")
+    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred = relationship('Predicate',
+                         primaryjoin="Predicate.id==Premise.pred_id")
     order = Column(Integer)
 
-    def __init__(self, pnode, order):
+    def __init__(self, pnode, order, pred):
         self.node = pnode
         self.order = order
+        self.pred = pred
 
+    def check_match(self, match, network):
+        pred = self.pred
+        prem_paths = network.factset.get_paths(pred)
+        for p in prem_paths:
+            if p not in match.paths:
+                return False
+        return True
 
     def dispatch(self, match, network, _numvars=True):
         rule = self.rule
@@ -455,6 +466,8 @@ class PremNode(Base):
         self.parent = parent  # node
 
     def dispatch(self, match, network, _numvars=True):
+        if not self.prems[0].check_match(match, network):
+            return
         m = PMatch(self, match.fnode)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
@@ -694,7 +707,13 @@ class CondCode(Condition):
         for k, v in match.items():
             if getattr(v, 'number', False):
                 match[k] = eval(v.name)
-        exec(self.code, {}, match)
+        try:
+            exec(self.code, {}, match)
+        except Exception as e:
+            if match['condition']:
+                raise
+            return False
+
         for k, v in match.items():
             if k == 'condition':
                 continue
