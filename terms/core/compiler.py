@@ -84,39 +84,45 @@ class Lexer(object):
     # A string containing ignored characters (spaces and tabs)
     t_ignore  = ' \t'
 
+    def t_begin_pycode(self, t):
+        r'<-'
+        t.lexer.begin('pycode')
 
-    def t_pycode(self, t):
-        r'\{'
-        t.lexer.code_start = t.lexer.lexpos        # Record the starting position
-        t.lexer.level = 1                          # Initial brace level
-        t.lexer.push_state('pycode')                     # Enter 'ccode' state
+    # Define a rule so we can track line numbers
+    def t_pycode_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
 
-    # Rules for the ccode state
-    def t_pycode_lbrace(self, t):     
-        r'\{'
-        t.lexer.level +=1                
+    def t_pycode_IMPLIES(self, t):
+        r'->'
+        t.lexer.begin('INITIAL')
+        return t
 
-    def t_pycode_rbrace(self, t):
-        r'\}'
-        t.lexer.level -=1
+    # Any sequence of non-linebreak characters (not ending in ->)
+    def t_pycode_PYCODE(self, t):
+        r'.+'
+        return t
 
-        if t.lexer.level == 0:
-            t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos+1]
-            t.type = "PYCODE"
-            t.lexer.lineno += t.value.count('\n')
-            t.lexer.pop_state()           
-            return t
+    t_pycode_ignore  = ''
 
-    # C character literal
-    def t_pycode_char(self, t):
-        r"'[^\n]*?'"
-
-    # Any sequence of non-whitespace characters (not braces, strings)
-    def t_pycode_nonspace(self, t):
-        r"[^\s\{\}\']+"
-
-    # Ignored characters (whitespace)
-    t_pycode_ignore = " \t\n"
+#    def t_begin_pycode(self, t):
+#        r'<-'
+#        t.lexer.code_start = t.lexer.lexpos
+#        t.lexer.begin('pycode')
+#
+#    # Any sequence of non-linebreak characters
+#    def t_pycode_PYCODE(self, t):
+#        r'.+(?=->)'
+#        t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos+1]
+#        t.lexer.lineno += t.value.count('\n')
+#        return t
+#
+#    def t_pycode_IMPLIES(self, t):
+#        r'->'
+#        t.lexer.begin('INITIAL')
+#        return t
+#
+#    t_pycode_ignore  = ''
 
     # Error handling rule
     def t_pycode_INITIAL_error(self,t):
@@ -232,10 +238,10 @@ class KnowledgeBase(object):
 
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list
-                | sentence-list PYCODE IMPLIES sentence-list'''
+                | sentence-list pylines IMPLIES sentence-list'''
         if len(p) == 5:
-            code_str = p[2]
-            conds = [CondCode(code_str)]
+            code_str = '\n'.join(p[2])
+            conds = [CondCode(code_str.strip())]
             cons = p[4]
         else:
             conds = []
@@ -254,14 +260,21 @@ class KnowledgeBase(object):
         self.network.add_rule(prems, conds, cons)
         p[0] = 'OK'
 
+    def p_pylines(self, p):
+        '''pylines : PYCODE pylines
+                   | PYCODE'''
+        if len(p) == 3:
+            p[0] = p[2] + (p[1],)
+        else:
+            p[0] = (p[1],)
+
     def p_sentence_list(self, p):
         '''sentence-list : sentence SEMICOLON sentence-list
                          | sentence'''
         if len(p) == 4:
-            p[3].append(p[1])
-            p[0] = p[3]
+            p[0] = p[3] + (p[1],)
         else:
-            p[0] = [p[1]]
+            p[0] = (p[1],)
 
     def p_sentence(self, p):
         '''sentence : definition

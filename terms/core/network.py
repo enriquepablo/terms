@@ -92,21 +92,21 @@ class Network(object):
     def add_rule(self, prems, conds, cons, orders=None, _commit=True):
         rule = Rule()
         prempairs = []
-        for n, prem in enumerate(prems):
+        for n, pred in enumerate(prems):
             vars = {}
-            paths = self.factset.get_paths(prem)
+            paths = self.factset.get_paths(pred)
             old_node = self.root
             for path in paths:
-                node = self.get_or_create_node(old_node, prem, path, vars, rule)
+                node = self.get_or_create_node(old_node, pred, path, vars, rule)
                 old_node = node
             if old_node.terminal:
                 pnode = old_node.terminal
             else:
                 pnode = PremNode(old_node)
                 old_node.terminal = pnode
-            prempairs.append((prem, pnode))
             premise = Premise(pnode, n)
             rule.prems.append(premise)
+            prempairs.append((pred, premise))
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(premise, n, varname))
         rule.conditions = conds
@@ -115,10 +115,10 @@ class Network(object):
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
-        for prem, pnode in prempairs:
-            matches = self.factset.query(prem)
+        for pred, prem in prempairs:
+            matches = self.factset.query(pred)
             for match in matches:
-                pnode.dispatch(match, self, _numvars=False)
+                prem.dispatch(match, self, _numvars=False)
         if _commit:
             self.session.commit()
 
@@ -396,6 +396,50 @@ class Premise(Base):
         self.order = order
 
 
+    def dispatch(self, match, network, _numvars=True):
+        rule = self.rule
+        if _numvars:
+            nmatch = match.copy()
+            for num, o in match.items():
+                pvar = self.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
+                name = pvar.varname.name
+                nmatch[name] = o
+                del nmatch[num]
+            matches = [nmatch]
+        else:
+            matches = [match]
+        for prem in rule.prems:
+            if not matches:
+                break
+            if prem.order == self.order:
+                continue
+            premnode = prem.node
+            new_matches = []
+            for m in matches:
+                pvar_map = rule.get_pvar_map(m, prem)
+                pmatches = premnode.matches
+                for var, val in pvar_map:
+                    apair = aliased(MPair)
+                    if isinstance(val, Predicate):
+                        cpair = aliased(PPair)
+                    else:
+                        cpair = aliased(TPair)
+                    pmatches = pmatches.join(apair, PMatch.id==apair.parent_id).filter(apair.var==var)
+                    pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
+                for pm in pmatches:
+                    new_match = m.copy()
+                    m.ancestor.parents.append(pm.fact)
+                    for mpair in pm.pairs:
+                        vname = rule.get_varname(prem, mpair.var)
+                        if vname not in m:
+                            new_match[vname] = mpair.val
+                    new_matches.append(new_match)
+            matches = new_matches
+        for m in matches:
+            rule.dispatch(m, network)
+
+
+
 class PremNode(Base):
     '''
     a terminal node for a premise
@@ -417,46 +461,7 @@ class PremNode(Base):
         self.matches.append(m)
         match.ancestor = Ancestor(match.fnode)
         for premise in self.prems:
-            rule = premise.rule
-            if _numvars:
-                nmatch = match.copy()
-                for num, o in match.items():
-                    pvar = premise.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
-                    name = pvar.varname.name
-                    nmatch[name] = o
-                    del nmatch[num]
-                matches = [nmatch]
-            else:
-                matches = [match]
-            for prem in rule.prems:
-                if not matches:
-                    break
-                if prem.order == premise.order:
-                    continue
-                premnode = prem.node
-                new_matches = []
-                for m in matches:
-                    pvar_map = rule.get_pvar_map(m, prem)
-                    pmatches = premnode.matches
-                    for var, val in pvar_map:
-                        apair = aliased(MPair)
-                        if isinstance(val, Predicate):
-                            cpair = aliased(PPair)
-                        else:
-                            cpair = aliased(TPair)
-                        pmatches = pmatches.join(apair, PMatch.id==apair.parent_id).filter(apair.var==var)
-                        pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
-                    for pm in pmatches:
-                        new_match = m.copy()
-                        m.ancestor.parents.append(pm.fact)
-                        for mpair in pm.pairs:
-                            vname = rule.get_varname(prem, mpair.var)
-                            if vname not in m:
-                                new_match[vname] = mpair.val
-                        new_matches.append(new_match)
-                matches = new_matches
-            for m in matches:
-                rule.dispatch(m, network)  # test the conditions, add the consecuences
+            premise.dispatch(match, network, _numvars=_numvars)
 
 
 class PMatch(Base):
@@ -691,8 +696,10 @@ class CondCode(Condition):
                 match[k] = eval(v.name)
         exec(self.code, {}, match)
         for k, v in match.items():
+            if k == 'condition':
+                continue
             try:
-                match[k] = network.lexicon.make_term(str(0 + v), self.lexicon.number)
+                match[k] = network.lexicon.make_term(str(0 + v), network.lexicon.number)
             except TypeError:
                 pass
         return match['condition']

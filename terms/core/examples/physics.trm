@@ -1,0 +1,28 @@
+
+a body is a thing.
+
+position is exists, subj a body, pos a number, at a number.
+
+body1 is a body.
+
+(position body1, pos 12, at 2).
+
+(position body1, pos 12)?
+true
+
+(position body1, pos 11)?
+false
+
+
+(position Body1, pos N1, at N2)
+<-
+condition &= N2 < 10
+
+N3 = N1 + 1
+N4 = N2 + 1
+->
+(position Body1, pos N3, at N4).
+
+
+(position body1, pos 13, at 3)?
+true

@@ -69,7 +69,7 @@ def run_terms(kb, fname):
                 assert sen == resp or re.compile(sen).match(resp)
                 resp = _nr
             elif sen and not sen.startswith('#'):
-                buff += ' ' + sen
+                buff += '\n' + sen
                 if buff.endswith('.'):
                     try:
                         logger.info(kb.parse(buff))
