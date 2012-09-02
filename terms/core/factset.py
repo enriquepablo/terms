@@ -78,12 +78,11 @@ class FactSet(object):
         mapper = FactNode.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
-    def add_fact(self, fact, _commit=True):
+    def add_fact(self, fact, _commit=False):
         paths = self.get_paths(fact)
         old_node = self.root
         for path in paths:
-            node = self.get_or_create_node(old_node, fact, path)
-            old_node = node
+            old_node = self.get_or_create_node(old_node, fact, path)
         if not old_node.terminal:
             fnode = Fact(fact)
             old_node.terminal = fnode

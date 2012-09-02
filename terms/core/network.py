@@ -97,8 +97,7 @@ class Network(object):
             paths = self.factset.get_paths(pred)
             old_node = self.root
             for path in paths:
-                node = self.get_or_create_node(old_node, pred, path, vars, rule)
-                old_node = node
+                old_node = self.get_or_create_node(old_node, pred, path, vars, rule)
             if old_node.terminal:
                 pnode = old_node.terminal
             else:
@@ -135,7 +134,8 @@ class Network(object):
             else:
                 pnum = vars[name][0]
         try:
-            node = parent.children.join(cls, Node.id==cls.nid).filter(Node.var==pnum, cls.value==value).one()
+            nodes = parent.children.filter(Node.var==pnum)
+            node = nodes.join(cls, Node.id==cls.nid).filter(cls.value==value).one()
         except NoResultFound:
             #  build the node and append it
             node = cls(value)
@@ -209,16 +209,22 @@ class Node(Base):
                 children = chcls.get_children(parent, match, value, network)
             for ch in children:
                 for child in ch:
+                    good = True
                     new_match = match.copy()
                     if child.var:
-                        #if child.value.name == 'M7':
-                        #    import pdb;pdb.set_trace()
-                        if child.var not in match:
-                            if chcls is VerbNode and isa(child.value, network.lexicon.exists):
-                                new_match[child.var] = TermNode.resolve(match.fact, path)
-                            elif value:
-                                new_match[child.var] = value
-                    chcls.dispatch(child, new_match, network)
+                        val = None
+                        if chcls is VerbNode and isa(child.value, network.lexicon.exists):
+                            val = TermNode.resolve(match.fact, path)
+                        elif value:
+                            val = value
+                        else:
+                            good = False
+                        if child.var in match and match[child.var] != val:
+                            good = False
+                        else:
+                            new_match[child.var] = val
+                    if good:
+                        chcls.dispatch(child, new_match, network)
         if parent.terminal:
             parent.terminal.dispatch(match, network)
 
@@ -302,21 +308,16 @@ class TermNode(Node):
     def get_children(cls, parent, match, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
         vchildren = ()
-        for k, v in match.items():
-            if v == value:
-                vchildren = parent.children.filter(Node.var==k)
-                break
-        else:
-            types = (value.term_type,) + get_bases(value.term_type)
-            type_ids = [t.id for t in types]
-            if type_ids:
-                vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
-            if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
-                bases = (value,) + get_bases(value)
-                tbases = aliased(Term)
-                base_ids = (b.id for b in bases)
-                if base_ids and vchildren:
-                    vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
+        types = (value.term_type,) + get_bases(value.term_type)
+        type_ids = [t.id for t in types]
+        if type_ids:
+            vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
+        if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
+            bases = (value,) + get_bases(value)
+            tbases = aliased(Term)
+            base_ids = (b.id for b in bases)
+            if base_ids and vchildren:
+                vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
         return children, vchildren
 
 
@@ -345,17 +346,12 @@ class VerbNode(Node):
     def get_children(cls, parent, match, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
         pchildren = []
-        for k,v in match.items():
-            if v == value:
-                vchildren = parent.children.filter(Node.var==k)
-                break
-        else:
-            types = (value,) + get_bases(value)
-            type_ids = [t.id for t in types]
-            chvars = parent.children.filter(Node.var>0)
-            pchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids))
-            tbases = aliased(Term)
-            vchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
+        types = (value,) + get_bases(value)
+        type_ids = [t.id for t in types]
+        chvars = parent.children.filter(Node.var>0)
+        pchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids))
+        tbases = aliased(Term)
+        vchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
@@ -419,6 +415,9 @@ class Premise(Base):
             matches = [nmatch]
         else:
             matches = [match]
+#        if getattr(matches[0].get('A3', None), 'name', '') == '1':
+#        if rule.id == 2 and match.fact.get_object('pos') == 8:
+#            import pdb;pdb.set_trace()
         for prem in rule.prems:
             if not matches:
                 break
@@ -439,16 +438,17 @@ class Premise(Base):
                     pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
                 for pm in pmatches:
                     new_match = m.copy()
-                    m.ancestor.parents.append(pm.fact)
+                    new_match.ancestor.parents.append(pm.fact)
                     for mpair in pm.pairs:
                         vname = rule.get_varname(prem, mpair.var)
-                        if vname not in m:
+                        if vname in m:
+                            assert m[vname] == mpair.val
+                        else:
                             new_match[vname] = mpair.val
                     new_matches.append(new_match)
             matches = new_matches
         for m in matches:
             rule.dispatch(m, network)
-
 
 
 class PremNode(Base):
@@ -578,6 +578,8 @@ class Rule(Base):
 
         for con in cons:
             prev = network.factset.query(con)
+            if prev:
+                continue
             fnode = network.factset.add_fact(con)
             fnode.ancestors.append(match.ancestor)
             neg = con.copy()
@@ -594,8 +596,10 @@ class Rule(Base):
     def get_pvar_map(self, match, prem):
         pvar_map = []
         for name, val in match.items():
+            pvars = self.pvars.filter(PVarname.prem==prem)
+            pvars = pvars.join(Varname, PVarname.varname_id==Varname.id).join(Term, Varname.term_id==Term.id)
             try:
-                pvar = self.pvars.filter(PVarname.prem==prem).join(Varname, PVarname.varname_id==Varname.id).join(Term, Varname.term_id==Term.id).filter(Term.name==name).one()
+                pvar = pvars.filter(Term.name==name).one()
             except NoResultFound:
                 continue
             pvar_map.append((pvar.num, val))
