@@ -39,6 +39,7 @@ class Network(object):
     def __init__(self, session, config):
         self.session = session
         self.config = config
+        self.activations = []
         initialize = False
         try:
             self.root = self.session.query(RootNode).one()
@@ -78,6 +79,10 @@ class Network(object):
             m.paths = self.factset.get_paths(fact)
             m.fnode = fnode
             Node.dispatch(self.root, m, self)
+        while self.activations:
+            match = self.activations.pop()
+#            self.activations = self.activations[1:]
+            Node.dispatch(self.root, match, self)
         if _commit:
             self.session.commit()
         return fnode
@@ -591,7 +596,7 @@ class Rule(Base):
                 m = Match(con)
                 m.paths = network.factset.get_paths(con)
                 m.fnode = fnode
-                Node.dispatch(network.root, m, network)
+                network.activations.append(m)
 
     def get_pvar_map(self, match, prem):
         pvar_map = []
