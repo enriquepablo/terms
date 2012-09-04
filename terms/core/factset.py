@@ -78,14 +78,14 @@ class FactSet(object):
         mapper = FactNode.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
-    def add_fact(self, fact, _commit=False):
-        paths = self.get_paths(fact)
+    def add_fact(self, pred, _commit=False):
+        paths = self.get_paths(pred)
         old_node = self.root
         for path in paths:
-            old_node = self.get_or_create_node(old_node, fact, path)
+            old_node = self.get_or_create_node(old_node, pred, path)
         if not old_node.terminal:
-            fnode = Fact(fact)
-            old_node.terminal = fnode
+            fact = Fact(pred)
+            old_node.terminal = fact
         if _commit:
             self.session.commit()
         return old_node.terminal
@@ -117,29 +117,16 @@ class FactSet(object):
         q is a word or set of words,
         possibly with varnames
         '''
-        word = self.lexicon.get_term('word')
         submatches = []
         if not q or not self.root.child_path:
             return submatches
-        for w in q:
-            m = Match(word, query=w)
-            m.paths = self.get_paths(w)
+        for pred in q:
+            m = Match(self.lexicon.word, query=pred)
+            m.paths = self.get_paths(pred)
             smatches = []
             FactNode.dispatch(self.root, m, smatches, self)
             submatches.append(smatches)
         return merge_submatches(submatches)
-
-    def facts_from_node(self, node):
-        facts = []
-        self._recurse_facts_from_node(node, node, facts)
-        return facts
-
-    def _recurse_facts_from_node(self, prim, node, facts):
-        if self.terminal:
-            facts.append(self.terminal.fact)
-        if len(node.child_path) >= len(prim.child_path):
-            for ch in self.children:
-                self._recurse_facts_from_node(prim, ch, facts)
 
 
 class FactNode(Base):
@@ -193,7 +180,6 @@ class FactNode(Base):
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, factset)
-            exists = factset.lexicon.get_term('exists')
             for child in children:
                 if isinstance(child, LabelFNode):
                     path = path[:-2] + (child.value, path[-1])
@@ -203,7 +189,7 @@ class FactNode(Base):
                 m = patterns.varpat.match(name)
                 if m:
                     if name not in match:
-                        if isa(value, exists):
+                        if isa(value, factset.lexicon.exists):
                             new_match[name] = Predicate(True, child.value)
                             new_match.building = new_match[name]
                             new_match.orig_path = path
@@ -214,9 +200,9 @@ class FactNode(Base):
                 cls.dispatch(child, new_match, matches, factset)
         if parent.terminal:
             if not match.paths:
-                match.paths = factset.get_paths(match.fact)
-                match.fnode = parent.terminal
-                match.fact = parent.terminal.fact
+                match.paths = factset.get_paths(match.pred)
+                match.fact = parent.terminal
+                match.pred = parent.terminal.pred
                 matches.append(match)
 
     @classmethod
@@ -227,12 +213,11 @@ class FactNode(Base):
                 match.paths.remove(path)
             ntype_name = path[-1]
             cls = factset._get_nclass(ntype_name)
-            value = cls.resolve(match.fact, path, factset)
+            value = cls.resolve(match.pred, path, factset)
             if value is None:
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, factset)
-            exists = factset.lexicon.get_term('exists')
             for child in children:
                 if isinstance(child, LabelFNode):
                     path = path[:-2] + (child.value, path[-1])
@@ -243,14 +228,14 @@ class FactNode(Base):
         if parent.terminal:
             for a in parent.terminal.ancestors:
                 if not len(a.parents) == 1 or not a.parents[0].id == parent.terminal.id:
-                    raise exceptions.Contradiction('Cannot retract ' + str(parent.terminal.fact))
+                    raise exceptions.Contradiction('Cannot retract ' + str(parent.terminal.pred))
             if not match.paths:
                 parent.terminal.rm_descent(factset)
                 factset.session.delete(parent.terminal)
 
 
     @classmethod
-    def resolve(cls, w, path, factset):
+    def resolve(cls, pred, path, factset):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -300,11 +285,11 @@ class NegFNode(FactNode):
         self.value = true
     
     @classmethod
-    def resolve(cls, term, path, factset):
+    def resolve(cls, pred, path, factset):
         try:
             for segment in path[:-1]:
-                term = term.get_object(segment)
-            return term.true
+                pred = pred.get_object(segment)
+            return pred.true
         except AttributeError:
             return None
 
@@ -319,10 +304,10 @@ class NegFNode(FactNode):
             match.building = None
             return None
         rel_path = path[olen - 1:]
-        obj = match.building
+        pred = match.building
         for segment in rel_path[:-1]:
-            obj = obj.get_object(segment)
-        obj.true = self.value
+            pred = pred.get_object(segment)
+        pred.true = self.value
 
 class TermFNode(FactNode):
     '''
@@ -354,7 +339,6 @@ class TermFNode(FactNode):
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
-        word = factset.lexicon.get_term('word')
         if patterns.varpat.match(value.name):
             if value.name in match:
                 return parent.children.filter(cls.value==value)
@@ -377,10 +361,10 @@ class TermFNode(FactNode):
             match.building = None
             return None
         rel_path = path[olen - 1:]
-        obj = match.building
+        pred = match.building
         for segment in rel_path[:-2]:
-            obj = obj.get_object(segment)
-        obj.add_object(self.parent.value, self.value)
+            pred = pred.get_object(segment)
+        pred.add_object(self.parent.value, self.value)
 
 
 class VerbFNode(FactNode):
@@ -410,16 +394,14 @@ class VerbFNode(FactNode):
     @classmethod
     def get_children(cls, parent, match, value, factset):
         m = patterns.varpat.match(value.name)
-        verb = factset.lexicon.get_term('verb')
-        exists = factset.lexicon.get_term('exists')
         if m:
             if value.name in match:
                 value = match[value.name]
                 return parent.children.filter(cls.value==value)
             else:
-                if isa(value, verb):
+                if isa(value, factset.lexicon.verb):
                     sbases = factset.lexicon.get_subterms(get_bases(value)[0])
-                elif isa(value, exists):
+                elif isa(value, factset.lexicon.exists):
                     sbases = factset.lexicon.get_subterms(value.term_type)
                 sbases = (b.id for b in sbases)
                 if sbases:
@@ -473,12 +455,12 @@ class Fact(Base):
     parent = relationship('FactNode', backref=backref('terminal', uselist=False),
                          primaryjoin="FactNode.id==Fact.parent_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'))
-    fact = relationship('Predicate', backref=backref('facts'),
+    pred = relationship('Predicate', backref=backref('facts'),
                          cascade='all',
                          primaryjoin="Predicate.id==Fact.pred_id")
 
-    def __init__(self, fact):
-        self.fact = fact
+    def __init__(self, pred):
+        self.pred = pred
         self.ancestors = []
 
     def rm_descent(self, factset):

@@ -28,19 +28,19 @@ from terms.core.terms import isa, are
 
 class Match(dict):
 
-    def __init__(self, fact, query=None, prem=None):
-        self.fact = fact  # word
+    def __init__(self, pred, query=None, prem=None):
+        self.pred = pred
         self.paths = []
         self.query = query
         self.prem = prem
         self.building = None
         self.orig_path = ()
-        self.fnode = None
+        self.fact = None
         self.ancestor = None
         super(Match, self).__init__()
 
     def copy(self):
-        new_match = Match(self.fact)
+        new_match = Match(self.pred)
         for k, v in self.items():
             new_match[k] = v
         new_match.prem = self.prem
@@ -53,13 +53,13 @@ class Match(dict):
                     new_match[l] = new_match.building
                     break
         new_match.orig_path = self.orig_path
-        new_match.fnode = self.fnode
+        new_match.fact = self.fact
         if self.ancestor:
             new_match.ancestor = self.ancestor.copy()
         return new_match
 
     def merge(self, m):
-        new_match = Match(self.fact)
+        new_match = Match(self.pred)
         for k, v in self.items() + m.items():
             if k in m:
                 if self[k] != v:

@@ -60,24 +60,24 @@ class Network(object):
         mapper = Node.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
-    def add_fact(self, fact, _commit=True):
-        neg = fact.copy()
+    def add_fact(self, pred, _commit=True):
+        neg = pred.copy()
         neg.true = not neg.true
         contradiction = self.factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = self.factset.query(fact)
-        fnode = self.factset.add_fact(fact)
-        ancestor = Ancestor(fnode)
-        ancestor.children.append(fnode)
+        prev = self.factset.query(pred)
+        fact = self.factset.add_fact(pred)
+        ancestor = Ancestor(fact)
+        ancestor.children.append(fact)
         if prev:
             if _commit:
                 self.session.commit()
             return
         if self.root.child_path:
-            m = Match(fact)
-            m.paths = self.factset.get_paths(fact)
-            m.fnode = fnode
+            m = Match(pred)
+            m.paths = self.factset.get_paths(pred)
+            m.fact = fact
             Node.dispatch(self.root, m, self)
         while self.activations:
             match = self.activations.pop()
@@ -85,11 +85,11 @@ class Network(object):
             Node.dispatch(self.root, match, self)
         if _commit:
             self.session.commit()
-        return fnode
+        return fact
 
-    def del_fact(self, fact, _commit=True):
-        match = Match(fact)
-        match.paths = self.factset.get_paths(fact)
+    def del_fact(self, pred, _commit=True):
+        match = Match(pred)
+        match.paths = self.factset.get_paths(pred)
         self.factset.del_fact(match)
         if _commit:
             self.session.commit()
@@ -192,7 +192,7 @@ class Node(Base):
     child_path = property(_get_path, _set_path)
 
     @classmethod
-    def resolve(cls, w, path):
+    def resolve(cls, pred, path):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -207,11 +207,11 @@ class Node(Base):
             path = parent.child_path
             ntype_name = path[-1]
             chcls = network._get_nclass(ntype_name)
-            value = chcls.resolve(match.fact, path)
+            value = chcls.resolve(match.pred, path)
             if value is None:
                 children = [parent.children.all()]
             else:
-                children = chcls.get_children(parent, match, value, network)
+                children = chcls.get_children(parent, value, network)
             for ch in children:
                 for child in ch:
                     good = True
@@ -219,7 +219,7 @@ class Node(Base):
                     if child.var:
                         val = None
                         if chcls is VerbNode and isa(child.value, network.lexicon.exists):
-                            val = TermNode.resolve(match.fact, path)
+                            val = TermNode.resolve(match.pred, path)
                         elif value:
                             val = value
                         else:
@@ -234,7 +234,7 @@ class Node(Base):
             parent.terminal.dispatch(match, network)
 
     @classmethod
-    def get_children(cls, parent, match, value, factset):
+    def get_children(cls, parent, value, factset):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -267,20 +267,20 @@ class NegNode(Node):
     value = Column(Boolean)
     
     @classmethod
-    def resolve(cls, term, path):
+    def resolve(cls, pred, path):
         try:
             for segment in path[:-1]:
-                term = term.get_object(segment)
+                pred = pred.get_object(segment)
         except AttributeError:
             return None
         try:
-            return term.true
+            return pred.true
         except AttributeError:
             # Predicate variable
             return True
 
     @classmethod
-    def get_children(cls, parent, match, value, factset):
+    def get_children(cls, parent, value, factset):
         return [parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)]
 
 
@@ -310,7 +310,7 @@ class TermNode(Node):
         return term
 
     @classmethod
-    def get_children(cls, parent, match, value, network):
+    def get_children(cls, parent, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
         vchildren = ()
         types = (value.term_type,) + get_bases(value.term_type)
@@ -348,7 +348,7 @@ class VerbNode(Node):
         return term.term_type
 
     @classmethod
-    def get_children(cls, parent, match, value, network):
+    def get_children(cls, parent, value, network):
         children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
         pchildren = []
         types = (value,) + get_bases(value)
@@ -373,7 +373,7 @@ class LabelNode(Node):
         return path[-2]
 
     @classmethod
-    def get_children(cls, parent, match, value, factset):
+    def get_children(cls, parent, value, factset):
         return [parent.children.all()]
 
 
@@ -473,11 +473,11 @@ class PremNode(Base):
     def dispatch(self, match, network, _numvars=True):
         if not self.prems[0].check_match(match, network):
             return
-        m = PMatch(self, match.fnode)
+        m = PMatch(self, match.fact)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
         self.matches.append(m)
-        match.ancestor = Ancestor(match.fnode)
+        match.ancestor = Ancestor(match.fact)
         for premise in self.prems:
             premise.dispatch(match, network, _numvars=_numvars)
 
@@ -585,8 +585,8 @@ class Rule(Base):
             prev = network.factset.query(con)
             if prev:
                 continue
-            fnode = network.factset.add_fact(con)
-            fnode.ancestors.append(match.ancestor)
+            fact = network.factset.add_fact(con)
+            fact.ancestors.append(match.ancestor)
             neg = con.copy()
             neg.true = not neg.true
             contradiction = network.factset.query(neg)
@@ -595,7 +595,7 @@ class Rule(Base):
             if network.root.child_path:
                 m = Match(con)
                 m.paths = network.factset.get_paths(con)
-                m.fnode = fnode
+                m.fact = fact
                 network.activations.append(m)
 
     def get_pvar_map(self, match, prem):
@@ -676,7 +676,6 @@ class Condition(Base):
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref='conditions',
                          primaryjoin="Rule.id==Condition.rule_id")
-    fpath = Column(String)
 
     ctype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': ctype}

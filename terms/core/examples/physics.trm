@@ -61,4 +61,4 @@ body2 is a body.
 (has body2, mass 3).
 
 (moves body2, acc N1, at 2)?
-N1: 2
+N1: 0.024691358024691357
