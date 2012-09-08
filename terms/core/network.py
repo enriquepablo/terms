@@ -19,7 +19,7 @@
 
 import re
 
-from sqlalchemy import Table, Column, Sequence
+from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
@@ -56,6 +56,33 @@ class Network(object):
         self.root = RootNode()
         self.session.add(self.root)
 
+    def get_paths(self, pred):
+        '''
+        build a path for each testable feature in term.
+        Each path is a tuple of strings,
+        and corresponds to a node in the primary network.
+        '''
+        paths = []
+        verb_ = pred.term_type
+        self._recurse_paths(verb_, pred, paths, ())
+        return paths
+
+    def _recurse_paths(self, verb_, pred, paths, path):
+        paths.append(path + ('_verb',))
+        paths.append(path + ('_neg',))
+        for obt in sorted(verb_.object_types, key=lambda x: x.label):
+            t = obt.obj_type
+            if isa(t, self.lexicon.verb):
+                pred = pred.get_object(obt.label)
+                verb_ = pred.term_type
+                self._recurse_paths(verb_, pred, paths, path + (obt.label,))
+            else:
+                paths.append(path + (obt.label, '_term'))
+            #elif isa(t, self.lexicon.word):
+            #    pass
+                # segment = get_type(o)  # XXX __isa__
+                # paths.append(path + (ob.label, segment))
+
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
@@ -76,7 +103,7 @@ class Network(object):
             return
         if self.root.child_path:
             m = Match(pred)
-            m.paths = self.factset.get_paths(pred)
+            m.paths = self.get_paths(pred)
             m.fact = fact
             Node.dispatch(self.root, m, self)
         while self.activations:
@@ -89,7 +116,7 @@ class Network(object):
 
     def del_fact(self, pred, _commit=True):
         match = Match(pred)
-        match.paths = self.factset.get_paths(pred)
+        match.paths = self.get_paths(pred)
         self.factset.del_fact(match)
         if _commit:
             self.session.commit()
@@ -99,7 +126,7 @@ class Network(object):
         prempairs = []
         for n, pred in enumerate(prems):
             vars = {}
-            paths = self.factset.get_paths(pred)
+            paths = self.get_paths(pred)
             old_node = self.root
             for path in paths:
                 old_node = self.get_or_create_node(old_node, pred, path, vars, rule)
@@ -159,7 +186,7 @@ class Node(Base):
     __tablename__ = 'nodes'
     id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
     child_path_str = Column(String)
-    var = Column(Integer, default=0)
+    var = Column(Integer, default=0, index=True)
     parent_id = Column(Integer, ForeignKey('nodes.id'))
     children = relationship('Node',
                          backref=backref('parent',
@@ -208,10 +235,7 @@ class Node(Base):
             ntype_name = path[-1]
             chcls = network._get_nclass(ntype_name)
             value = chcls.resolve(match.pred, path)
-            if value is None:
-                children = [parent.children.all()]
-            else:
-                children = chcls.get_children(parent, value, network)
+            children = chcls.get_children(parent, value, network)
             for ch in children:
                 for child in ch:
                     good = True
@@ -281,7 +305,7 @@ class NegNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, factset):
-        return [parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)]
+        return [parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))]
 
 
 class TermNode(Node):
@@ -290,9 +314,8 @@ class TermNode(Node):
     __tablename__ = 'termnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'))
-    value = relationship('Term',
-                         primaryjoin="Term.id==TermNode.term_id")
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
+    value = relationship('Term', primaryjoin="Term.id==TermNode.term_id")
     
     @classmethod
     def resolve(cls, term, path):
@@ -311,7 +334,7 @@ class TermNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
+        children = parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))
         vchildren = ()
         types = (value.term_type,) + get_bases(value.term_type)
         type_ids = [t.id for t in types]
@@ -332,9 +355,8 @@ class VerbNode(Node):
     __tablename__ = 'verbnodes'
     __mapper_args__ = {'polymorphic_identity': '_verb'}
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'))
-    value = relationship('Term',
-                         primaryjoin="Term.id==VerbNode.term_id")
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
+    value = relationship('Term', primaryjoin="Term.id==VerbNode.term_id")
     
     @classmethod
     def resolve(cls, term, path):
@@ -349,7 +371,7 @@ class VerbNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter(cls.value==value)
+        children = parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))
         pchildren = []
         types = (value,) + get_bases(value)
         type_ids = [t.id for t in types]
@@ -358,23 +380,6 @@ class VerbNode(Node):
         tbases = aliased(Term)
         vchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
-
-
-class LabelNode(Node):
-    '''
-    '''
-    __tablename__ = 'labelnodes'
-    __mapper_args__ = {'polymorphic_identity': '_label'}
-    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    value = Column(String)
-
-    @classmethod
-    def resolve(cls, w, path):
-        return path[-2]
-
-    @classmethod
-    def get_children(cls, parent, value, factset):
-        return [parent.children.all()]
 
 
 class Premise(Base):
@@ -502,10 +507,11 @@ class MPair(Base):
     __tablename__ = 'mpairs'
 
     id = Column(Integer, Sequence('mpair_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('pmatchs.id'))
+    parent_id = Column(Integer, ForeignKey('pmatchs.id'), index=True)
     parent = relationship('PMatch', backref='pairs',
                          primaryjoin="PMatch.id==MPair.parent_id")
     var = Column(Integer)
+    mindex = Index('mindex', 'id', 'parent_id')
 
     mtype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': mtype}
@@ -525,17 +531,19 @@ class TPair(MPair):
     __tablename__ = 'tpairs'
     __mapper_args__ = {'polymorphic_identity': 0}
     mid = Column(Integer, ForeignKey('mpairs.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'))
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     val = relationship('Term', primaryjoin="Term.id==TPair.term_id")
+    tindex = Index('tindex', 'mid', 'term_id')
 
 
 class PPair(MPair):
     __tablename__ = 'ppairs'
     __mapper_args__ = {'polymorphic_identity': 1}
     mid = Column(Integer, ForeignKey('mpairs.id'), primary_key=True)
-    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     val = relationship('Predicate',
                          primaryjoin="Predicate.id==PPair.pred_id")
+    pindex = Index('pindex', 'mid', 'pred_id')
 
 class Varname(Base):
     """
@@ -594,7 +602,7 @@ class Rule(Base):
                 raise exceptions.Contradiction('we already have ' + str(neg))
             if network.root.child_path:
                 m = Match(con)
-                m.paths = network.factset.get_paths(con)
+                m.paths = network.get_paths(con)
                 m.fact = fact
                 network.activations.append(m)
 
@@ -627,16 +635,16 @@ class PVarname(Base):
 
 
     id = Column(Integer, Sequence('pvarname_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
     rule = relationship('Rule', backref=backref('pvars', lazy='dynamic'),
                          primaryjoin="Rule.id==PVarname.rule_id")
-    prem_id = Column(Integer, ForeignKey('premises.id'))
+    prem_id = Column(Integer, ForeignKey('premises.id'), index=True)
     prem = relationship('Premise', backref=backref('pvars', lazy='dynamic'),
                          primaryjoin="Premise.id==PVarname.prem_id")
-    varname_id = Column(Integer, ForeignKey('varnames.id'))
+    varname_id = Column(Integer, ForeignKey('varnames.id'), index=True)
     varname = relationship('Varname', backref='pvarnames',
                          primaryjoin="Varname.id==PVarname.varname_id")
-    num = Column(Integer)
+    num = Column(Integer, index=True)
 
     def __init__(self, prem, num, varname):
         self.prem = prem

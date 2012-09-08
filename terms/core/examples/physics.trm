@@ -1,42 +1,48 @@
 
 a body is a thing.
 
-moves is exists, subj a body,
+pos is exists, subj a body,
                  pos a number,
+                 at a number.
+
+vel is exists, subj a body,
                  vel a number,
+                 at a number.
+
+acc is exists, subj a body,
                  acc a number,
                  at a number.
 
 has is exists, subj a body, mass a number.
 
 
-(moves Body1, pos P1, at T1);
-(moves Body1, vel V1, at T1)
+(pos Body1, pos P1, at T1);
+(vel Body1, vel V1, at T1)
 <-
 condition &= T1 < 10
 
 P2 = P1 + V1
 T2 = T1 + 1
 ->
-(moves Body1, pos P2, at T2).
+(pos Body1, pos P2, at T2).
 
 
-(moves Body1, vel N1, at N2);
-(moves Body1, acc N3, at N2)
+(vel Body1, vel N1, at N2);
+(acc Body1, acc N3, at N2)
 <-
 condition &= N2 < 10
 
 N5 = N1 + N3
 N6 = N2 + 1
 ->
-(moves Body1, vel N5, at N6).
+(vel Body1, vel N5, at N6).
 
 
-(moves Body1, pos P1, at T2);
-(moves Body1, acc A3, at T2);
+(pos Body1, pos P1, at T2);
+(acc Body1, acc A3, at T2);
 (has Body1, mass M4);
-(moves Body2, pos P5, at T2);
-(moves Body2, acc A6, at T2);
+(pos Body2, pos P5, at T2);
+(acc Body2, acc A6, at T2);
 (has Body2, mass M7)
 <-
 condition &= Body1 != Body2
@@ -46,19 +52,23 @@ A8 = A3 + ((M4 * M7) / (M4 * (P1 - P5)**2))
 A9 = A6 + ((M4 * M7) / (M7 * (P5 - P1)**2))
 T10 = T2 + 1
 ->
-(moves Body1, acc A8, at T10);
-(moves Body2, acc A9, at T10).
+(acc Body1, acc A8, at T10);
+(acc Body2, acc A9, at T10).
 
 
 body1 is a body.
 
 body2 is a body.
 
-(moves body1, pos 8, vel 2, acc 1, at 1).
-(moves body2, pos -1, vel 3, acc 0, at 1).
+(pos body1, pos 8, at 1).
+(vel body1, vel 2, at 1).
+(acc body1, acc 1, at 1).
+(pos body2, pos -1, at 1).
+(vel body2, vel 3, at 1).
+(acc body2, acc 0, at 1).
 
 (has body1, mass 2).
 (has body2, mass 3).
 
-(moves body2, acc N1, at 2)?
+(acc body2, acc N1, at 2)?
 N1: 0.024691358024691357

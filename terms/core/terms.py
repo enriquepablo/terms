@@ -17,7 +17,7 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import Table, Column, Sequence
+from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -37,8 +37,13 @@ term_to_base = Table('term_to_base', Base.metadata,
     Column('base_id', Integer, ForeignKey('terms.id'))
 )
 
+term_to_objtype = Table('term_to_objtype', Base.metadata,
+    Column('term_id', Integer, ForeignKey('terms.id')),
+    Column('objtype_id', Integer, ForeignKey('objecttypes.id'))
+)
 
 class Term(Base):
+    __tablename__ = 'terms'
 
     id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
     name = Column(String)
@@ -50,16 +55,20 @@ class Term(Base):
                          secondary=term_to_base,
                          primaryjoin=id==term_to_base.c.term_id,
                          secondaryjoin=id==term_to_base.c.base_id)
+    object_types = relationship('ObjectType',
+                         secondary=term_to_objtype,
+                         primaryjoin=id==term_to_objtype.c.term_id,
+                         secondaryjoin='ObjectType.id==term_to_objtype.c.objtype_id')
     equals = ()
-    object_types = relationship('ObjectType', backref='verb',
-                           cascade='all,delete-orphan',
-                          primaryjoin='ObjectType.verb_id==Term.id')
     var = Column(Boolean)
     number = Column(Boolean, default=False)
 
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('vconsecuences', cascade='all'),
                          primaryjoin="Rule.id==Term.rule_id")
+
+    term_name_index = Index('term_name_index', 'name')
+    term_type_index = Index('term_type_index', 'type_id')
 
     # Avoid AttributeErrors
     objects = ()
@@ -78,7 +87,8 @@ class Term(Base):
         if objs is None:
             objs = {}
         for label, otype in objs.items():
-            self.object_types.append(ObjectType(label, otype))
+            objtype = ObjectType(label, otype)
+            self.object_types.append(objtype)
             used.append(label)
         if bases:
             for base in bases:
@@ -100,12 +110,13 @@ class Term(Base):
 
 
 class ObjectType(Base):
+    ''' '''
+    __tablename__ = 'objecttypes'
 
-    id = Column(Integer, Sequence('object_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence('objecttypes_id_seq'), primary_key=True)
     label = Column(String)
     obj_type_id = Column(Integer, ForeignKey('terms.id'))
     obj_type = relationship(Term, primaryjoin='Term.id==ObjectType.obj_type_id')
-    verb_id = Column(Integer, ForeignKey('terms.id'))
 
     def __init__(self, label, obj_type):
         self.label = label

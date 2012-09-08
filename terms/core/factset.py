@@ -17,7 +17,7 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import Table, Column, Sequence
+from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import NoResultFound
@@ -60,14 +60,11 @@ class FactSet(object):
     def _recurse_paths(self, pred, paths, path):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
-        exists = self.lexicon.get_term('exists')
-        word = self.lexicon.get_term('word')
         for ob in sorted(pred.objects, key=lambda x: x.label):
             o = ob.value
-            paths.append(path + (ob.label, '_label'))
-            if isa(o, exists):
+            if isa(o, self.lexicon.exists):
                 self._recurse_paths(o, paths, path + (ob.label,))
-            elif isa(o, word):
+            elif isa(o, self.lexicon.word):
                 paths.append(path + (ob.label, '_term'))
             else:
                 pass
@@ -77,8 +74,19 @@ class FactSet(object):
     def _get_nclass(self, ntype):
         mapper = FactNode.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
+    
+    def check_objects(self, pred):
+        v = pred.term_type
+        for ot in v.object_types:
+            try:
+                pred.get_object(ot.label)
+            except KeyError:
+                return ot.label
 
     def add_fact(self, pred, _commit=False):
+        missing = self.check_objects(pred)
+        if missing:
+            raise exceptions.MissingObject('%s is missing %s' % (str(pred), missing))
         paths = self.get_paths(pred)
         old_node = self.root
         for path in paths:
@@ -138,7 +146,7 @@ class FactNode(Base):
 
     id = Column(Integer, Sequence('factnode_id_seq'), primary_key=True)
     child_path_str = Column(String)
-    parent_id = Column(Integer, ForeignKey('factnodes.id'))
+    parent_id = Column(Integer, ForeignKey('factnodes.id'), index=True)
     children = relationship('FactNode',
                          backref=backref('parent',
                                          uselist=False,
@@ -181,10 +189,6 @@ class FactNode(Base):
             else:
                 children = cls.get_children(parent, match, value, factset)
             for child in children:
-                if isinstance(child, LabelFNode):
-                    path = path[:-2] + (child.value, path[-1])
-                    if path in match.paths:
-                        match.paths.remove(path)
                 new_match = match.copy()
                 m = patterns.varpat.match(name)
                 if m:
@@ -219,10 +223,6 @@ class FactNode(Base):
             else:
                 children = cls.get_children(parent, match, value, factset)
             for child in children:
-                if isinstance(child, LabelFNode):
-                    path = path[:-2] + (child.value, path[-1])
-                    if path in match.paths:
-                        match.paths.remove(path)
                 new_match = match.copy()
                 cls.dispatch_rm(child, new_match, factset)
         if parent.terminal:
@@ -279,7 +279,8 @@ class NegFNode(FactNode):
     __mapper_args__ = {'polymorphic_identity': '_neg'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
 
-    value = Column(Boolean)
+    value = Column(Boolean, index=True)
+    negfnode_index = Index('negfnode_index', 'fnid', 'value')
 
     def __init__(self, true):
         self.value = true
@@ -315,9 +316,10 @@ class TermFNode(FactNode):
     __tablename__ = 'termfnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'))
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==TermFNode.term_id")
+    termfnode_index = Index('termfnode_index', 'fnid', 'term_id')
 
     def __init__(self, term):
         self.value = term
@@ -364,7 +366,7 @@ class TermFNode(FactNode):
         pred = match.building
         for segment in rel_path[:-2]:
             pred = pred.get_object(segment)
-        pred.add_object(self.parent.value, self.value)
+        pred.add_object(path[-2], self.value)
 
 
 class VerbFNode(FactNode):
@@ -373,9 +375,10 @@ class VerbFNode(FactNode):
     __tablename__ = 'verbfnodes'
     __mapper_args__ = {'polymorphic_identity': '_verb'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'))
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==VerbFNode.term_id")
+    verbfnode_index = Index('verbfnode_index', 'fnid', 'term_id')
 
     def __init__(self, term):
         self.value = term
@@ -421,27 +424,7 @@ class VerbFNode(FactNode):
         for segment in rel_path[:-2]:
             obj = obj.get_object(segment)
         pred = Predicate(True, self.value)
-        obj.add_object(self.parent.value, pred)
-
-
-class LabelFNode(FactNode):
-    '''
-    '''
-    __tablename__ = 'labelfnodes'
-    __mapper_args__ = {'polymorphic_identity': '_label'}
-    fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
-    value = Column(String)
-
-    def __init__(self, label):
-        self.value = label
-    
-    @classmethod
-    def resolve(cls, term, path, factset):
-        return path[-2]
-
-    @classmethod
-    def get_children(cls, parent, match, value, factset):
-        return parent.children.all()
+        obj.add_object(path[-2], pred)
 
 
 class Fact(Base):

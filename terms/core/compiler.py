@@ -144,12 +144,11 @@ class Lexer(object):
 
 class KnowledgeBase(object):
 
-
     precedence = (
         ('left', 'COMMA'),
-        ('left', 'LPAREN'),)
-
-
+        ('left', 'LPAREN'),
+        ('left', 'SEMICOLON'),
+        )
 
     def __init__(
             self,
@@ -207,9 +206,8 @@ class KnowledgeBase(object):
         if isinstance(p[1], str):  # rule
             p[0] = p[1]
         else:
-            exists = self.lexicon.get_term('exists')
             for sen in p[1]:
-                if isa(sen, exists):
+                if isa(sen, self.lexicon.exists):
                     self.network.add_fact(sen)
                 else:
                     if sen.type == 'noun-def':
@@ -360,9 +358,7 @@ class KnowledgeBase(object):
         p[0] = p[1]
 
     def p_noun_def(self, p):
-        '''noun-def : SYMBOL IS terms
-                    | A SYMBOL IS A term
-                    | vterm IS vterms
+        '''noun-def : A SYMBOL IS A term
                     | A vterm IS A vterm'''
         if len(p) == 6:
             if isinstance(p[5], str):
@@ -371,15 +367,6 @@ class KnowledgeBase(object):
         else:
             p[0] = AstNode(p[1], 'noun-def', bases=p[3])
 
- 
-    def p_vterms(self, p):
-        '''vterms : vterm COMMA vterms
-                  | vterm'''
-        if len(p) == 4:
-            p[0] = (p[1],) + p[3]
-        else:
-            p[0] = (p[1],)
- 
     def p_terms(self, p):
         '''terms : term COMMA terms
                  | term'''
@@ -396,12 +383,16 @@ class KnowledgeBase(object):
         p[0] = AstNode(p[1], 'name-def', term_type=p[4])
 
     def p_verb_def(self, p):
-        '''verb-def :  SYMBOL IS terms COMMA mod-defs'''
-        p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs=p[5])
+        '''verb-def : SYMBOL IS terms
+                    | SYMBOL IS terms COMMA mod-defs'''
+        if len(p) == 4:
+            p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs={})
+        else:
+            p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs=p[5])
 
     def p_mod_defs(self, p):
         '''mod-defs : mod-def COMMA mod-defs
-                   | mod-def'''
+                    | mod-def'''
         if len(p) == 4:
             p[1].update(p[3])
         p[0] = p[1]

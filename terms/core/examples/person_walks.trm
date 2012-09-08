@@ -39,7 +39,9 @@ salamanca is a place.
 
 pete is a person.
 
-(walks pete, to madrid).
+soria is a place.
+
+(walks pete, from soria, to madrid).
 
 (walks juan)?
 true
@@ -85,49 +87,49 @@ Person1: john; Person1: juan; Person1: pete
 
 wants is exists, subj a person, what a exists.
 
-(wants john, what (walks john, to seville)).
+(wants john, what (walks john, from soria, to seville)).
 
 
 (wants john, what (Exists1))?
-Exists1: (walks john, to seville)
+Exists1: (walks john, from soria, to seville)
 
-(wants john, what (walks john, to salamanca)).
+(wants john, what (walks john, from soria, to salamanca)).
 
 
-(wants john, what (walks john, to Place1))
+(wants john, what (walks john, to Place1, from Place2))
 ->
-(walks john, to Place1).
+(walks john, to Place1, from Place2).
 
 (walks john, to salamanca)?
 true
 
 
 
-(wants Person1, what (walks Person1, to Place1))
+(wants Person111, what (walks Person111, to Place1, from Place2))
 ->
-(walks Person1, to Place1).
+(walks Person111, to Place1, from Place2).
 
 cazalla is a place.
 
 (walks john, to cazalla)?
 false
 
-(wants john, what (walks john, to cazalla)).
+(wants john, what (walks john, from soria, to cazalla)).
 
 (walks john, to cazalla)?
 true
 
 
-(wants Person1, what (WalksVerb1 Person1, to Place1))
+(wants Person1, what (WalksVerb1 Person1, to Place1, from Place2))
 ->
-(WalksVerb1 Person1, to Place1).
+(WalksVerb1 Person1, to Place1, from Place2).
 
 pedroso is a place.
 
 (walks john, to pedroso)?
 false
 
-(wants john, what (walks john, to pedroso)).
+(wants john, what (walks john, from soria, to pedroso)).
 
 (walks john, to pedroso)?
 true
@@ -142,7 +144,7 @@ peda is a place.
 (walks john, to peda)?
 false
 
-(wants john, what (walks john, to peda)).
+(wants john, what (walks john, from soria, to peda)).
 
 (walks john, to peda)?
 true

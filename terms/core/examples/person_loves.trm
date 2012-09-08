@@ -1,9 +1,9 @@
 
-person is thing.
+a person is a thing.
 
-man is person.
+a man is a person.
 
-woman is person.
+a woman is a person.
 
 loves is exists, subj a person, who a person.
 hates is exists, subj a person, who a person.

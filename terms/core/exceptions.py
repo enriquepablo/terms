@@ -25,5 +25,9 @@ class TermNotFound(Exception):
     pass
 
 
+class MissingObject(Exception):
+    pass
+
+
 class Contradiction(Exception):
     pass

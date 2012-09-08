@@ -121,12 +121,12 @@ class Lexicon(object):
             self.session.commit()
         return term
 
-    def add_term(self, name, term_type, _commit=False, **objs):
+    def add_term(self, name, term_type, _commit=True, **objs):
         term = self.make_term(name, term_type, **objs)
         self.save_term(term, _commit)
         return term
 
-    def add_subterm(self, name, super_terms, _commit=False, **objs):
+    def add_subterm(self, name, super_terms, _commit=True, **objs):
         term = self.make_subterm(name, super_terms, **objs)
         self.save_term(term, _commit)
         return term

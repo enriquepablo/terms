@@ -17,11 +17,11 @@
 # along with any part of the nlproject.
 # If not, see <http://www.gnu.org/licenses/>.
 
-person is thing.
-content is thing.
-document is content.
-image is content.
-context is thing.
+a person is a thing.
+a content is a thing.
+a document is a content.
+a image is a content.
+a context is a thing.
 
 john is a person.
 sue is a person.
@@ -67,28 +67,28 @@ wf-action is content-action.
 publish is wf-action.
 hide is wf-action.
 
-status is thing.
+a status is a thing.
 public is a status.
 private is a status.
 
 
-workflow is thing.
+a workflow is a thing.
 
 
 is-assigned is exists, subj a workflow, to a noun, in a context.
 
-transition is thing.
+a transition is a thing.
 
 has is exists, subj a thing, what a thing.
 
 executed is exists, subj a transition, by a verb, from a status, to a status.
 
-role is thing.
+a role is a thing.
 manager is a role.
 editor is a role.
 visitor is a role.
 
-permission is thing.
+a permission is a thing.
 basic-perm is a permission.
 edit-perm is a permission.
 manage-perm is a permission.
