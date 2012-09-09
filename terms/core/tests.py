@@ -31,6 +31,8 @@ from terms.core.exceptions import Contradiction
 CONFIG = '''
 [database]
 address = sqlite:///:memory:
+[time]
+mode = normal
 '''
 
 

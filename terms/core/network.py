@@ -23,7 +23,7 @@ from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, InvalidRequestError
 
 from terms.core.terms import isa, are, get_bases
 from terms.core.terms import Base, Term, term_to_base, Predicate
@@ -31,7 +31,7 @@ from terms.core.lexicon import Lexicon
 from terms.core.factset import FactSet, Ancestor
 from terms.core import exceptions
 from terms.core import patterns
-from terms.core.utils import Match
+from terms.core.utils import Match, merge_submatches
 
 
 class Network(object):
@@ -47,7 +47,8 @@ class Network(object):
             initialize =  True
             self.initialize()
         self.lexicon = Lexicon(self.session, config)
-        self.factset = FactSet(self.lexicon, config)
+        self.past = FactSet('past', self.lexicon, config)
+        self.present = FactSet('present', self.lexicon, config)
         if initialize:
             self.session.commit()
 
@@ -55,6 +56,22 @@ class Network(object):
         Base.metadata.create_all(self.session.connection().engine)
         self.root = RootNode()
         self.session.add(self.root)
+
+    def passtime(self, _commit=True):
+        step = 0
+        if self.config['time'] == 'normal':
+            step = 1
+        self.root.time += step
+        if _commit:
+            self.session.commit()
+
+    def _get_now(self):
+        return self.root.time
+
+    def _set_now(self, val):
+        self.root.time = val
+
+    now = property(_get_now, _set_now)
 
     def get_paths(self, pred):
         '''
@@ -71,6 +88,8 @@ class Network(object):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
+            if '_' in obt.label:
+                continue
             t = obt.obj_type
             if isa(t, self.lexicon.verb):
                 pred = pred.get_object(obt.label)
@@ -88,15 +107,24 @@ class Network(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, pred, _commit=True):
+        factset = self.present
+        now = False
+        if isa(pred, self.lexicon.now):
+            now = True
+            factset = self.past
+            pred.add_object('at_', self.lexicon.make_term(self.now, self.lexicon.number))
+        elif isa(pred, self.lexicon.onwards):
+            pred.add_object('since_', self.lexicon.make_term(self.now, self.lexicon.number))
         neg = pred.copy()
         neg.true = not neg.true
-        contradiction = self.factset.query(neg)
+        contradiction = factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = self.factset.query(pred)
-        fact = self.factset.add_fact(pred)
-        ancestor = Ancestor(fact)
-        ancestor.children.append(fact)
+        prev = factset.query(pred)
+        fact = factset.add_fact(pred)
+        if not now:
+            ancestor = Ancestor(fact)
+            ancestor.children.append(fact)
         if prev:
             if _commit:
                 self.session.commit()
@@ -114,14 +142,22 @@ class Network(object):
             self.session.commit()
         return fact
 
-    def del_fact(self, pred, _commit=True):
-        match = Match(pred)
-        match.paths = self.get_paths(pred)
-        self.factset.del_fact(match)
+    def finish(self, pred, _commit=False):
+        self.del_fact(pred, _commit=False)
+        pred.add_object('till_', self.lexicon.make_term(self.now, self.lexicon.number))
+        pred.ancestors = []
+        self.past.add_fact(pred)
         if _commit:
             self.session.commit()
 
-    def add_rule(self, prems, conds, cons, orders=None, _commit=True):
+    def del_fact(self, pred, _commit=True):
+        match = Match(pred)
+        match.paths = self.get_paths(pred)
+        self.present.del_fact(match)
+        if _commit:
+            self.session.commit()
+
+    def add_rule(self, prems, conds, cons, finishes, orders=None, _commit=True):
         rule = Rule()
         prempairs = []
         for n, pred in enumerate(prems):
@@ -145,12 +181,26 @@ class Network(object):
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
+        for finish in finishes:
+            rule.finishes.append(finish)
         for prem in rule.prems:
-            matches = self.factset.query(prem.pred)
+            matches = self.present.query(prem.pred)
             for match in matches:
                 prem.dispatch(match, self, _numvars=False)
         if _commit:
             self.session.commit()
+
+
+    def query(self, *q):
+        submatches = []
+        for pred in q:
+            if isa(pred, self.lexicon.now):
+                factset = self.past
+            else:
+                factset = self.present
+            smatches = factset.query(pred)
+            submatches.append(smatches)
+        return merge_submatches(submatches)
 
     def get_or_create_node(self, parent, term, path, vars, rule):
         ntype_name = path[-1]
@@ -275,6 +325,7 @@ class RootNode(Node):
     __tablename__ = 'rootnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
+    time = Column(Integer, default=0)
 
     def __init__(self):
         pass
@@ -382,6 +433,33 @@ class VerbNode(Node):
         return children, pchildren, vchildren
 
 
+class PremNode(Base):
+    '''
+    a terminal node for a premise
+    '''
+    __tablename__ = 'premnodes'
+
+    id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
+    parent_id = Column(Integer, ForeignKey('nodes.id'))
+    parent = relationship('Node', backref=backref('terminal', uselist=False),
+                         primaryjoin="Node.id==PremNode.parent_id")
+
+    def __init__(self, parent):
+        self.parent = parent  # node
+
+    def dispatch(self, match, network, _numvars=True):
+        if not self.prems[0].check_match(match, network):
+            return
+        if not isa(match.pred, network.lexicon.now):
+            m = PMatch(self, match.fact)
+            for var, val in match.items():
+                m.pairs.append(MPair.make_pair(var, val))
+            self.matches.append(m)
+            match.ancestor = Ancestor(match.fact)
+        for premise in self.prems:
+            premise.dispatch(match, network, _numvars=_numvars)
+
+
 class Premise(Base):
     '''
     Relation between rules and premnodes
@@ -407,7 +485,7 @@ class Premise(Base):
 
     def check_match(self, match, network):
         pred = self.pred
-        prem_paths = network.factset.get_paths(pred)
+        prem_paths = network.present.get_paths(pred)
         for p in prem_paths:
             if p not in match.paths:
                 return False
@@ -425,9 +503,6 @@ class Premise(Base):
             matches = [nmatch]
         else:
             matches = [match]
-#        if getattr(matches[0].get('A3', None), 'name', '') == '1':
-#        if rule.id == 2 and match.fact.get_object('pos') == 8:
-#            import pdb;pdb.set_trace()
         for prem in rule.prems:
             if not matches:
                 break
@@ -448,7 +523,11 @@ class Premise(Base):
                     pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
                 for pm in pmatches:
                     new_match = m.copy()
-                    new_match.ancestor.parents.append(pm.fact)
+                    if not isa(pm.fact.pred, network.lexicon.now):
+                        try:
+                            new_match.ancestor.parents.append(pm.fact)
+                        except AttributeError:
+                            new_match.ancestor = Ancestor(pm.fact)
                     for mpair in pm.pairs:
                         vname = rule.get_varname(prem, mpair.var)
                         if vname in m:
@@ -459,32 +538,6 @@ class Premise(Base):
             matches = new_matches
         for m in matches:
             rule.dispatch(m, network)
-
-
-class PremNode(Base):
-    '''
-    a terminal node for a premise
-    '''
-    __tablename__ = 'premnodes'
-
-    id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('nodes.id'))
-    parent = relationship('Node', backref=backref('terminal', uselist=False),
-                         primaryjoin="Node.id==PremNode.parent_id")
-
-    def __init__(self, parent):
-        self.parent = parent  # node
-
-    def dispatch(self, match, network, _numvars=True):
-        if not self.prems[0].check_match(match, network):
-            return
-        m = PMatch(self, match.fact)
-        for var, val in match.items():
-            m.pairs.append(MPair.make_pair(var, val))
-        self.matches.append(m)
-        match.ancestor = Ancestor(match.fact)
-        for premise in self.prems:
-            premise.dispatch(match, network, _numvars=_numvars)
 
 
 class PMatch(Base):
@@ -582,6 +635,11 @@ class Rule(Base):
         for cond in self.conditions:
             if not cond.test(match, network):
                 return
+
+        for finish in self.finishes:
+            tofinish = finish.pred.substitute(match)
+            network.finish(tofinish)
+
         cons = []
         for con in self.consecuences:
             cons.append(con.substitute(match))
@@ -590,14 +648,26 @@ class Rule(Base):
             cons.append(match[con.name])
 
         for con in cons:
-            prev = network.factset.query(con)
+            factset = network.present
+            now = False
+            if isa(con, network.lexicon.now):
+                now = True
+                factset = network.past
+                con.add_object('at_', network.lexicon.make_term(network.now, network.lexicon.number))
+            elif isa(con, network.lexicon.onwards):
+                con.add_object('since_', network.lexicon.make_term(network.now, network.lexicon.number))
+            prev = factset.query(con)
             if prev:
                 continue
-            fact = network.factset.add_fact(con)
-            fact.ancestors.append(match.ancestor)
+            fact = factset.add_fact(con)
+            if match.ancestor and not now:
+                try:
+                    fact.ancestors.append(match.ancestor)
+                except InvalidRequestError:
+                    pass
             neg = con.copy()
             neg.true = not neg.true
-            contradiction = network.factset.query(neg)
+            contradiction = factset.query(neg)
             if contradiction:
                 raise exceptions.Contradiction('we already have ' + str(neg))
             if network.root.child_path:
@@ -741,3 +811,17 @@ class CondCode(Condition):
 
     def __init__(self, code):
         self.code = code
+
+
+class Finish(Base):
+    __tablename__ = 'finishs'
+
+    id = Column(Integer, Sequence('finish_id_seq'), primary_key=True)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', backref='finishes',
+                         primaryjoin="Rule.id==Finish.rule_id")
+    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred = relationship('Predicate', primaryjoin="Predicate.id==Finish.pred_id")
+
+    def __init__(self, pred):
+        self.pred = pred

@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2007-2012 by Enrique Pérez Arnaud <enriquepablo@gmail.com>
+#
+# This file is part of nlproject.
+#
+# The nlproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The nlproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with any part of the nlproject.
+# If not, see <http://www.gnu.org/licenses/>.
+
+a person is a thing.
+a content is a thing.
+a document is a content.
+a image is a content.
+a context is a thing.
+
+john is a person.
+sue is a person.
+pete is a person.
+mary is a person.
+doc1 is a document.
+doc2 is a document.
+img1 is a image.
+img2 is a image.
+ctx1 is a context.
+ctx2 is a context.
+
+content-action is now, subj a person, what a content.
+view is content-action.
+edit is content-action.
+owns is content-action.
+
+located is onwards, subj a thing, in a context.
+
+(located Thing1, in Context1);
+(located Context1, in Context2)
+->
+(located Thing1, in Context2).
+
+wants is now, subj a person, do a content-action.
+is-allowed is onwards, subj a person, to a content-action.
+
+(wants Person1, do (Content-action1));
+(is-allowed Person1, to (Content-action1))
+->
+(Content-action1).
+
+may is onwards, subj a person, what a verb, where a context.
+
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
+(may Person1, what Content-actionVerb1, where Context1);
+(located Content1, in Context1)
+->
+(Content-actionVerb1 Person1, what Content1).
+
+
+wf-action is content-action.
+publish is wf-action.
+hide is wf-action.
+
+a status is a thing.
+public is a status.
+private is a status.
+
+
+a workflow is a thing.
+
+
+is-assigned is onwards, subj a workflow, to a noun, in a context.
+
+a transition is a thing.
+
+has is onwards, subj a thing, what a thing.
+
+executed is onwards, subj a transition, by a verb, from a status, to a status.
+
+a role is a thing.
+manager is a role.
+editor is a role.
+visitor is a role.
+
+a permission is a thing.
+basic-perm is a permission.
+edit-perm is a permission.
+manage-perm is a permission.
+
+is-protected is onwards, subj a verb, by a permission, in a context, for a status.
+
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
+(located Content1, in Context1);
+(has Content1, what Status1);
+(has Person1, what Role1);
+(has Role1, what Permission1);
+(is-protected Content-actionVerb1, by Permission1, in Context1, for Status1)
+->
+(Content-actionVerb1 Person1, what Content1).
+
+(Wf-actionVerb1 Person1, what Content1);
+(is-assigned Workflow1, to ContentNoun1, in Context1);
+(has Workflow1, what Transition1);
+(executed Transition1, by Wf-actionVerb1, from Status1, to Status2);
+(has Content1, what Status1);
+Content1 is a ContentNoun1
+->
+finish (has Content1, what Status1);
+(has Content1, what Status2).
+
+(has manager, what manage-perm).
+(has manager, what edit-perm).
+(has manager, what basic-perm).
+(has editor, what edit-perm).
+(has editor, what basic-perm).
+(has visitor, what basic-perm).
+
+(is-protected publish, by manage-perm, in ctx1, for private).
+(is-protected hide, by edit-perm, in ctx1, for public).
+(is-protected edit,  by edit-perm, in ctx1, for private).
+(is-protected edit, by manage-perm, in ctx1, for public).
+(is-protected view, by edit-perm, in ctx1, for private).
+(is-protected view, by basic-perm, in ctx1, for public).
+
+wf1 is a workflow.
+
+hide-tr is a transition.
+
+(has wf1, what hide-tr).
+
+publish-tr is a transition.
+
+(has wf1, what publish-tr).
+
+(executed hide-tr, by hide, from public, to private).
+(executed publish-tr, by publish, from private, to public).
+
+(is-assigned wf1, to document, in ctx1).
+
+(has john ,what manager).
+(has mary, what editor).
+(has pete, what visitor).
+
+(located doc1, in ctx1).
+(has doc1, what private).
+
+(wants john, do (publish john, what doc1)).
+
+(publish john, what doc1)?
+true
+
+(has doc1, what public)?
+true
+
+(has doc1, what private)?
+false
+
+(wants john, do (hide john, what doc1)).
+
+(hide john, what doc1)?
+true
+
+(has doc1, what public)?
+false
+
+(has doc1, what private)?
+true

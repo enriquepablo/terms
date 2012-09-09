@@ -27,24 +27,24 @@ from terms.core import patterns, exceptions
 from terms.core.terms import get_bases
 from terms.core.terms import Base, Term, Predicate
 from terms.core.terms import isa, are
-from terms.core.utils import Match, merge_submatches
+from terms.core.utils import Match
 
 
 class FactSet(object):
     """
     """
 
-    def __init__(self, lexicon, config):
+    def __init__(self, name, lexicon, config):
         self.config = config
         self.session = lexicon.session
         self.lexicon = lexicon
         try:
-            self.root = self.session.query(RootFNode).one()
+            self.root = self.session.query(RootFNode).filter(RootFNode.name==name).one()
         except NoResultFound:
-            self.initialize()
+            self.initialize(name)
 
-    def initialize(self):
-        self.root = RootFNode()
+    def initialize(self, name):
+        self.root = RootFNode(name)
         self.session.add(self.root)
 
     def get_paths(self, pred):
@@ -78,6 +78,8 @@ class FactSet(object):
     def check_objects(self, pred):
         v = pred.term_type
         for ot in v.object_types:
+            if '_' in ot.label:
+                continue
             try:
                 pred.get_object(ot.label)
             except KeyError:
@@ -120,21 +122,18 @@ class FactSet(object):
         return node
 
 
-    def query(self, *q):
+    def query(self, q):
         '''
         q is a word or set of words,
         possibly with varnames
         '''
-        submatches = []
-        if not q or not self.root.child_path:
-            return submatches
-        for pred in q:
-            m = Match(self.lexicon.word, query=pred)
-            m.paths = self.get_paths(pred)
-            smatches = []
-            FactNode.dispatch(self.root, m, smatches, self)
-            submatches.append(smatches)
-        return merge_submatches(submatches)
+        if not self.root.child_path:
+            return []
+        m = Match(self.lexicon.word, query=q)
+        m.paths = self.get_paths(q)
+        smatches = []
+        FactNode.dispatch(self.root, m, smatches, self)
+        return smatches
 
 
 class FactNode(Base):
@@ -226,9 +225,10 @@ class FactNode(Base):
                 new_match = match.copy()
                 cls.dispatch_rm(child, new_match, factset)
         if parent.terminal:
-            for a in parent.terminal.ancestors:
-                if not len(a.parents) == 1 or not a.parents[0].id == parent.terminal.id:
-                    raise exceptions.Contradiction('Cannot retract ' + str(parent.terminal.pred))
+            if not isa(parent.terminal.pred, factset.lexicon.onwards):
+                for a in parent.terminal.ancestors:
+                    if not len(a.parents) == 1 or not a.parents[0].id == parent.terminal.id:
+                        raise exceptions.Contradiction('Cannot retract ' + str(parent.terminal.pred))
             if not match.paths:
                 parent.terminal.rm_descent(factset)
                 factset.session.delete(parent.terminal)
@@ -267,8 +267,12 @@ class RootFNode(FactNode):
     A root factnode
     '''
     __tablename__ = 'rootfnodes'
+    name = Column(String)
     __mapper_args__ = {'polymorphic_identity': '_root'}
     fnid = Column(Integer, ForeignKey('factnodes.id'), primary_key=True)
+
+    def __init__(self, name):
+        self.name = name
 
 
 class NegFNode(FactNode):

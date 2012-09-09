@@ -17,17 +17,24 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-class TermRepeated(Exception):
+class TermsException(Exception):
+    pass
+
+class TermRepeated(TermsException):
     pass
 
 
-class TermNotFound(Exception):
+class TermNotFound(TermsException):
     pass
 
 
-class MissingObject(Exception):
+class MissingObject(TermsException):
     pass
 
 
-class Contradiction(Exception):
+class Contradiction(TermsException):
+    pass
+
+
+class IllegalLabel(TermsException):
     pass

@@ -55,6 +55,11 @@ class Lexicon(object):
         self.session.add(self.number)
         self.exists = Term('exists', ttype=self.verb, objs={'subj': self.word})
         self.session.add(self.exists)
+        self.onwards = Term('onwards', ttype=self.verb, bases=(self.exists,), objs={'since_': self.number,
+                                                                                    'till_': self.number})
+        self.session.add(self.onwards)
+        self.now = Term('now', ttype=self.verb, bases=(self.exists,), objs={'at_': self.number})
+        self.session.add(self.now)
         self.thing = Term('thing', ttype=self.noun, bases=(self.word,))
         self.session.add(self.thing)
         self.session.commit()
@@ -211,6 +216,9 @@ class Lexicon(object):
             bases = (bases,)
         if objs is None:
             objs = {}
+        for l in objs:
+            if '_' in l:
+                raise exceptions.IllegalLabel(l)
         if vtype is None:
             if bases:
                 vtype = bases[0].term_type
@@ -224,7 +232,7 @@ class Lexicon(object):
         return Term(name, ttype=self.word, bases=tuple(bases))
 
     def make_number(self, num):
-        num = str(0 + eval(num))
+        num = str(0 + eval(str(num)))
         number = Term(num, ttype=self.number)
         number.number = True
         return number

@@ -23,7 +23,7 @@ VAR_PAT = r'([A-Z][a-z-]*)([A-Z][a-z-]*)?(\d*)'
 
 varpat = re.compile(VAR_PAT)
 
-SYMBOL_PAT = r'[a-z][a-z-]*\d*'
+SYMBOL_PAT = r'[a-z][a-z-_]*\d*'
 
 sympat = re.compile(SYMBOL_PAT)
 

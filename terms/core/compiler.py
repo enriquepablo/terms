@@ -25,7 +25,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
-from terms.core.network import Network, CondIsa, CondIs, CondCode
+from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.lexicon import Lexicon
 from terms.core.terms import isa, are
 from terms.core.utils import merge_submatches
@@ -52,11 +52,13 @@ class Lexer(object):
             'IMPLIES',
             'RM',
             'PYCODE',
+            'FINISH',
     )
 
     reserved = {
             'is': 'IS',
             'a': 'A',
+            'finish': 'FINISH',
             }
 
     t_NUMBER = NUM_PAT
@@ -105,25 +107,6 @@ class Lexer(object):
 
     t_pycode_ignore  = ''
 
-#    def t_begin_pycode(self, t):
-#        r'<-'
-#        t.lexer.code_start = t.lexer.lexpos
-#        t.lexer.begin('pycode')
-#
-#    # Any sequence of non-linebreak characters
-#    def t_pycode_PYCODE(self, t):
-#        r'.+(?=->)'
-#        t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos+1]
-#        t.lexer.lineno += t.value.count('\n')
-#        return t
-#
-#    def t_pycode_IMPLIES(self, t):
-#        r'->'
-#        t.lexer.begin('INITIAL')
-#        return t
-#
-#    t_pycode_ignore  = ''
-
     # Error handling rule
     def t_pycode_INITIAL_error(self,t):
         print("Illegal character '%s'" % t.value[0])
@@ -163,7 +146,6 @@ class KnowledgeBase(object):
         self.config = config
         self.network = Network(self.session, config)
         self.lexicon = self.network.lexicon
-        self.factset = self.network.factset
         self.lex = Lexer()
 
         self.lex.build(
@@ -206,6 +188,7 @@ class KnowledgeBase(object):
         if isinstance(p[1], str):  # rule
             p[0] = p[1]
         else:
+            self.network.passtime()
             for sen in p[1]:
                 if isa(sen, self.lexicon.exists):
                     self.network.add_fact(sen)
@@ -223,7 +206,7 @@ class KnowledgeBase(object):
         '''question : sentence-list QMARK'''
         matches = []
         if p[1]:
-            matches = self.factset.query(*p[1])
+            matches = self.network.query(*p[1])
         if not matches:
             matches = 'false'
         elif not matches[0]:
@@ -257,7 +240,13 @@ class KnowledgeBase(object):
                     conds.append(CondIsa(sen.name, sen.term_type))
                 else:
                     conds.append(CondIs(sen.name, sen.bases[0]))
-        self.network.add_rule(prems, conds, cons)
+        finish, consecs = [], []
+        for con in cons:
+            if isinstance(con, Finish):
+                finish.append(con)
+            else:
+                consecs.append(con)
+        self.network.add_rule(prems, conds, consecs, finish)
         p[0] = 'OK'
 
     def p_pylines(self, p):
@@ -278,8 +267,12 @@ class KnowledgeBase(object):
 
     def p_sentence(self, p):
         '''sentence : definition
-                    | fact'''
-        p[0] = p[1]
+                    | fact
+                    | FINISH fact'''
+        if len(p) == 3:
+            p[0] = Finish(p[2])
+        else:
+            p[0] = p[1]
 
     def p_fact(self, p):
         '''fact : LPAREN predicate RPAREN
