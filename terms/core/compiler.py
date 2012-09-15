@@ -29,6 +29,7 @@ from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.lexicon import Lexicon
 from terms.core.terms import isa, are
 from terms.core.utils import merge_submatches
+from terms.core.exceptions import Contradiction
 
 class Lexer(object):
 
@@ -148,6 +149,10 @@ class KnowledgeBase(object):
         self.lexicon = self.network.lexicon
         self.lex = Lexer()
 
+        self._buffer = ''  # for line input
+        self.no_response = object()
+        self.prompt = '>>> '
+
         self.lex.build(
             optimize=lex_optimize)
         self.tokens = self.lex.tokens
@@ -157,6 +162,35 @@ class KnowledgeBase(object):
             start='construct',
             debug=yacc_debug,
             optimize=yacc_optimize)
+
+    def _parse_buff(self):
+        return self.parse(self._buffer)
+
+    def format_results(self, res):
+        if isinstance(res, str):
+            return res
+        resps = [', '.join([k + ': ' + str(v) for k, v in r.items()]) \
+                for r in res]
+        return '; '.join(resps)
+
+    def process_line(self, line):
+        line = line.strip()
+        self.prompt = '... '
+        resp = self.no_response
+        if line:
+            self._buffer += '\n' + line
+            if self._buffer.endswith('.'):
+                try:
+                    self._parse_buff()
+                except Contradiction as e:
+                    resp = 'Contradiction: ' + e.args[0]
+                self._buffer = ''
+                self.prompt = '>>> '
+            elif self._buffer.endswith('?'):
+                resp = self.format_results(self._parse_buff())
+                self._buffer = ''
+                self.prompt = '>>> '
+        return resp
 
     def parse(self, text, filename='', debuglevel=0):
         """ 

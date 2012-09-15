@@ -169,5 +169,5 @@ true
 (has doc1, what public)?
 false
 
-(has doc1, what private)?
-true
+(has doc1, what private, since_ N1)?
+N1: 70

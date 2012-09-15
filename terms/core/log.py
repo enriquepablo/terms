@@ -18,14 +18,13 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import logging
 
 debug_level = 'INFO'
 
-here = os.path.join(os.path.dirname(__file__))
-
 logger = logging.getLogger('terms')
-log_dir = os.path.join(here, 'log')
+log_dir = os.path.join(sys.prefix, 'log')
 log_file = os.path.join(log_dir, 'terms.log')
 if not os.path.isfile(log_file):
     if not os.path.isdir(log_dir):

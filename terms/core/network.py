@@ -59,7 +59,7 @@ class Network(object):
 
     def passtime(self, _commit=True):
         step = 0
-        if self.config['time'] == 'normal':
+        if self.config['time']['mode'] == 'normal':
             step = 1
         self.root.time += step
         if _commit:

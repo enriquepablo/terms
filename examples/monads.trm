@@ -1,0 +1,27 @@
+
+a monad is a thing.
+
+me is a monad.
+
+has_value is onwards, subj a monad, val a number.
+has_weight is onwards, subj a monad, val a number.
+
+says_value is now, subj a monad, val a number.
+says_weight is now, subj a monad, val a number.
+
+(says_weight Monad1, val N1)
+->
+finish (has_weight Monad1);
+(has_weight Monad1, val N1).
+
+(says_value Monad1, val N1);
+(has_value Monad1, val N2);
+(has_weight Monad1, val N3);
+(has_weight me, val N4)
+<-
+
+N5 = (sqrt(N1 - N2))**2 * N3/N4
+
+->
+finish (has_value Monad1);
+(has_value Monad1, val N5).

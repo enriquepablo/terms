@@ -17,6 +17,7 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import os
 import re
 from configparser import ConfigParser
@@ -24,7 +25,7 @@ from configparser import ConfigParser
 from terms.core.terms import Base
 from terms.core.network import Network
 from terms.core.compiler import KnowledgeBase
-from terms.core.log import here, logger
+from terms.core.log import logger
 from terms.core.exceptions import Contradiction
 
 
@@ -39,7 +40,7 @@ mode = normal
 def test_terms(): # test generator
     # read contents of terms/
     # feed each content to run_npl
-    d = os.path.join(here, 'examples')
+    d = os.path.join(sys.prefix, 'examples')
     files = os.listdir(d)
     kb = None
     config = ConfigParser()
@@ -60,38 +61,14 @@ def run_terms(kb, fname):
     # tell asserions
     # compare return of questions with provided output
     with open(fname) as f:
-        _nr = object()
-        resp, buff = _nr, ''
+        resp = kb.no_response
         for sen in f.readlines():
             logger.info(sen)
             sen = sen.strip()
-            if resp is not _nr:
+            if resp is not kb.no_response:
                 sen = sen.strip('.')
                 logger.info('%s match %s' % (sen, resp))
                 assert sen == resp or re.compile(sen).match(resp)
-                resp = _nr
+                resp = kb.no_response
             elif sen and not sen.startswith('#'):
-                buff += '\n' + sen
-                if buff.endswith('.'):
-                    try:
-                        logger.info(kb.parse(buff))
-                    except Contradiction as e:
-                        msg = 'Contradiction: ' + e.args[0]
-                        logger.error(msg)
-                        resp = msg
-                    buff = ''
-                elif buff.endswith('?'):
-                    resp = format_results(kb.parse(buff))
-                    logger.info(resp)
-                    buff = ''
-
-def format_results(res):
-    if isinstance(res, str):
-        return res
-    resps = []
-    for r in res:
-        resp = []
-        for k, v in r.items():
-            resp.append(k + ': ' + str(v))
-        resps.append(', '.join(resp))
-    return '; '.join(resps)
+                resp = kb.process_line(sen)
