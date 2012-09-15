@@ -1,25 +1,31 @@
-# -*- coding: utf-8 -*-
+from distutils.core import setup
 
-from setuptools import setup
-
-VERSION = '0.1.0'
+VERSION = '0.1.0a1.dev5'
 
 setup(
-    name='terms',
+    name='terms.core',
     version=VERSION,
     author='Enrique Pérez Arnaud',
     author_email='enriquepablo@gmail.com',
-    packages=['terms',],
+    url = 'http://pypi.python.org/terms.core',
+    packages=['terms.core',],
     license='GNU GENERAL PUBLIC LICENSE Version 3',
-    long_description=open('README.txt').read(),
-    include_package_data = True,
-    test_suite = 'nose.collector',
-    test_requires=[
+    description=open('README.txt').read(),
+    data_files = [('etc', ['etc/terms.cfg']),
+                  ('examples', ['examples/activiti.trm',
+                                'examples/cms.trm',
+                                'examples/cms-time.trm',
+                                'examples/monads.trm',
+                                'examples/person.trm',
+                                'examples/person_loves.trm',
+                                'examples/person_walks.trm',
+                                'examples/physics.trm',
+                                ])],
+    scripts = ['bin/terms', 'bin/nosetests', 'bin/coverage'],
+    install_requires=[
         'Nose',
         'coverage',
+        'sqlalchemy == 0.7.8',
+        'ply == 3.4',
     ],
-    install_requires=[
-        'sqlalchemy',
-        'ply',
-    ]
 )
