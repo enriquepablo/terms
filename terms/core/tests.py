@@ -39,7 +39,8 @@ mode = normal
 def test_terms(): # test generator
     # read contents of terms/
     # feed each content to run_npl
-    d = os.path.join(sys.prefix, 'examples')
+    d = os.path.dirname(sys.modules['terms.core'].__file__)
+    d = os.path.join(d, 'examples')
     files = os.listdir(d)
     kb = None
     config = ConfigParser()

@@ -8,16 +8,24 @@ except ImportError:
 from code import InteractiveConsole
 from configparser import ConfigParser
 
+import terms.core
 from terms.core.compiler import KnowledgeBase
 
 
 def repl():
-    fname = os.path.join(sys.prefix, 'etc', 'terms.cfg')
+    d = os.path.dirname(sys.modules['terms.core'].__file__)
+    fname = os.path.join(d, 'etc', 'terms.cfg')
+    name = os.path.join('etc', 'terms.cfg')
+    if os.path.exists(name):
+        fname = name
+    name = os.path.join(sys.prefix, 'etc', 'terms.cfg')
+    if os.path.exists(name):
+        fname = name
     f = open(fname, 'r')
     config = ConfigParser()
     config.read_file(f)
     f.close()
-    kb = KnowledgeBase(config)
+    kb = terms.core.compiler.KnowledgeBase(config)
     ic = InteractiveConsole()
     while True:
         try:
