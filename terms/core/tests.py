@@ -25,7 +25,6 @@ from configparser import ConfigParser
 from terms.core.terms import Base
 from terms.core.network import Network
 from terms.core.compiler import KnowledgeBase
-from terms.core.log import logger
 from terms.core.exceptions import Contradiction
 
 
@@ -63,11 +62,9 @@ def run_terms(kb, fname):
     with open(fname) as f:
         resp = kb.no_response
         for sen in f.readlines():
-            logger.info(sen)
             sen = sen.strip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
-                logger.info('%s match %s' % (sen, resp))
                 assert sen == resp or re.compile(sen).match(resp)
                 resp = kb.no_response
             elif sen and not sen.startswith('#'):
