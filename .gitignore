@@ -14,3 +14,7 @@ parsetab.py
 terms.tgz
 terms/core/log/
 codepickle
+MANIFEST
+build/
+dist/
+lextab.py
