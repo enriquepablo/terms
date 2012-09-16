@@ -1,0 +1,8 @@
+
+import "http://github.com/enriquepablo/terms/raw/master/terms/core/examples/person.trm".
+
+(lives john)?
+true
+
+(lives juan)?
+false

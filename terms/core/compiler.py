@@ -17,6 +17,8 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+from urllib.request import urlopen
+
 import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
@@ -54,15 +56,19 @@ class Lexer(object):
             'RM',
             'PYCODE',
             'FINISH',
+            'IMPORT',
+            'URL',
     )
 
     reserved = {
             'is': 'IS',
             'a': 'A',
             'finish': 'FINISH',
+            'import': 'IMPORT',
             }
 
     t_NUMBER = NUM_PAT
+    t_URL = r'"[^"]+"'
     t_COMMA = r','
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
@@ -213,7 +219,8 @@ class KnowledgeBase(object):
     def p_construct(self, p):
         '''construct : assertion
                      | question
-                     | removal'''
+                     | removal
+                     | import'''
         p[0] = p[1]
 
     def p_assertion(self, p):
@@ -251,7 +258,16 @@ class KnowledgeBase(object):
         '''removal : RM sentence-list DOT'''
         for pred in p[2]:
             self.network.del_fact(pred)
-        p[0] = 'ok'
+        p[0] = 'OK'
+
+    def p_import(self, p):
+        '''import : IMPORT URL DOT'''
+        resp = urlopen(p[2][1:-1])
+        code = resp.read()
+        self._buffer = ''
+        for line in code.decode('ascii').splitlines():
+            self.process_line(line)
+        p[0] = 'OK'
 
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list

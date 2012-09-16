@@ -7,10 +7,4 @@ john is a person.
 
 (lives john).
 
-(lives john)?
-true
-
 juan is a person.
-
-(lives juan)?
-false
