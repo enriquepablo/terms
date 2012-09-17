@@ -25,6 +25,7 @@ from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError, InvalidRequestError
 
+from terms.core import exec_globals
 from terms.core.terms import isa, are, get_bases
 from terms.core.terms import Base, Term, term_to_base, Predicate
 from terms.core.lexicon import Lexicon
@@ -789,25 +790,28 @@ class CondCode(Condition):
     code = Column(String)
 
     def test(self, match, network):
-        match['condition'] = True
+        exec_locals = {'condition': True}
+        exec_locals.update(exec_globals)
         for k, v in match.items():
             if getattr(v, 'number', False):
-                match[k] = eval(v.name)
+                exec_locals[k] = eval(v.name)
+            else:
+                exec_locals[k] = v
         try:
-            exec(self.code, {}, match)
+            exec(self.code, {}, exec_locals)
         except Exception as e:
-            if match['condition']:
+            if exec_locals['condition']:
                 raise
             return False
 
-        for k, v in match.items():
-            if k == 'condition':
+        for k, v in exec_locals.items():
+            if k in ('condition', '__builtins__') or k in exec_globals:
                 continue
             try:
                 match[k] = network.lexicon.make_term(str(0 + v), network.lexicon.number)
             except TypeError:
                 pass
-        return match['condition']
+        return exec_locals['condition']
 
     def __init__(self, code):
         self.code = code

@@ -26,6 +26,7 @@ from ply.lex import TOKEN
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from terms.core import register_fun
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.lexicon import Lexicon
@@ -169,6 +170,8 @@ class KnowledgeBase(object):
             debug=yacc_debug,
             optimize=yacc_optimize)
 
+        register_fun(self.count)
+
     def _parse_buff(self):
         return self.parse(self._buffer)
 
@@ -213,6 +216,14 @@ class KnowledgeBase(object):
         self.lex.filename = filename
         # self.lex.reset_lineno()
         return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
+
+    def count(self, sen):
+        resp = self.parse(sen + '?')
+        if resp == 'false':
+            return 0
+        elif resp == 'true':
+            return 1
+        return len(resp)
 
     # BNF
 

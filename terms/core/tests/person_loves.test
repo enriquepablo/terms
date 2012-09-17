@@ -6,68 +6,24 @@ a man is a person.
 a woman is a person.
 
 loves is exists, subj a person, who a person.
-hates is exists, subj a person, who a person.
 marries is exists, subj a person, who a person.
 
-(LovesVerb1 Person1, who Person2);
-(LovesVerb1 Person2, who Person1)
+(LovesVerb1 Person1, who Person2)
+<-
+condition &= count('(LovesVerb1 Person1, who Person2)') == 2
 ->
 (marries Person2, who Person1).
-
-(marries Person1, who Person2)
-->
-(hates Person2, who Person1).
 
 john is a man.
 
 yoko is a woman.
 
-(hates yoko, who john).
-
 (loves john, who yoko).
 
 (loves yoko, who john).
 
-(marries john, who yoko).
+(marries john, who yoko)?
+true
 
 (marries yoko, who john)?
-true
-
-(marries john, who yoko)?
-true
-
-(hates yoko, who john)?
-true
-
-(hates john, who yoko)?
-true
-
-_RM_ (hates john, who yoko).
-Contradiction: Cannot retract (hates john, who yoko)
-
-_RM_ (marries john, who yoko).
-Contradiction: Cannot retract (marries john, who yoko)
-
-_RM_ (loves yoko, who john).
-
-(hates john, who yoko)?
 false
-
-(loves john, who yoko)?
-true
-
-(marries john, who yoko)?
-true
-
-(hates yoko, who john)?
-true
-
-_RM_ (loves yoko, who john).
-
-_RM_ (marries john, who yoko).
-
-(marries john, who yoko)?
-false
-
-(hates yoko, who john)?
-true

@@ -16,3 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
+
+exec_globals = {'__builtins__': __builtins__}
+
+def register_fun(fun):
+    exec_globals[fun.__func__.__name__] = fun
