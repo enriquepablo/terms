@@ -152,7 +152,8 @@ class KnowledgeBase(object):
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         self.config = config
-        self.network = Network(self.session, config)
+        self.network = Network(self.session, config, sec_session=Session())
+        self.session = self.network.session
         self.lexicon = self.network.lexicon
         self.lex = Lexer()
 

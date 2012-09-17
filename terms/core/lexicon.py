@@ -20,6 +20,7 @@
 import re
 
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.exc import InternalError
 from sqlalchemy.orm import sessionmaker
 
 from terms.core import exceptions
@@ -30,13 +31,20 @@ from terms.core.terms import Term, ObjectType, Predicate, isa, are
 
 class Lexicon(object):
 
-    def __init__(self, session, config):
+    def __init__(self, session, config, initialize=False):
         self.config = config
         self.session = session
-        try:
-            self.session.query(Term).filter(Term.name=='word').one()
-        except NoResultFound:
+        if initialize:
             self.initialize()
+        else:
+            self.word = self.get_term('word')
+            self.verb = self.get_term('verb')
+            self.noun = self.get_term('noun')
+            self.number = self.get_term('number')
+            self.exists = self.get_term('exists')
+            self.onwards = self.get_term('onwards')
+            self.now = self.get_term('now')
+            self.thing = self.get_term('thing')
 
     def initialize(self):
         '''

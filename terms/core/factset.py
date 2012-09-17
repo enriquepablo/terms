@@ -154,7 +154,7 @@ class FactNode(Base):
                          primaryjoin="FactNode.id==FactNode.parent_id",
                          lazy='dynamic')
 
-    ntype = Column(Integer)
+    ntype = Column(String)
     __mapper_args__ = {'polymorphic_on': ntype}
 
     def _get_path(self):

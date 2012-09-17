@@ -17,6 +17,7 @@ setup(
     install_requires=[
         'Nose',
         'coverage',
+        'psycopg2',
         'sqlalchemy == 0.7.8',
         'ply == 3.4',
     ],

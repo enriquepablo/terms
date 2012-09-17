@@ -23,7 +23,7 @@ from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import OperationalError, InvalidRequestError
+from sqlalchemy.exc import OperationalError, InvalidRequestError, ProgrammingError
 
 from terms.core import exec_globals
 from terms.core.terms import isa, are, get_bases
@@ -37,26 +37,29 @@ from terms.core.utils import Match, merge_submatches
 
 class Network(object):
 
-    def __init__(self, session, config):
+    def __init__(self, session, config, sec_session):
         self.session = session
         self.config = config
         self.activations = []
         initialize = False
         try:
             self.root = self.session.query(RootNode).one()
-        except OperationalError:
+        except (OperationalError, ProgrammingError, NoResultFound):
             initialize =  True
+            self.session.close()
+            self.session = sec_session
             self.initialize()
-        self.lexicon = Lexicon(self.session, config)
+        else:
+            sec_session.close()
+        self.lexicon = Lexicon(self.session, config, initialize=initialize)
         self.past = FactSet('past', self.lexicon, config)
         self.present = FactSet('present', self.lexicon, config)
-        if initialize:
-            self.session.commit()
 
     def initialize(self):
         Base.metadata.create_all(self.session.connection().engine)
         self.root = RootNode()
         self.session.add(self.root)
+        self.session.commit()
 
     def passtime(self, _commit=True):
         step = 0
@@ -247,7 +250,7 @@ class Node(Base):
                          cascade='all',
                          lazy='dynamic')
 
-    ntype = Column(Integer)
+    ntype = Column(String)
     __mapper_args__ = {'polymorphic_on': ntype}
 
     def __init__(self, value):
