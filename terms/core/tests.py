@@ -40,13 +40,13 @@ def test_terms(): # test generator
     # read contents of terms/
     # feed each content to run_npl
     d = os.path.dirname(sys.modules['terms.core'].__file__)
-    d = os.path.join(d, 'examples')
+    d = os.path.join(d, 'tests')
     files = os.listdir(d)
     kb = None
     config = ConfigParser()
     config.read_string(CONFIG)
     for f in files:
-        if f.endswith('.trm'):
+        if f.endswith('.test'):
             if kb:
                 Base.metadata.drop_all(kb.engine)
             kb = KnowledgeBase(config,

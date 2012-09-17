@@ -69,6 +69,3 @@ body2 is a body.
 
 (has body1, mass 2).
 (has body2, mass 3).
-
-(acc body2, acc N1, at 2)?
-N1: 0.024691358024691357

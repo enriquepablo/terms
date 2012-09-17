@@ -149,14 +149,3 @@ publish-tr is a transition.
 
 (located doc1, in ctx1).
 (has doc1, what private).
-
-(has doc1, what public)?
-false
-
-(wants john, do (publish john, what doc1)).
-
-(publish john, what doc1)?
-true
-
-(has doc1, what public)?
-true

@@ -1,0 +1,14 @@
+
+
+import "http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms.trm".
+
+(has doc1, what public)?
+false
+
+(wants john, do (publish john, what doc1)).
+
+(publish john, what doc1)?
+true
+
+(has doc1, what public)?
+true
