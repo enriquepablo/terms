@@ -148,7 +148,8 @@ class KnowledgeBase(object):
             yacc_optimize=True,
             yacc_debug=False):
 
-        self.engine = create_engine(config['database']['address'])
+        address = '%s/%s' % (config['db']['dbms'], config['db']['dbname'])
+        self.engine = create_engine(address)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         self.config = config
