@@ -203,7 +203,15 @@ class Network(object):
                 factset = self.present
             smatches = factset.query(pred)
             submatches.append(smatches)
-        return merge_submatches(submatches)
+        matches = merge_submatches(submatches)
+        unique = []
+        for m in matches:
+            for m2 in unique:
+                if m2 == m:
+                    break
+            else:
+                unique.append(m)
+        return unique
 
     def get_or_create_node(self, parent, term, path, vars, rule):
         ntype_name = path[-1]
