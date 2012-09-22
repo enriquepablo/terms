@@ -72,7 +72,7 @@ class Network(object):
         return str(self.root.time)
 
     def _set_now(self, val):
-        self.root.time = eval(str(val))
+        self.root.time = eval(str(val), {}, {})
 
     now = property(_get_now, _set_now)
 
@@ -796,7 +796,7 @@ class CondCode(Condition):
         exec_locals.update(exec_globals)
         for k, v in match.items():
             if getattr(v, 'number', False):
-                exec_locals[k] = eval(v.name)
+                exec_locals[k] = eval(v.name, {}, {})
             else:
                 exec_locals[k] = v
         try:

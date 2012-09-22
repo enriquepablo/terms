@@ -240,7 +240,7 @@ class Lexicon(object):
         return Term(name, ttype=self.word, bases=tuple(bases))
 
     def make_number(self, num):
-        num = str(0 + eval(str(num)))
+        num = str(0 + eval(str(num), {}, {}))
         number = Term(num, ttype=self.number)
         number.number = True
         return number

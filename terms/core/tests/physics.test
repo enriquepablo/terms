@@ -4,3 +4,6 @@ import <http://github.com/enriquepablo/terms/raw/master/terms/core/examples/phys
 
 (acc body2, acc N1, at 2)?
 N1: 0.024691358024691357
+
+(Exists1 Body1)?
+true
