@@ -38,3 +38,7 @@ class Contradiction(TermsException):
 
 class IllegalLabel(TermsException):
     pass
+
+
+class Corruption(TermsException):
+    pass

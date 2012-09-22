@@ -433,10 +433,10 @@ class Fact(Base):
     __tablename__ = 'facts'
 
     id = Column(Integer, Sequence('fact_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('factnodes.id'))
+    parent_id = Column(Integer, ForeignKey('factnodes.id'), index=True)
     parent = relationship('FactNode', backref=backref('terminal', uselist=False),
                          primaryjoin="FactNode.id==Fact.parent_id")
-    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate', backref=backref('facts'),
                          cascade='all',
                          primaryjoin="Predicate.id==Fact.pred_id")
@@ -456,13 +456,13 @@ class Fact(Base):
                     factset.session.delete(ch)
 
 ancestor_child = Table('ancestor_child', Base.metadata,
-    Column('ancestor_id', Integer, ForeignKey('ancestors.id')),
-    Column('child_id', Integer, ForeignKey('facts.id'))
+    Column('ancestor_id', Integer, ForeignKey('ancestors.id'), index=True),
+    Column('child_id', Integer, ForeignKey('facts.id'), index=True)
 )
 
 ancestor_parent = Table('ancestor_parent', Base.metadata,
-    Column('ancestor_id', Integer, ForeignKey('ancestors.id')),
-    Column('parent_id', Integer, ForeignKey('facts.id'))
+    Column('ancestor_id', Integer, ForeignKey('ancestors.id'), index=True),
+    Column('parent_id', Integer, ForeignKey('facts.id'), index=True)
 )
 
 class Ancestor(Base):

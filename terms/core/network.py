@@ -248,7 +248,7 @@ class Node(Base):
     id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
     child_path_str = Column(String)
     var = Column(Integer, default=0, index=True)
-    parent_id = Column(Integer, ForeignKey('nodes.id'))
+    parent_id = Column(Integer, ForeignKey('nodes.id'), index=True)
     children = relationship('Node',
                          backref=backref('parent',
                                          uselist=False,
@@ -350,7 +350,7 @@ class NegNode(Node):
     __mapper_args__ = {'polymorphic_identity': '_neg'}
 
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    value = Column(Boolean)
+    value = Column(Boolean, index=True)
     
     @classmethod
     def resolve(cls, pred, path):
@@ -451,7 +451,7 @@ class PremNode(Base):
     __tablename__ = 'premnodes'
 
     id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
-    parent_id = Column(Integer, ForeignKey('nodes.id'))
+    parent_id = Column(Integer, ForeignKey('nodes.id'), index=True)
     parent = relationship('Node', backref=backref('terminal', uselist=False),
                          primaryjoin="Node.id==PremNode.parent_id")
 
@@ -478,13 +478,13 @@ class Premise(Base):
     __tablename__ = 'premises'
 
     id = Column(Integer, Sequence('premise_id_seq'), primary_key=True)
-    prem_id = Column(Integer, ForeignKey('premnodes.id'))
+    prem_id = Column(Integer, ForeignKey('premnodes.id'), index=True)
     node = relationship('PremNode', backref='prems', 
                          primaryjoin="PremNode.id==Premise.prem_id")
-    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
     rule = relationship('Rule', backref=backref('prems', lazy='dynamic'),
                          primaryjoin="Rule.id==Premise.rule_id")
-    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate',
                          primaryjoin="Predicate.id==Premise.pred_id")
     order = Column(Integer)
@@ -507,7 +507,7 @@ class Premise(Base):
         if _numvars:
             nmatch = match.copy()
             for num, o in match.items():
-                pvar = self.pvars.filter(PVarname.rule==rule, PVarname.num==num).one()
+                pvar = tuple(filter(lambda x: x.rule==rule and x.num==num, self.pvars))[0]
                 name = pvar.varname.name
                 nmatch[name] = o
                 del nmatch[num]
@@ -555,10 +555,10 @@ class PMatch(Base):
     __tablename__ = 'pmatchs'
 
     id = Column(Integer, Sequence('pmatch_id_seq'), primary_key=True)
-    prem_id = Column(Integer, ForeignKey('premnodes.id'))
+    prem_id = Column(Integer, ForeignKey('premnodes.id'), index=True)
     prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
-    fact_id = Column(Integer, ForeignKey('facts.id'))
+    fact_id = Column(Integer, ForeignKey('facts.id'), index=True)
     fact = relationship('Fact', backref=backref('matches', cascade='all'),
                          primaryjoin="Fact.id==PMatch.fact_id")
 
@@ -574,7 +574,7 @@ class MPair(Base):
     parent_id = Column(Integer, ForeignKey('pmatchs.id'), index=True)
     parent = relationship('PMatch', backref='pairs',
                          primaryjoin="PMatch.id==MPair.parent_id")
-    var = Column(Integer)
+    var = Column(Integer, index=True)
     mindex = Index('mindex', 'id', 'parent_id')
 
     mtype = Column(Integer)
@@ -609,6 +609,37 @@ class PPair(MPair):
                          primaryjoin="Predicate.id==PPair.pred_id")
     pindex = Index('pindex', 'mid', 'pred_id')
 
+
+class PVarname(Base):
+    """
+    Mapping from varnames in rules (pvars belong in rules)
+    to premise, number.
+    Premises have numbered variables;
+    and different rules can share a premise,
+    but translate differently its numbrered vars to varnames.
+    """
+    __tablename__ = 'pvarnames'
+
+
+    id = Column(Integer, Sequence('pvarname_id_seq'), primary_key=True)
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
+    rule = relationship('Rule', backref=backref('pvars', lazy='joined'),
+                         primaryjoin="Rule.id==PVarname.rule_id")
+    prem_id = Column(Integer, ForeignKey('premises.id'), index=True)
+    prem = relationship('Premise', backref=backref('pvars', lazy='joined'),
+                         primaryjoin="Premise.id==PVarname.prem_id")
+    varname_id = Column(Integer, ForeignKey('varnames.id'), index=True)
+    varname = relationship('Varname', backref='pvarnames',
+                         lazy='joined',
+                         primaryjoin="Varname.id==PVarname.varname_id")
+    num = Column(Integer, index=True)
+
+    def __init__(self, prem, num, varname):
+        self.prem = prem
+        self.num = num
+        self.varname = varname
+
+
 class Varname(Base):
     """
     a variable in a rule,
@@ -617,11 +648,12 @@ class Varname(Base):
     __tablename__ = 'varnames'
 
     id = Column(Integer, Sequence('varname_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'))
-    rule = relationship('Rule', backref='varnames',
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
+    rule = relationship('Rule', backref=backref('varnames', lazy='joined'),
                          primaryjoin="Rule.id==Varname.rule_id")
-    term_id = Column(Integer, ForeignKey('terms.id'))
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     var = relationship('Term', backref='varnames',
+                         lazy='joined',
                          primaryjoin="Term.id==Varname.term_id")
 
     def __init__(self, var, rule):
@@ -690,48 +722,16 @@ class Rule(Base):
     def get_pvar_map(self, match, prem):
         pvar_map = []
         for name, val in match.items():
-            pvars = self.pvars.filter(PVarname.prem==prem)
-            pvars = pvars.join(Varname, PVarname.varname_id==Varname.id).join(Term, Varname.term_id==Term.id)
-            try:
-                pvar = pvars.filter(Term.name==name).one()
-            except NoResultFound:
-                continue
-            pvar_map.append((pvar.num, val))
+            pvars = filter(lambda x: x.prem==prem and x.varname.var.name==name, self.pvars)
+            for n, pvar in enumerate(pvars):
+                pvar_map.append((pvar.num, val))
+                if n > 1:
+                    raise Corruption('should not happen')
         return pvar_map
 
     def get_varname(self, prem, num):
-        pvar = self.pvars.filter(PVarname.prem==prem, PVarname.num==num).one()
+        pvar = tuple(filter(lambda x: x.prem==prem and x.num==num, self.pvars))[0]
         return pvar.varname.name
-
-
-class PVarname(Base):
-    """
-    Mapping from varnames in rules (pvars belong in rules)
-    to premise, number.
-    Premises have numbered variables;
-    and different rules can share a premise,
-    but translate differently its numbrered vars to varnames.
-    """
-    __tablename__ = 'pvarnames'
-
-
-    id = Column(Integer, Sequence('pvarname_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('pvars', lazy='dynamic'),
-                         primaryjoin="Rule.id==PVarname.rule_id")
-    prem_id = Column(Integer, ForeignKey('premises.id'), index=True)
-    prem = relationship('Premise', backref=backref('pvars', lazy='dynamic'),
-                         primaryjoin="Premise.id==PVarname.prem_id")
-    varname_id = Column(Integer, ForeignKey('varnames.id'), index=True)
-    varname = relationship('Varname', backref='pvarnames',
-                         primaryjoin="Varname.id==PVarname.varname_id")
-    num = Column(Integer, index=True)
-
-    def __init__(self, prem, num, varname):
-        self.prem = prem
-        self.num = num
-        self.varname = varname
-
 
 
 class CondArg(Base):
@@ -740,10 +740,10 @@ class CondArg(Base):
     __tablename__ = 'condargs'
 
     id = Column(Integer, Sequence('condarg_id_seq'), primary_key=True)
-    cond_id = Column(Integer, ForeignKey('conditions.id'))
+    cond_id = Column(Integer, ForeignKey('conditions.id'), index=True)
     cond = relationship('Condition', backref='args',
                          primaryjoin="Condition.id==CondArg.cond_id")
-    term_id = Column(Integer, ForeignKey('terms.id'))
+    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     term = relationship('Term',
                          primaryjoin="Term.id==CondArg.term_id")
 
@@ -762,7 +762,7 @@ class Condition(Base):
     __tablename__ = 'conditions'
 
     id = Column(Integer, Sequence('condition_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
     rule = relationship('Rule', backref='conditions',
                          primaryjoin="Rule.id==Condition.rule_id")
 
@@ -831,10 +831,10 @@ class Finish(Base):
     __tablename__ = 'finishs'
 
     id = Column(Integer, Sequence('finish_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
     rule = relationship('Rule', backref='finishes',
                          primaryjoin="Rule.id==Finish.rule_id")
-    pred_id = Column(Integer, ForeignKey('predicates.id'))
+    pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate', primaryjoin="Predicate.id==Finish.pred_id")
 
     def __init__(self, pred):
