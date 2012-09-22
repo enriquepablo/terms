@@ -21,6 +21,7 @@ from sqlalchemy import Table, Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.ext.declarative import declared_attr
 
 
@@ -71,7 +72,7 @@ class Term(Base):
     term_type_index = Index('term_type_index', 'type_id')
 
     # Avoid AttributeErrors
-    objects = ()
+    objects = {}
 
     def __init__(self, name,
                        ttype=None,
@@ -158,9 +159,9 @@ class Predicate(Base):
         p = not self.true and '!' or ''
         p += str(self.term_type)
         p = ['%s %s' % (p, str(self.get_object('subj')))]
-        for o in self.objects:
-            if o.label != 'subj':
-                p.append('%s %s' % (o.label, str(o.value)))
+        for label in self.objects:
+            if label != 'subj':
+                p.append('%s %s' % (label, str(self.get_object(label))))
         return '(%s)' % ', '.join(p)
 
     def __repr__(self):
@@ -168,37 +169,31 @@ class Predicate(Base):
 
     def add_object(self, label, obj):
         if isinstance(obj, Predicate):
-            self.objects.append(PObject(label, obj))
+            self.objects[label] = PObject(label, obj)
         else:
-            self.objects.append(TObject(label, obj))
+            self.objects[label] = TObject(label, obj)
 
     def get_object(self, label):
-        try:
-            return self._objects[label]
-        except AttributeError:
-            self._objects = {}
-            for o in self.objects:
-                self._objects[o.label] = o.value
-            return self._objects[label]
+        return self.objects[label].value
 
     def substitute(self, match):
         if self.term_type.var:
             new = Predicate(self.true, match[self.term_type.name])
         else:
             new = Predicate(self.true, self.term_type)
-        for o in self.objects:
+        for o in self.objects.values():
             obj = o.copy()
             if isinstance(o.value, Predicate):
                 obj.value = o.value.substitute(match)
             elif o.value.var:
                 obj.value = match[o.value.name]
-            new.objects.append(obj)
+            new.objects[obj.label] = obj
         return new
 
     def copy(self):
         new = Predicate(self.true, self.term_type)
-        for o in self.objects:
-            new.objects.append(o.copy())
+        for o in self.objects.values():
+            new.objects[o.label] = o.copy()
         return new
 
 
@@ -210,8 +205,11 @@ class Object(Base):
 
     id = Column(Integer, Sequence('object_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('predicates.id'))
-    parent = relationship('Predicate', backref=backref('objects', cascade='all,delete-orphan'),
-                         primaryjoin="Predicate.id==Object.parent_id")
+    parent = relationship('Predicate',
+                          backref=backref('objects',
+                                          collection_class=attribute_mapped_collection('label'),
+                                          cascade='all,delete-orphan'),
+                          primaryjoin="Predicate.id==Object.parent_id")
     label = Column(String)
 
     otype = Column(Integer)

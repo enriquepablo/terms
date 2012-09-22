@@ -60,16 +60,12 @@ class FactSet(object):
     def _recurse_paths(self, pred, paths, path):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
-        for ob in sorted(pred.objects, key=lambda x: x.label):
-            o = ob.value
+        for label in sorted(pred.objects):
+            o = pred.objects[label].value
             if isa(o, self.lexicon.exists):
-                self._recurse_paths(o, paths, path + (ob.label,))
+                self._recurse_paths(o, paths, path + (label,))
             elif isa(o, self.lexicon.word):
-                paths.append(path + (ob.label, '_term'))
-            else:
-                pass
-                # segment = get_type(o)  # XXX __isa__
-                # paths.append(path + (ob.label, segment))
+                paths.append(path + (label, '_term'))
 
     def _get_nclass(self, ntype):
         mapper = FactNode.__mapper__

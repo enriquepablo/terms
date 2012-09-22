@@ -29,14 +29,14 @@ def repl(dbname):
     kb = KnowledgeBase(config)
     ic = InteractiveConsole()
     while True:
-        try:
-            line = ic.raw_input(prompt=kb.prompt)
-            if line in ('quit', 'exit'):
-                sys.exit('bye')
-            resp = kb.process_line(line)
-        except Exception as e:
-            kb.reset_state()
-            resp = e.__class__.__name__
-            resp += e.args and ': ' + e.args[0] or ''
+#        try:
+        line = ic.raw_input(prompt=kb.prompt)
+        if line in ('quit', 'exit'):
+            sys.exit('bye')
+        resp = kb.process_line(line)
+#        except Exception as e:
+#            kb.reset_state()
+#            resp = e.__class__.__name__
+#            resp += e.args and ': ' + e.args[0] or ''
         if resp is not kb.no_response:
             print(resp)
