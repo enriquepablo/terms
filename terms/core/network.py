@@ -31,7 +31,6 @@ from terms.core.terms import Base, Term, term_to_base, Predicate
 from terms.core.lexicon import Lexicon
 from terms.core.factset import FactSet, Ancestor
 from terms.core import exceptions
-from terms.core import patterns
 from terms.core.utils import Match, merge_submatches
 
 
@@ -211,9 +210,9 @@ class Network(object):
         cls = self._get_nclass(ntype_name)
         value = cls.resolve(term, path)
         name = getattr(value, 'name', '')
-        m = patterns.varpat.match(name)
+        is_var = getattr(value, 'var', False)
         pnum = 0
-        if m:
+        if is_var:
             if name not in vars:
                 pnum = len(vars) + 1
                 vars[name] = (pnum, Varname(value, rule))
