@@ -37,6 +37,6 @@ def repl(dbname):
         except Exception as e:
             kb.reset_state()
             resp = e.__class__.__name__
-            resp += e.args and e.args[0] or ''
+            resp += e.args and ': ' + e.args[0] or ''
         if resp is not kb.no_response:
             print(resp)
