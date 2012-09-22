@@ -69,7 +69,6 @@ class Lexer(object):
             }
 
     t_NUMBER = NUM_PAT
-    t_URL = r'"[^"]+"'
     t_COMMA = r','
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
@@ -80,6 +79,7 @@ class Lexer(object):
     t_VAR = VAR_PAT
     t_IMPLIES = r'->'
     t_RM = r'_RM_'
+    t_URL = r'<[^>]+>'
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self,t):
@@ -144,7 +144,7 @@ class KnowledgeBase(object):
     def __init__(
             self,
             config,
-            lex_optimize=True,
+            lex_optimize=False,
             yacc_optimize=True,
             yacc_debug=False):
 
@@ -189,7 +189,7 @@ class KnowledgeBase(object):
         self.prompt = '... '
         resp = self.no_response
         if line:
-            self._buffer += '\n' + line
+            self._buffer = '\n'.join((self._buffer, line))
             if self._buffer.endswith('.'):
                 try:
                     self._parse_buff()
@@ -198,7 +198,8 @@ class KnowledgeBase(object):
                 self._buffer = ''
                 self.prompt = '>>> '
             elif self._buffer.endswith('?'):
-                resp = self.format_results(self._parse_buff())
+                resp = self._parse_buff()
+                resp = self.format_results(resp)
                 self._buffer = ''
                 self.prompt = '>>> '
         return resp

@@ -1,6 +1,6 @@
 
 
-import "http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms.trm".
+import <http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms.trm>.
 
 (has doc1, what public)?
 false

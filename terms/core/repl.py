@@ -8,7 +8,6 @@ except ImportError:
 from code import InteractiveConsole
 from configparser import ConfigParser
 
-import terms.core
 from terms.core.compiler import KnowledgeBase
 
 
@@ -21,13 +20,13 @@ def repl(dbname):
     name = os.path.join(sys.prefix, 'etc', 'terms.cfg')
     if os.path.exists(name):
         fname = name
-    f = open(fname, 'r')
     config = ConfigParser()
+    f = open(fname, 'r')
     config.read_file(f)
     f.close()
     if dbname:
         config['db']['dbname'] = dbname
-    kb = terms.core.compiler.KnowledgeBase(config)
+    kb = KnowledgeBase(config)
     ic = InteractiveConsole()
     while True:
         try:

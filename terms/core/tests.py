@@ -29,16 +29,17 @@ from terms.core.exceptions import Contradiction
 
 
 CONFIG = '''
-[database]
-address = sqlite:///:memory:
+[db]
+dbms = postgres://terms:terms@localhost
+dbname = test
 [time]
 mode = normal
 '''
 
 
 def test_terms(): # test generator
-    # read contents of terms/
-    # feed each content to run_npl
+    # read contents of tests/
+    # feed each test to run_npl
     d = os.path.dirname(sys.modules['terms.core'].__file__)
     d = os.path.join(d, 'tests')
     files = os.listdir(d)
@@ -62,7 +63,7 @@ def run_terms(kb, fname):
     # compare return of questions with provided output
     with open(fname) as f:
         resp = kb.no_response
-        for sen in f.readlines():
+        for sen in f:
             sen = sen.strip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
