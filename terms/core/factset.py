@@ -23,7 +23,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import OperationalError
 
-from terms.core import patterns, exceptions
+from terms.core import exceptions
 from terms.core.terms import get_bases
 from terms.core.terms import Base, Term, Predicate
 from terms.core.terms import isa, are
@@ -183,14 +183,14 @@ class FactNode(Base):
             cls = factset._get_nclass(ntype_name)
             value = cls.resolve(match.query, path, factset)
             name = getattr(value, 'name', '')
+            is_var = getattr(value, 'var', False)
             if value is None:
                 children = parent.children.all()
             else:
                 children = cls.get_children(parent, match, value, factset)
             for child in children:
                 new_match = match.copy()
-                m = patterns.varpat.match(name)
-                if m:
+                if is_var:
                     if name not in match:
                         if isa(value, factset.lexicon.exists):
                             new_match[name] = Predicate(True, child.value)
@@ -345,7 +345,7 @@ class TermFNode(FactNode):
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
-        if patterns.varpat.match(value.name):
+        if value.var:
             if value.name in match:
                 return parent.children.filter(cls.value==value)
             else:
@@ -400,8 +400,7 @@ class VerbFNode(FactNode):
 
     @classmethod
     def get_children(cls, parent, match, value, factset):
-        m = patterns.varpat.match(value.name)
-        if m:
+        if value.var:
             if value.name in match:
                 value = match[value.name]
                 return parent.children.filter(cls.value==value)
