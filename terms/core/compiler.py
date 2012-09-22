@@ -177,6 +177,10 @@ class KnowledgeBase(object):
     def _parse_buff(self):
         return self.parse(self._buffer)
 
+    def reset_state(self):
+        self._buffer = ''
+        self.prompt = '>>> '
+
     def format_results(self, res):
         if isinstance(res, str):
             return res
@@ -195,13 +199,11 @@ class KnowledgeBase(object):
                     self._parse_buff()
                 except Contradiction as e:
                     resp = 'Contradiction: ' + e.args[0]
-                self._buffer = ''
-                self.prompt = '>>> '
+                self.reset_state()
             elif self._buffer.endswith('?'):
                 resp = self._parse_buff()
                 resp = self.format_results(resp)
-                self._buffer = ''
-                self.prompt = '>>> '
+                self.reset_state()
         return resp
 
     def parse(self, text, filename='', debuglevel=0):
