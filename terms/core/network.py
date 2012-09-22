@@ -420,7 +420,7 @@ class VerbNode(Node):
                 term = term.get_object(segment)
         except (AttributeError, KeyError):
             return None
-        if patterns.varpat.match(term.name):
+        if term.var:
             return term
         return term.term_type
 
