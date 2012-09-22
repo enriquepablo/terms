@@ -70,10 +70,10 @@ class Network(object):
             self.session.commit()
 
     def _get_now(self):
-        return self.root.time
+        return str(self.root.time)
 
     def _set_now(self, val):
-        self.root.time = val
+        self.root.time = eval(str(val))
 
     now = property(_get_now, _set_now)
 
