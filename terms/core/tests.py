@@ -49,6 +49,7 @@ def test_terms(): # test generator
     for f in files:
         if f.endswith('.test'):
             if kb:
+                kb.session.close()
                 Base.metadata.drop_all(kb.engine)
             kb = KnowledgeBase(config,
                     lex_optimize=False,
