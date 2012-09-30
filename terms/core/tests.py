@@ -30,8 +30,10 @@ from terms.core.exceptions import Contradiction
 
 CONFIG = '''
 [db]
-dbms = postgres://terms:terms@localhost
-dbname = test
+# dbms = postgres://terms:terms@localhost
+# dbname = test
+dbms = sqlite://
+dbname = :memory:
 [time]
 mode = normal
 '''
