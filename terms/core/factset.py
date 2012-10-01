@@ -106,6 +106,33 @@ class FactSet(object):
             matches.append(match)
         return matches
 
+    def unsupport_descent(self, fact, descent=None):
+        if descent is None:
+            descent = []
+        for descendant in self.descent:
+            for ch in descendant.children:
+                ch.ancestors.remove(descendant)
+                if ch.ancestors.count() == 0:
+                    descent.append(ch)
+                    self.unsupport_descent(ch, descent)
+        return descent
+
+
+    def remove(self, pred):
+        fact = self.query_facts(pred).one()
+        descent = self.unsupport_descent(fact)
+        self.session.delete(fact)
+        for ch in descent:
+            self.session.delete(fact)
+
+    def finish(self, pred):
+        fact = self.query_facts(pred).one()
+        tofinish = self.unsupport_descent(fact) + [fact]
+        for f in tofinish:
+            pred = f.pred
+            pred.add_object('till_', self.lexicon.make_term(self.now, self.lexicon.number))
+            f.factset = 'past'
+
 
 class Fact(Base):
     __tablename__ = 'facts'
