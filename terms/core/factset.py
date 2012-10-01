@@ -35,6 +35,7 @@ class FactSet(object):
     """
 
     def __init__(self, name, lexicon, config):
+        self.name = name
         self.config = config
         self.session = lexicon.session
         self.lexicon = lexicon
@@ -65,7 +66,7 @@ class FactSet(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, pred):
-        fact = Fact(pred)
+        fact = Fact(pred, self.name)
         paths = self.get_paths(pred)
         for n, path in enumerate(paths):
             cls = self._get_nclass(path)
@@ -77,7 +78,7 @@ class FactSet(object):
 
     def query(self, pred):
         paths = self.get_paths(pred)
-        qfacts = self.session.query(Fact)
+        qfacts = self.session.query(Fact).filter(Fact.factset==self.name)
         vars = []
         for n, path in enumerate(paths):
             cls = self._get_nclass(path)
@@ -110,9 +111,11 @@ class Fact(Base):
     pred = relationship('Predicate', backref=backref('facts'),
                          cascade='all',
                          primaryjoin="Predicate.id==Fact.pred_id")
+    factset = Column(String(16))
     
-    def __init__(self, pred):
+    def __init__(self, pred, name):
         self.pred = pred
+        self.factset = name
 
 
 class Segment(Base):
