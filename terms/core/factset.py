@@ -76,20 +76,24 @@ class FactSet(object):
         self.session.commit()
         return fact
 
-    def query(self, pred):
-        paths = self.get_paths(pred)
-        qfacts = self.session.query(Fact).filter(Fact.factset==self.name)
+    def query_facts(self, pred, paths, taken_vars):
         vars = []
+        sec_vars = []
+        qfacts = self.session.query(Fact).filter(Fact.factset==self.name)
         for n, path in enumerate(paths):
             cls = self._get_nclass(path)
             value = cls.resolve(pred, path, self)
             qfacts = cls.filter_segment(qfacts, value, n, vars, path)
-        sec_vars = []
-        taken_vars = {}
         for var in vars:
             qfacts = var['cls'].filter_segment_first_var(qfacts, var['value'], var['n'], var['path'], self, taken_vars, sec_vars)
         for var in sec_vars:
             qfacts = var['cls'].filter_segment_sec_var(qfacts, var['n'], var['first'])
+        return qfacts
+
+    def query(self, pred):
+        paths = self.get_paths(pred)
+        taken_vars = {}
+        qfacts = self.query_facts(pred, paths, taken_vars)
         matches = []
         for fact in qfacts:
             match = Match(fact.pred, query=pred)
