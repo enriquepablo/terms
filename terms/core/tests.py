@@ -30,10 +30,10 @@ from terms.core.exceptions import Contradiction
 
 CONFIG = '''
 [db]
-# dbms = postgres://terms:terms@localhost
-# dbname = test
-dbms = sqlite://
-dbname = :memory:
+dbms = postgres://terms:terms@localhost
+dbname = test
+#dbms = sqlite://
+#dbname = :memory:
 [time]
 mode = normal
 '''
@@ -45,19 +45,17 @@ def test_terms(): # test generator
     d = os.path.dirname(sys.modules['terms.core'].__file__)
     d = os.path.join(d, 'tests')
     files = os.listdir(d)
-    kb = None
     config = ConfigParser()
     config.read_string(CONFIG)
     for f in files:
         if f.endswith('.test'):
-            if kb:
-                kb.session.close()
-                Base.metadata.drop_all(kb.engine)
             kb = KnowledgeBase(config,
                     lex_optimize=False,
                     yacc_optimize=False,
                     yacc_debug=True)
             yield run_terms, kb, os.path.join(d, f)
+            kb.session.close()
+            Base.metadata.drop_all(kb.engine)
 
 
 def run_terms(kb, fname):
