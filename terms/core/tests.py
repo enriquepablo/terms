@@ -21,6 +21,7 @@ import sys
 import os
 import re
 from configparser import ConfigParser
+import nose
 
 from terms.core.terms import Base
 from terms.core.network import Network
@@ -68,7 +69,7 @@ def run_terms(kb, fname):
             sen = sen.strip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
-                assert sen == resp or re.compile(sen).match(resp)
+                nose.tools.assert_regexp_matches(sen, resp)
                 resp = kb.no_response
             elif sen and not sen.startswith('#'):
                 resp = kb.process_line(sen)

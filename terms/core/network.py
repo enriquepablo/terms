@@ -61,18 +61,22 @@ class Network(object):
         self.session.commit()
 
     def passtime(self, _commit=True):
+        now = eval(self.now, {}, {})
         step = 0
         if self.config['time']['mode'] == 'normal':
             step = 1
-        self.root.time += step
+        now += step
+        self.now = now
         if _commit:
             self.session.commit()
 
     def _get_now(self):
-        return str(self.root.time)
+        return str(self.lexicon.time.now)
 
     def _set_now(self, val):
-        self.root.time = eval(str(val), {}, {})
+        self.lexicon.time.now = eval(str(val), {}, {})
+        now = str(0 + self.lexicon.time.now)
+        self.lexicon.now_term = self.lexicon.make_term(now, self.lexicon.number)
 
     now = property(_get_now, _set_now)
 
@@ -84,14 +88,16 @@ class Network(object):
         '''
         paths = []
         verb_ = pred.term_type
-        self._recurse_paths(verb_, pred, paths, ())
+        self._recurse_paths(verb_, pred, paths, (), first=True)
         return paths
 
-    def _recurse_paths(self, verb_, pred, paths, path):
+    def _recurse_paths(self, verb_, pred, paths, path, first=False):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
-            if '_' in obt.label:
+            if obt.label == 'till_':
+                continue
+            elif not first and obt.label in ('since_', 'at_'):
                 continue
             t = obt.obj_type
             if isa(t, self.lexicon.verb):
@@ -115,15 +121,15 @@ class Network(object):
         if isa(pred, self.lexicon.now):
             now = True
             factset = self.past
-            pred.add_object('at_', self.lexicon.make_term(self.now, self.lexicon.number))
+            pred.add_object('at_', self.lexicon.now_term)
         elif isa(pred, self.lexicon.onwards):
-            pred.add_object('since_', self.lexicon.make_term(self.now, self.lexicon.number))
+            pred.add_object('since_', self.lexicon.now_term)
         neg = pred.copy()
         neg.true = not neg.true
-        contradiction = factset.query(neg)
+        contradiction = factset.query(neg, self.get_paths(neg))
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = factset.query(pred)
+        prev = factset.query(pred, self.get_paths(pred))
         fact = factset.add_fact(pred)
         if not now:
             ancestor = Ancestor(fact)
@@ -139,24 +145,45 @@ class Network(object):
             Node.dispatch(self.root, m, self)
         while self.activations:
             match = self.activations.pop()
-#            self.activations = self.activations[1:]
             Node.dispatch(self.root, match, self)
+        self.passtime(_commit=False)
         if _commit:
             self.session.commit()
         return fact
 
-    def finish(self, pred, _commit=False):
-        self.del_fact(pred, _commit=False)
-        pred.add_object('till_', self.lexicon.make_term(self.now, self.lexicon.number))
-        pred.ancestors = []
-        self.past.add_fact(pred)
+    def unsupported_descent(self, fact, descent=None):
+        if descent is None:
+            descent = []
+        for descendant in fact.descent:
+            for ch in descendant.children:
+                if ch is fact:
+                    continue
+                if len(ch.ancestors) == 1:
+                    descent.append(ch)
+                    self.unsupported_descent(ch, descent)
+                else:
+                    ch.ancestors.remove(descendant)
+        return descent
+
+    def finish(self, pred, _commit=True):
+        paths = self.get_paths(pred)
+        fact = self.present.query_facts(pred, paths, []).one()
+        tofinish = self.unsupported_descent(fact) + [fact]
+        for f in tofinish:
+            pred = f.pred
+            pred.add_object('till_', self.lexicon.now_term)
+            f.factset = 'past'
+            f.matches = []
         if _commit:
             self.session.commit()
 
     def del_fact(self, pred, _commit=True):
-        match = Match(pred)
-        match.paths = self.get_paths(pred)
-        self.present.del_fact(match)
+        paths = self.get_paths(pred)
+        fact = self.present.query_facts(pred, paths, []).one()
+        descent = self.unsupport_descent(fact)
+        self.session.delete(fact)
+        for ch in descent:
+            self.session.delete(ch)
         if _commit:
             self.session.commit()
 
@@ -187,7 +214,7 @@ class Network(object):
         for finish in finishes:
             rule.finishes.append(finish)
         for prem in rule.prems:
-            matches = self.present.query(prem.pred)
+            matches = self.present.query(prem.pred, self.get_paths(prem.pred))
             for match in matches:
                 prem.dispatch(match, self, _numvars=False)
         if _commit:
@@ -197,11 +224,10 @@ class Network(object):
     def query(self, *q):
         submatches = []
         for pred in q:
+            factset = self.present
             if isa(pred, self.lexicon.now):
                 factset = self.past
-            else:
-                factset = self.present
-            smatches = factset.query(pred)
+            smatches = factset.query(pred, self.get_paths(pred))
             submatches.append(smatches)
         matches = merge_submatches(submatches)
         unique = []
@@ -336,7 +362,6 @@ class RootNode(Node):
     __tablename__ = 'rootnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    time = Column(Integer, default=0)
 
     def __init__(self):
         pass
@@ -559,7 +584,7 @@ class PMatch(Base):
     prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
     fact_id = Column(Integer, ForeignKey('facts.id'), index=True)
-    fact = relationship('Fact', backref=backref('matches', cascade='all'),
+    fact = relationship('Fact', backref=backref('matches', cascade='all,delete-orphan'),
                          primaryjoin="Fact.id==PMatch.fact_id")
 
     def __init__(self, prem, fact):
@@ -572,7 +597,7 @@ class MPair(Base):
 
     id = Column(Integer, Sequence('mpair_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('pmatchs.id'), index=True)
-    parent = relationship('PMatch', backref='pairs',
+    parent = relationship('PMatch', backref=backref('pairs', cascade='all'),
                          primaryjoin="PMatch.id==MPair.parent_id")
     var = Column(Integer, index=True)
     mindex = Index('mindex', 'id', 'parent_id')
@@ -696,10 +721,10 @@ class Rule(Base):
             if isa(con, network.lexicon.now):
                 now = True
                 factset = network.past
-                con.add_object('at_', network.lexicon.make_term(network.now, network.lexicon.number))
+                con.add_object('at_', network.lexicon.now_term)
             elif isa(con, network.lexicon.onwards):
-                con.add_object('since_', network.lexicon.make_term(network.now, network.lexicon.number))
-            prev = factset.query(con)
+                con.add_object('since_', network.lexicon.now_term)
+            prev = factset.query(con, network.get_paths(con))
             if prev:
                 continue
             fact = factset.add_fact(con)
@@ -710,7 +735,7 @@ class Rule(Base):
                     pass
             neg = con.copy()
             neg.true = not neg.true
-            contradiction = factset.query(neg)
+            contradiction = factset.query(neg, network.get_paths(neg))
             if contradiction:
                 raise exceptions.Contradiction('we already have ' + str(neg))
             if network.root.child_path:

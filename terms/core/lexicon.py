@@ -26,7 +26,7 @@ from sqlalchemy.orm import sessionmaker
 from terms.core import exceptions
 from terms.core import patterns
 from terms.core.terms import get_bases
-from terms.core.terms import Term, ObjectType, Predicate, isa, are
+from terms.core.terms import Term, ObjectType, Predicate, isa, are, Time
 
 
 class Lexicon(object):
@@ -45,6 +45,8 @@ class Lexicon(object):
             self.onwards = self.get_term('onwards')
             self.now = self.get_term('now')
             self.thing = self.get_term('thing')
+            self.time = self.session.query(Time).one()
+        self.now_term = self.make_term(str(0 + self.time.now), self.number)
 
     def initialize(self):
         '''
@@ -70,6 +72,8 @@ class Lexicon(object):
         self.session.add(self.now)
         self.thing = Term('thing', ttype=self.noun, bases=(self.word,))
         self.session.add(self.thing)
+        self.time = Time()
+        self.session.add(self.time)
         self.session.commit()
 
     def get_term(self, name):

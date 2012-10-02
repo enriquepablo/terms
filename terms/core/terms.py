@@ -25,10 +25,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.ext.declarative import declared_attr
 
 
-class Base(object):
-    @declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower() + 's'
+class Base(object): pass
 
 Base = declarative_base(cls=Base)
 
@@ -193,7 +190,8 @@ class Predicate(Base):
     def copy(self):
         new = Predicate(self.true, self.term_type)
         for o in self.objects.values():
-            new.objects[o.label] = o.copy()
+            if o is not None:
+                new.objects[o.label] = o.copy()
         return new
 
 
@@ -221,7 +219,8 @@ class Object(Base):
 
     def copy(self):
         cls = type(self)
-        return cls(self.label, self.value.copy())
+        nval = self.value and self.value.copy() or self.value
+        return cls(self.label, nval)
 
 
 class TObject(Object):
@@ -297,3 +296,11 @@ def _get_desc(term, desc, search=None, bset=None):
                 bset.add(eq)
                 get_bases(eq, desc, bset)
     return tuple(bset)
+
+
+class Time(Base):
+    '''
+    '''
+    __tablename__ = 'time'
+    id = Column(Integer, default=0, primary_key=True)
+    now = Column(Integer, default=0)

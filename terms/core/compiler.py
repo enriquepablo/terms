@@ -59,6 +59,7 @@ class Lexer(object):
             'FINISH',
             'IMPORT',
             'URL',
+            'PDB',
     )
 
     reserved = {
@@ -66,6 +67,7 @@ class Lexer(object):
             'a': 'A',
             'finish': 'FINISH',
             'import': 'IMPORT',
+            'pdb': 'PDB',
             }
 
     t_NUMBER = NUM_PAT
@@ -236,7 +238,13 @@ class KnowledgeBase(object):
         '''construct : assertion
                      | question
                      | removal
-                     | import'''
+                     | import
+                     | pdb'''
+        p[0] = p[1]
+
+    def p_pdb(self, p):
+        '''pdb : PDB DOT'''
+        import pdb;pdb.set_trace()
         p[0] = p[1]
 
     def p_assertion(self, p):
@@ -245,7 +253,6 @@ class KnowledgeBase(object):
         if isinstance(p[1], str):  # rule
             p[0] = p[1]
         else:
-            self.network.passtime()
             for sen in p[1]:
                 if isa(sen, self.lexicon.exists):
                     self.network.add_fact(sen)

@@ -83,21 +83,20 @@ class FactSet(object):
         for n, path in enumerate(paths):
             cls = self._get_nclass(path)
             value = cls.resolve(pred, path, self)
-            qfacts = cls.filter_segment(qfacts, value, n, vars, path)
+            if value is not None:
+                qfacts = cls.filter_segment(qfacts, value, n, vars, path)
         for var in vars:
             qfacts = var['cls'].filter_segment_first_var(qfacts, var['value'], var['n'], var['path'], self, taken_vars, sec_vars)
         for var in sec_vars:
             qfacts = var['cls'].filter_segment_sec_var(qfacts, var['n'], var['first'])
         return qfacts
 
-    def query(self, pred):
-        paths = self.get_paths(pred)
+    def query(self, pred, paths):
         taken_vars = {}
         qfacts = self.query_facts(pred, paths, taken_vars)
         matches = []
         for fact in qfacts:
             match = Match(fact.pred, query=pred)
-            match.paths = paths
             match.fact = fact
             for name, path in taken_vars.items():
                 cls = self._get_nclass(path)
@@ -105,33 +104,6 @@ class FactSet(object):
                 match[name] = value
             matches.append(match)
         return matches
-
-    def unsupport_descent(self, fact, descent=None):
-        if descent is None:
-            descent = []
-        for descendant in self.descent:
-            for ch in descendant.children:
-                ch.ancestors.remove(descendant)
-                if ch.ancestors.count() == 0:
-                    descent.append(ch)
-                    self.unsupport_descent(ch, descent)
-        return descent
-
-
-    def remove(self, pred):
-        fact = self.query_facts(pred).one()
-        descent = self.unsupport_descent(fact)
-        self.session.delete(fact)
-        for ch in descent:
-            self.session.delete(fact)
-
-    def finish(self, pred):
-        fact = self.query_facts(pred).one()
-        tofinish = self.unsupport_descent(fact) + [fact]
-        for f in tofinish:
-            pred = f.pred
-            pred.add_object('till_', self.lexicon.make_term(self.now, self.lexicon.number))
-            f.factset = 'past'
 
 
 class Fact(Base):
@@ -190,7 +162,6 @@ class Segment(Base):
 class NegSegment(Segment):
 
     __mapper_args__ = {'polymorphic_identity': '_neg'}
-    __table_args__ = {'extend_existing': True}
     value = Column(Boolean, index=True)
     
     @classmethod
@@ -206,7 +177,6 @@ class NegSegment(Segment):
 class TermSegment(Segment):
     
     __mapper_args__ = {'polymorphic_identity': '_term'}
-    __table_args__ = {'extend_existing': True}
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==TermSegment.term_id")
@@ -253,7 +223,6 @@ class TermSegment(Segment):
 class VerbSegment(Segment):
 
     __mapper_args__ = {'polymorphic_identity': '_verb'}
-    __table_args__ = {'extend_existing': True}
     verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==VerbSegment.verb_id")
