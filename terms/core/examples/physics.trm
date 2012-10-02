@@ -18,7 +18,7 @@ has is exists, subj a body, mass a number.
 (pos Body1, pos P1, at T1);
 (vel Body1, vel V1, at T1)
 <-
-condition &= T1 < 1000
+condition &= T1 < 10
 
 P2 = P1 + V1
 T2 = T1 + 1
@@ -29,7 +29,7 @@ T2 = T1 + 1
 (vel Body1, vel N1, at N2);
 (acc Body1, acc N3, at N2)
 <-
-condition &= N2 < 1000
+condition &= N2 < 10
 
 N5 = N1 + N3
 N6 = N2 + 1
@@ -45,7 +45,7 @@ N6 = N2 + 1
 (has Body2, mass M7)
 <-
 condition &= Body1 != Body2
-condition &= T2 < 1000
+condition &= T2 < 10
 
 A8 = A3 + ((M4 * M7) / (M4 * (P1 - P5)**2))
 A9 = A6 + ((M4 * M7) / (M7 * (P5 - P1)**2))
