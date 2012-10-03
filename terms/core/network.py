@@ -95,6 +95,7 @@ class Network(object):
         paths.append(path + ('_verb',))
         paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
+            # XXX this would serve only for the present
             if obt.label == 'till_':
                 continue
             elif not first and obt.label in ('since_', 'at_'):
@@ -106,10 +107,6 @@ class Network(object):
                 self._recurse_paths(verb_, pred, paths, path + (obt.label,))
             else:
                 paths.append(path + (obt.label, '_term'))
-            #elif isa(t, self.lexicon.word):
-            #    pass
-                # segment = get_type(o)  # XXX __isa__
-                # paths.append(path + (ob.label, segment))
 
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__
@@ -126,10 +123,10 @@ class Network(object):
             pred.add_object('since_', self.lexicon.now_term)
         neg = pred.copy()
         neg.true = not neg.true
-        contradiction = factset.query(neg, self.get_paths(neg))
+        contradiction = factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = factset.query(pred, self.get_paths(pred))
+        prev = factset.query(pred)
         fact = factset.add_fact(pred)
         if not now:
             ancestor = Ancestor(fact)
@@ -166,8 +163,7 @@ class Network(object):
         return descent
 
     def finish(self, pred, _commit=True):
-        paths = self.get_paths(pred)
-        fact = self.present.query_facts(pred, paths, []).one()
+        fact = self.present.query_facts(pred, []).one()
         tofinish = self.unsupported_descent(fact) + [fact]
         for f in tofinish:
             pred = f.pred
@@ -178,9 +174,8 @@ class Network(object):
             self.session.commit()
 
     def del_fact(self, pred, _commit=True):
-        paths = self.get_paths(pred)
-        fact = self.present.query_facts(pred, paths, []).one()
-        descent = self.unsupport_descent(fact)
+        fact = self.present.query_facts(pred, []).one()
+        descent = self.unsupported_descent(fact)
         self.session.delete(fact)
         for ch in descent:
             self.session.delete(ch)
@@ -214,7 +209,7 @@ class Network(object):
         for finish in finishes:
             rule.finishes.append(finish)
         for prem in rule.prems:
-            matches = self.present.query(prem.pred, self.get_paths(prem.pred))
+            matches = self.present.query(prem.pred)
             for match in matches:
                 prem.dispatch(match, self, _numvars=False)
         if _commit:
@@ -227,7 +222,7 @@ class Network(object):
             factset = self.present
             if isa(pred, self.lexicon.now):
                 factset = self.past
-            smatches = factset.query(pred, self.get_paths(pred))
+            smatches = factset.query(pred)
             submatches.append(smatches)
         matches = merge_submatches(submatches)
         unique = []
@@ -724,7 +719,7 @@ class Rule(Base):
                 con.add_object('at_', network.lexicon.now_term)
             elif isa(con, network.lexicon.onwards):
                 con.add_object('since_', network.lexicon.now_term)
-            prev = factset.query(con, network.get_paths(con))
+            prev = factset.query(con)
             if prev:
                 continue
             fact = factset.add_fact(con)
@@ -735,7 +730,7 @@ class Rule(Base):
                     pass
             neg = con.copy()
             neg.true = not neg.true
-            contradiction = factset.query(neg, network.get_paths(neg))
+            contradiction = factset.query(neg)
             if contradiction:
                 raise exceptions.Contradiction('we already have ' + str(neg))
             if network.root.child_path:

@@ -68,39 +68,43 @@ class FactSet(object):
     def add_fact(self, pred):
         fact = Fact(pred, self.name)
         paths = self.get_paths(pred)
-        for n, path in enumerate(paths):
+        for path in paths:
             cls = self._get_nclass(path)
             value = cls.resolve(pred, path, self)
-            cls(fact, value, n)
+            cls(fact, value, path)
         self.session.add(fact)
         self.session.commit()
         return fact
 
-    def query_facts(self, pred, paths, taken_vars):
+    def query_facts(self, pred, taken_vars):
         vars = []
         sec_vars = []
+        paths = self.get_paths(pred)
         qfacts = self.session.query(Fact).filter(Fact.factset==self.name)
-        for n, path in enumerate(paths):
+        for path in paths:
             cls = self._get_nclass(path)
             value = cls.resolve(pred, path, self)
             if value is not None:
-                qfacts = cls.filter_segment(qfacts, value, n, vars, path)
+                qfacts = cls.filter_segment(qfacts, value, vars, path)
         for var in vars:
-            qfacts = var['cls'].filter_segment_first_var(qfacts, var['value'], var['n'], var['path'], self, taken_vars, sec_vars)
+            qfacts = var['cls'].filter_segment_first_var(qfacts, var['value'], var['path'], self, taken_vars, sec_vars)
         for var in sec_vars:
-            qfacts = var['cls'].filter_segment_sec_var(qfacts, var['n'], var['first'])
+            qfacts = var['cls'].filter_segment_sec_var(qfacts, var['path'], var['first'])
         return qfacts
 
-    def query(self, pred, paths):
+    def query(self, pred):
         taken_vars = {}
-        qfacts = self.query_facts(pred, paths, taken_vars)
+        qfacts = self.query_facts(pred, taken_vars)
         matches = []
         for fact in qfacts:
             match = Match(fact.pred, query=pred)
             match.fact = fact
             for name, path in taken_vars.items():
-                cls = self._get_nclass(path)
-                value = cls.resolve(fact.pred, path, self)
+                cls = self._get_nclass(path[0])
+                preds = True
+                if 'Verb' in name[1:]:
+                    preds = False
+                value = cls.resolve(fact.pred, path[0], self, preds=preds)
                 match[name] = value
             matches.append(match)
         return matches
@@ -129,27 +133,28 @@ class Segment(Base):
     fact = relationship('Fact',
                          backref='segments',
                          primaryjoin="Fact.id==Segment.fact_id")
-    order = Column(Integer, index=True)
+    path = Column(String, index=True)
 
     ntype = Column(String(5))
     __mapper_args__ = {'polymorphic_on': ntype}
 
-    def __init__(self, fact, value, order):
+    def __init__(self, fact, value, path):
         self.fact = fact
         self.value = value
-        self.order = order
+        self.path = '.'.join(path)
 
     @classmethod
-    def filter_segment(cls, qfact, value, n, vars, path):
+    def filter_segment(cls, qfact, value, vars, path):
         if getattr(value, 'var', False):
-            vars.append({'cls': cls, 'value': value, 'n': n, 'path': path})
+            vars.append({'cls': cls, 'value': value, 'path': path})
         else:
             alias = aliased(cls)
-            qfact = qfact.join(alias, Fact.id==alias.fact_id).filter(alias.value==value, alias.order==n)
+            path_str = '.'.join(path)
+            qfact = qfact.join(alias, Fact.id==alias.fact_id).filter(alias.value==value, alias.path==path_str)
         return qfact
 
     @classmethod
-    def resolve(cls, pred, path, factset):
+    def resolve(cls, pred, path, factset, preds=False):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -165,7 +170,7 @@ class NegSegment(Segment):
     value = Column(Boolean, index=True)
     
     @classmethod
-    def resolve(cls, pred, path, factset):
+    def resolve(cls, pred, path, factset, preds=False):
         try:
             for segment in path[:-1]:
                 pred = pred.get_object(segment)
@@ -182,7 +187,7 @@ class TermSegment(Segment):
                          primaryjoin="Term.id==TermSegment.term_id")
     
     @classmethod
-    def resolve(cls, term, path, factset):
+    def resolve(cls, term, path, factset, preds=False):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
@@ -197,26 +202,28 @@ class TermSegment(Segment):
         return term
 
     @classmethod
-    def filter_segment_first_var(cls, qfacts, value, n, path, factset, taken_vars, sec_vars):
+    def filter_segment_first_var(cls, qfacts, value, path, factset, taken_vars, sec_vars):
         salias = aliased(cls)
         talias = aliased(Term)
         if value.name in taken_vars:
-            sec_vars.append({'cls': cls, 'n': n, 'first': salias})
+            sec_vars.append({'cls': cls, 'path': path, 'first': taken_vars[value.name][1]})
             return qfacts
         else:
-            taken_vars[value.name] = path
+            taken_vars[value.name] = (path, salias)
         if value.bases:
             sbases = factset.lexicon.get_subterms(get_bases(value)[0])
         else:
-            sbases = (value.term_type,) + factset.lexicon.get_subterms(value.term_type)
-        sbases = (b.id for b in sbases)
-        qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.order==n).join(talias, salias.term_id==talias.id).filter(talias.type_id.in_(sbases))
+            sbases = factset.lexicon.get_subterms(value.term_type)
+        sbases = [b.id for b in sbases]
+        path_str = '.'.join(path)
+        qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.term_id==talias.id).filter(talias.type_id.in_(sbases))
         return qfacts
 
     @classmethod
-    def filter_segment_sec_var(cls, qfacts, n, salias):
+    def filter_segment_sec_var(cls, qfacts, path, salias):
         alias = aliased(cls)
-        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.order==n, alias.term_id==salias.term_id)
+        path_str = '.'.join(path)
+        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.term_id==salias.term_id)
         return qfacts
 
 
@@ -228,37 +235,41 @@ class VerbSegment(Segment):
                          primaryjoin="Term.id==VerbSegment.verb_id")
     
     @classmethod
-    def resolve(cls, term, path, factset):
+    def resolve(cls, term, path, factset, preds=False):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
         except AttributeError:
             return None
-        if term.var:
+        if term.var or preds:
             return term
         return term.term_type
 
     @classmethod
-    def filter_segment_first_var(cls, qfacts, value, n, path, factset, taken_vars, sec_vars):
+    def filter_segment_first_var(cls, qfacts, value, path, factset, taken_vars, sec_vars):
         salias = aliased(cls)
         talias = aliased(Term)
         if value.name in taken_vars:
-            sec_vars.append({'cls': cls, 'n': n, 'first': salias})
+            sec_vars.append({'cls': cls, 'path': path, 'first': taken_vars[value.name][1]})
             return
         else:
-            taken_vars[value.name] = path
+            taken_vars[value.name] = (path, salias)
+#        if value.name == 'Exists1':
+#            import pdb;pdb.set_trace()
         if isa(value, factset.lexicon.verb):
             sbases = factset.lexicon.get_subterms(get_bases(value)[0])
         elif isa(value, factset.lexicon.exists):
             sbases = factset.lexicon.get_subterms(value.term_type)
-        sbases = (b.id for b in sbases)
-        qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.order==n).join(talias, salias.verb_id==talias.id).filter(talias.id.in_(sbases))
+        sbases = [b.id for b in sbases]
+        path_str = '.'.join(path)
+        qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.verb_id==talias.id).filter(talias.id.in_(sbases))
         return qfacts
 
     @classmethod
-    def filter_segment_sec_var(cls, qfatcs, n, salias):
+    def filter_segment_sec_var(cls, qfatcs, path, salias):
         alias = aliased(cls)
-        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.order==n, alias.varb_id==salias.verb_id)
+        path_str = '.'.join(path)
+        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.verb_id==salias.verb_id)
         return qfacts
 
 
