@@ -235,7 +235,9 @@ class KnowledgeBase(object):
     # BNF
 
     def p_construct(self, p):
-        '''construct : assertion
+        '''construct : definition
+                     | rule
+                     | fact-set
                      | question
                      | removal
                      | import
@@ -247,24 +249,24 @@ class KnowledgeBase(object):
         import pdb;pdb.set_trace()
         p[0] = p[1]
 
-    def p_assertion(self, p):
-        '''assertion : sentence-list DOT
-                     | rule DOT'''
-        if isinstance(p[1], str):  # rule
-            p[0] = p[1]
-        else:
-            for sen in p[1]:
-                if isa(sen, self.lexicon.exists):
-                    self.network.add_fact(sen)
-                else:
-                    if sen.type == 'noun-def':
-                        term = self.lexicon.add_subterm(sen.name, sen.bases)
-                    elif sen.type == 'verb-def':
-                        term = self.lexicon.add_subterm(sen.name, sen.bases, **(sen.objs))
-                    elif sen.type == 'name-def':
-                        term = self.lexicon.add_term(sen.name, sen.term_type)
-                    self.session.add(term)
-            p[0] = 'OK'
+    def p_fact_set(self, p):
+        '''fact-set : fact-list DOT'''
+        for fact in p[1]:
+            self.network.add_fact(fact)
+        self.session.commit()
+        p[0] = 'OK'
+
+    def p_definition(self, p):
+        '''definition : def DOT'''
+        if p[1].type == 'noun-def':
+            term = self.lexicon.add_subterm(p[1].name, p[1].bases)
+        elif p[1].type == 'verb-def':
+            term = self.lexicon.add_subterm(p[1].name, p[1].bases, **(p[1].objs))
+        elif p[1].type == 'name-def':
+            term = self.lexicon.add_term(p[1].name, p[1].term_type)
+        self.session.add(term)
+        self.session.commit()
+        p[0] = 'OK'
 
     def p_question(self, p):
         '''question : sentence-list QMARK'''
@@ -278,9 +280,10 @@ class KnowledgeBase(object):
         p[0] = matches
 
     def p_removal(self, p):
-        '''removal : RM sentence-list DOT'''
+        '''removal : RM fact-list DOT'''
         for pred in p[2]:
             self.network.del_fact(pred)
+        self.session.commit()
         p[0] = 'OK'
 
     def p_import(self, p):
@@ -290,12 +293,13 @@ class KnowledgeBase(object):
         self._buffer = ''
         for line in code.decode('ascii').splitlines():
             self.process_line(line)
+        self.session.commit()
         p[0] = 'OK'
 
     def p_rule(self, p):
-        '''rule : sentence-list IMPLIES sentence-list
-                | sentence-list pylines IMPLIES sentence-list'''
-        if len(p) == 5:
+        '''rule : sentence-list IMPLIES sentence-list DOT
+                | sentence-list pylines IMPLIES sentence-list DOT'''
+        if len(p) == 6:
             code_str = '\n'.join(p[2])
             conds = [CondCode(code_str.strip())]
             cons = p[4]
@@ -320,6 +324,7 @@ class KnowledgeBase(object):
             else:
                 consecs.append(con)
         self.network.add_rule(prems, conds, consecs, finish)
+        self.session.commit()
         p[0] = 'OK'
 
     def p_pylines(self, p):
@@ -327,6 +332,14 @@ class KnowledgeBase(object):
                    | PYCODE'''
         if len(p) == 3:
             p[0] = (p[1],) + p[2]
+        else:
+            p[0] = (p[1],)
+
+    def p_fact_list(self, p):
+        '''fact-list : fact SEMICOLON fact-list
+                     | fact'''
+        if len(p) == 4:
+            p[0] = (p[1],) + p[3]
         else:
             p[0] = (p[1],)
 
@@ -339,7 +352,7 @@ class KnowledgeBase(object):
             p[0] = (p[1],)
 
     def p_sentence(self, p):
-        '''sentence : definition
+        '''sentence : def
                     | fact
                     | FINISH fact'''
         if len(p) == 3:
@@ -417,10 +430,10 @@ class KnowledgeBase(object):
         else:
             p[0] = p[1]
 
-    def p_definition(self, p):
-        '''definition : noun-def
-                      | name-def
-                      | verb-def'''
+    def p_def(self, p):
+        '''def : noun-def
+               | name-def
+               | verb-def'''
         p[0] = p[1]
 
     def p_noun_def(self, p):
