@@ -251,6 +251,7 @@ class KnowledgeBase(object):
 
     def p_fact_set(self, p):
         '''fact-set : fact-list DOT'''
+        self.network.passtime()
         for fact in p[1]:
             self.network.add_fact(fact)
         self.session.commit()

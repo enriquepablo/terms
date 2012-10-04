@@ -61,11 +61,12 @@ class Network(object):
         self.session.commit()
 
     def passtime(self):
-        now = eval(self.now, {}, {})
-        step = 0
+        past = eval(self.now, {}, {})
+        now = 0
         if self.config['time']['mode'] == 'normal':
-            step = 1
-        now += step
+            now = past + 1
+        elif self.config['time']['mode'] == 'real':
+            now = int(time.time())
         self.now = now
 
     def _get_now(self):
@@ -139,7 +140,6 @@ class Network(object):
         while self.activations:
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
-        self.passtime()
         return fact
 
     def unsupported_descent(self, fact, descent=None):
