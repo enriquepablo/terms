@@ -175,6 +175,10 @@ class Network(object):
 
     def del_fact(self, pred, _commit=True):
         fact = self.present.query_facts(pred, []).one()
+        if not isa(pred, self.lexicon.onwards):
+            for a in fact.ancestors:
+                if not (len(a.parents) == 1 and a.parents[0].id == fact.id):
+                    raise exceptions.Contradiction('Cannot retract ' + str(fact.pred))
         descent = self.unsupported_descent(fact)
         self.session.delete(fact)
         for ch in descent:
