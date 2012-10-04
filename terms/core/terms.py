@@ -156,7 +156,7 @@ class Predicate(Base):
         p = not self.true and '!' or ''
         p += str(self.term_type)
         p = ['%s %s' % (p, str(self.get_object('subj')))]
-        for label in self.objects:
+        for label in sorted(self.objects):
             if label != 'subj':
                 p.append('%s %s' % (label, str(self.get_object(label))))
         return '(%s)' % ', '.join(p)
