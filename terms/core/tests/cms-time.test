@@ -4,7 +4,7 @@ import <http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms-
 (wants john, do (publish john, what doc1)).
 
 (publish john, what doc1, at_ N1)?
-N1: 22
+N1: 23
 
 (has doc1, what public)?
 true

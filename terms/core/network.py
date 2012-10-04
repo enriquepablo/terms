@@ -126,13 +126,13 @@ class Network(object):
         contradiction = factset.query(neg)
         if contradiction:
             raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = factset.query(pred)
-        fact = factset.add_fact(pred)
+        prev = factset.query_facts(pred, {}).all()
+        fact = factset.add_fact(pred, prev)
         if not now:
             ancestor = Ancestor(fact)
             ancestor.children.append(fact)
         if prev:
-            return
+            return prev[0]
         if self.root.child_path:
             m = Match(pred)
             m.paths = self.get_paths(pred)
@@ -704,20 +704,20 @@ class Rule(Base):
                 con.add_object('at_', network.lexicon.now_term)
             elif isa(con, network.lexicon.onwards):
                 con.add_object('since_', network.lexicon.now_term)
-            prev = factset.query(con)
-            if prev:
-                continue
-            fact = factset.add_fact(con)
-            if match.ancestor and not now:
-                try:
-                    fact.ancestors.append(match.ancestor)
-                except InvalidRequestError:
-                    pass
             neg = con.copy()
             neg.true = not neg.true
             contradiction = factset.query(neg)
             if contradiction:
                 raise exceptions.Contradiction('we already have ' + str(neg))
+            prev = factset.query_facts(con, {}).all()
+            fact = factset.add_fact(con, prev)
+            if match.ancestor and not now:
+                try:
+                    fact.ancestors.append(match.ancestor)
+                except InvalidRequestError:
+                    pass
+            if prev:
+                continue
             if network.root.child_path:
                 m = Match(con)
                 m.paths = network.get_paths(con)

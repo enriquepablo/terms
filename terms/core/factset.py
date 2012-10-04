@@ -65,7 +65,9 @@ class FactSet(object):
         mapper = Segment.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
-    def add_fact(self, pred):
+    def add_fact(self, pred, prev):
+        if prev:
+            return prev[0]
         fact = Fact(pred, self.name)
         paths = self.get_paths(pred)
         for path in paths:

@@ -19,7 +19,6 @@
 
 import sys
 import os
-import re
 from configparser import ConfigParser
 import nose
 
@@ -69,7 +68,9 @@ def run_terms(kb, fname):
             sen = sen.strip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
-                nose.tools.assert_regexp_matches(sen, resp)
+                nose.tools.assert_equals(sen, resp,
+                    msg='returned "%s" is not "%s" at line %d for query: %s' %
+                        (resp, sen, kb.lex.lexer.lineno, kb.lex.lexer.lexdata))
                 resp = kb.no_response
             elif sen and not sen.startswith('#'):
                 resp = kb.process_line(sen)

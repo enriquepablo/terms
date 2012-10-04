@@ -289,11 +289,13 @@ class KnowledgeBase(object):
 
     def p_import(self, p):
         '''import : IMPORT URL DOT'''
+        lineno = self.lex.lexer.lineno
         resp = urlopen(p[2][1:-1])
         code = resp.read()
         self._buffer = ''
         for line in code.decode('ascii').splitlines():
             self.process_line(line)
+        self.lex.lexer.lineno = lineno + 1
         self.session.commit()
         p[0] = 'OK'
 
