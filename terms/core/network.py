@@ -241,8 +241,8 @@ class Network(object):
             else:
                 pnum = vars[name][0]
         try:
-            nodes = parent.children.filter(Node.var==pnum)
-            node = nodes.join(cls, Node.id==cls.nid).filter(cls.value==value).one()
+            nodes = self.session.query(cls).filter(cls.parent_id==parent.id, cls.var==pnum)
+            node = nodes.filter(cls.value==value).one()
         except NoResultFound:
             #  build the node and append it
             node = cls(value)
@@ -347,9 +347,7 @@ class RootNode(Node):
     '''
     A root node
     '''
-    __tablename__ = 'rootnodes'
     __mapper_args__ = {'polymorphic_identity': '_root'}
-    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
 
     def __init__(self):
         pass
@@ -359,10 +357,8 @@ class NegNode(Node):
     '''
     A node that tests whether a predicate is negated
     '''
-    __tablename__ = 'negnodes'
     __mapper_args__ = {'polymorphic_identity': '_neg'}
 
-    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     value = Column(Boolean, index=True)
     
     @classmethod
@@ -379,16 +375,14 @@ class NegNode(Node):
             return True
 
     @classmethod
-    def get_children(cls, parent, value, factset):
-        return [parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))]
+    def get_children(cls, parent, value, network):
+        return [network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))]
 
 
 class TermNode(Node):
     '''
     '''
-    __tablename__ = 'termnodes'
     __mapper_args__ = {'polymorphic_identity': '_term'}
-    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==TermNode.term_id")
     
@@ -409,12 +403,12 @@ class TermNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))
+        children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
         vchildren = ()
         types = (value.term_type,) + get_bases(value.term_type)
         type_ids = [t.id for t in types]
         if type_ids:
-            vchildren = parent.children.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
+            vchildren = network.session.query(cls).filter(cls.parent_id==parent.id).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
         if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
             bases = (value,) + get_bases(value)
             tbases = aliased(Term)
@@ -427,11 +421,9 @@ class TermNode(Node):
 class VerbNode(Node):
     '''
     '''
-    __tablename__ = 'verbnodes'
     __mapper_args__ = {'polymorphic_identity': '_verb'}
-    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
-    term_id = Column(Integer, ForeignKey('terms.id'), index=True)
-    value = relationship('Term', primaryjoin="Term.id==VerbNode.term_id")
+    verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
+    value = relationship('Term', primaryjoin="Term.id==VerbNode.verb_id")
     
     @classmethod
     def resolve(cls, term, path):
@@ -446,14 +438,14 @@ class VerbNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
-        children = parent.children.join(cls, Node.id==cls.nid).filter((cls.value==value) | (cls.value==None))
+        children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
         pchildren = []
         types = (value,) + get_bases(value)
         type_ids = [t.id for t in types]
-        chvars = parent.children.filter(Node.var>0)
-        pchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids))
+        chvars = network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0)
+        pchildren = chvars.join(Term, cls.verb_id==Term.id).filter(Term.type_id.in_(type_ids))
         tbases = aliased(Term)
-        vchildren = chvars.join(cls, Node.id==cls.nid).join(Term, cls.term_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
+        vchildren = chvars.join(Term, cls.verb_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
