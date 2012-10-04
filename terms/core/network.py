@@ -60,15 +60,13 @@ class Network(object):
         self.session.add(self.root)
         self.session.commit()
 
-    def passtime(self, _commit=True):
+    def passtime(self):
         now = eval(self.now, {}, {})
         step = 0
         if self.config['time']['mode'] == 'normal':
             step = 1
         now += step
         self.now = now
-        if _commit:
-            self.session.commit()
 
     def _get_now(self):
         return str(self.lexicon.time.now)
@@ -112,7 +110,7 @@ class Network(object):
         mapper = Node.__mapper__
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
-    def add_fact(self, pred, _commit=True):
+    def add_fact(self, pred):
         factset = self.present
         now = False
         if isa(pred, self.lexicon.now):
@@ -132,8 +130,6 @@ class Network(object):
             ancestor = Ancestor(fact)
             ancestor.children.append(fact)
         if prev:
-            if _commit:
-                self.session.commit()
             return
         if self.root.child_path:
             m = Match(pred)
@@ -143,9 +139,7 @@ class Network(object):
         while self.activations:
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
-        self.passtime(_commit=False)
-        if _commit:
-            self.session.commit()
+        self.passtime()
         return fact
 
     def unsupported_descent(self, fact, descent=None):
@@ -162,7 +156,7 @@ class Network(object):
                     ch.ancestors.remove(descendant)
         return descent
 
-    def finish(self, pred, _commit=True):
+    def finish(self, pred):
         fact = self.present.query_facts(pred, []).one()
         tofinish = self.unsupported_descent(fact) + [fact]
         for f in tofinish:
@@ -170,10 +164,8 @@ class Network(object):
             pred.add_object('till_', self.lexicon.now_term)
             f.factset = 'past'
             f.matches = []
-        if _commit:
-            self.session.commit()
 
-    def del_fact(self, pred, _commit=True):
+    def del_fact(self, pred):
         fact = self.present.query_facts(pred, []).one()
         if not isa(pred, self.lexicon.onwards):
             for a in fact.ancestors:
@@ -183,10 +175,8 @@ class Network(object):
         self.session.delete(fact)
         for ch in descent:
             self.session.delete(ch)
-        if _commit:
-            self.session.commit()
 
-    def add_rule(self, prems, conds, cons, finishes, orders=None, _commit=True):
+    def add_rule(self, prems, conds, cons, finishes):
         rule = Rule()
         prempairs = []
         for n, pred in enumerate(prems):
@@ -216,8 +206,6 @@ class Network(object):
             matches = self.present.query(prem.pred)
             for match in matches:
                 prem.dispatch(match, self, _numvars=False)
-        if _commit:
-            self.session.commit()
 
 
     def query(self, *q):

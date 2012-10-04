@@ -132,20 +132,14 @@ class Lexicon(object):
         elif are(term_base, self.exists):
             return self._make_verb(name, bases=super_terms, objs=objs)
 
-    def save_term(self, term, _commit=True):
-        self.session.add(term)
-        if _commit:
-            self.session.commit()
-        return term
-
-    def add_term(self, name, term_type, _commit=True, **objs):
+    def add_term(self, name, term_type, **objs):
         term = self.make_term(name, term_type, **objs)
-        self.save_term(term, _commit)
+        self.session.add(term)
         return term
 
-    def add_subterm(self, name, super_terms, _commit=True, **objs):
+    def add_subterm(self, name, super_terms, **objs):
         term = self.make_subterm(name, super_terms, **objs)
-        self.save_term(term, _commit)
+        self.session.add(term)
         return term
 
     def get_subterms(self, term):

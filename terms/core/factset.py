@@ -73,7 +73,6 @@ class FactSet(object):
             value = cls.resolve(pred, path, self)
             cls(fact, value, path)
         self.session.add(fact)
-        self.session.commit()
         return fact
 
     def query_facts(self, pred, taken_vars):
