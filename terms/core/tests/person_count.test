@@ -69,3 +69,19 @@ false
 
 (hates yoko, who john)?
 true
+
+narcissus is exists, subj a person.
+
+(loves Person1, who Person1)
+->
+(narcissus Person1).
+
+narciso is a person.
+
+(loves narciso, who narciso).
+
+(narcissus narciso)?
+true
+
+(narcissus yoko)?
+false

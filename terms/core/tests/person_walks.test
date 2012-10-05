@@ -154,7 +154,7 @@ here is a place.
 (!walks john, from madrid, to here).
 
 (walks john, from madrid, to here).
-Contradiction: we already have (!walks john, to here, from madrid)
+Contradiction: we already have (!walks john, from madrid, to here)
 
 (walks john, from madrid, to here)?
 false
