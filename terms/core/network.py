@@ -96,9 +96,7 @@ class Network(object):
         paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
             # XXX this would serve only for the present
-            if obt.label == 'till_':
-                continue
-            elif not first and obt.label in ('since_', 'at_'):
+            if obt.label in ('till_', 'since_', 'at_'):
                 continue
             t = obt.obj_type
             if isa(t, self.lexicon.verb):
@@ -114,12 +112,7 @@ class Network(object):
 
     def add_fact(self, pred):
         factset = self.present
-        now = False
-        if isa(pred, self.lexicon.now):
-            now = True
-            factset = self.past
-            pred.add_object('at_', self.lexicon.now_term)
-        elif isa(pred, self.lexicon.onwards):
+        if isa(pred, self.lexicon.onwards):
             pred.add_object('since_', self.lexicon.now_term)
         neg = pred.copy()
         neg.true = not neg.true
@@ -128,9 +121,8 @@ class Network(object):
             raise exceptions.Contradiction('we already have ' + str(neg))
         prev = factset.query_facts(pred, {}).all()
         fact = factset.add_fact(pred, prev)
-        if not now:
-            ancestor = Ancestor(fact)
-            ancestor.children.append(fact)
+        ancestor = Ancestor(fact)
+        ancestor.children.append(fact)
         if prev:
             return prev[0]
         if self.root.child_path:
@@ -162,7 +154,7 @@ class Network(object):
         tofinish = self.unsupported_descent(fact) + [fact]
         for f in tofinish:
             pred = f.pred
-            pred.add_object('till_', self.lexicon.now_term)
+            self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
             f.factset = 'past'
             f.matches = []
 
@@ -466,12 +458,11 @@ class PremNode(Base):
     def dispatch(self, match, network, _numvars=True):
         if not self.prems[0].check_match(match, network):
             return
-        if not isa(match.pred, network.lexicon.now):
-            m = PMatch(self, match.fact)
-            for var, val in match.items():
-                m.pairs.append(MPair.make_pair(var, val))
-            self.matches.append(m)
-            match.ancestor = Ancestor(match.fact)
+        m = PMatch(self, match.fact)
+        for var, val in match.items():
+            m.pairs.append(MPair.make_pair(var, val))
+        self.matches.append(m)
+        match.ancestor = Ancestor(match.fact)
         for premise in self.prems:
             premise.dispatch(match, network, _numvars=_numvars)
 
@@ -697,12 +688,7 @@ class Rule(Base):
 
         for con in cons:
             factset = network.present
-            now = False
-            if isa(con, network.lexicon.now):
-                now = True
-                factset = network.past
-                con.add_object('at_', network.lexicon.now_term)
-            elif isa(con, network.lexicon.onwards):
+            if isa(con, network.lexicon.onwards):
                 con.add_object('since_', network.lexicon.now_term)
             neg = con.copy()
             neg.true = not neg.true
@@ -711,7 +697,7 @@ class Rule(Base):
                 raise exceptions.Contradiction('we already have ' + str(neg))
             prev = factset.query_facts(con, {}).all()
             fact = factset.add_fact(con, prev)
-            if match.ancestor and not now:
+            if match.ancestor:
                 try:
                     fact.ancestors.append(match.ancestor)
                 except InvalidRequestError:

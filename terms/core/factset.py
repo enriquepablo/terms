@@ -77,6 +77,12 @@ class FactSet(object):
         self.session.add(fact)
         return fact
 
+    def add_object_to_fact(self, fact, value, path):
+        cls = self._get_nclass(path)
+        segment = cls(fact, value, path)
+        self.session.add(segment)
+        fact.pred.add_object(path[-2], value)
+
     def query_facts(self, pred, taken_vars):
         vars = []
         sec_vars = []
@@ -124,6 +130,16 @@ class Fact(Base):
     def __init__(self, pred, name):
         self.pred = pred
         self.factset = name
+
+    def get_descent(self, descent=None):
+        if descent is None:
+            descent = [self]
+        for d in self.descent:
+            for fact in d.children:
+                if fact is not self:
+                    descent.append(fact)
+                    fact.get_descent(descent)
+        return descent
 
 
 class Segment(Base):

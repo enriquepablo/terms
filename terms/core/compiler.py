@@ -251,9 +251,20 @@ class KnowledgeBase(object):
 
     def p_fact_set(self, p):
         '''fact-set : fact-list DOT'''
-        self.network.passtime()
-        for fact in p[1]:
-            self.network.add_fact(fact)
+        if self.config['time']['mode'] != 'none':
+            self.network.passtime()
+        nows = []
+        for pred in p[1]:
+            fact = self.network.add_fact(pred)
+            if isa(pred, self.lexicon.now):
+                nows.append(fact)
+        for fact in nows:
+            descent = fact.get_descent()
+            for ch in descent:
+                if isa(ch.pred, self.lexicon.now):
+                    self.network.present.add_object_to_fact(ch, self.lexicon.now_term, ('at_', '_term'))
+                    ch.factset = 'past'
+                    ch.matches = []
         self.session.commit()
         p[0] = 'OK'
 
