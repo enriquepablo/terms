@@ -453,12 +453,9 @@ class KnowledgeBase(object):
     def p_noun_def(self, p):
         '''noun-def : A SYMBOL IS A term
                     | A vterm IS A vterm'''
-        if len(p) == 6:
-            if isinstance(p[5], str):
-                p[5] = self.lexicon.get_term(p[5])
-            p[0] = AstNode(p[2], 'noun-def', bases=[p[5]])
-        else:
-            p[0] = AstNode(p[1], 'noun-def', bases=p[3])
+        if isinstance(p[5], str):
+            p[5] = self.lexicon.get_term(p[5])
+        p[0] = AstNode(p[2], 'noun-def', bases=[p[5]])
 
     def p_terms(self, p):
         '''terms : term COMMA terms

@@ -205,36 +205,20 @@ class Lexicon(object):
             bases = (self.noun,)
         return Term(name, ttype=self.word, bases=tuple(bases))
 
-    def _make_name(self, name, noun_=None):
-        if noun_ is None:
-            m = patterns.NAME_PAT.match(name)
-            if m:
-                noun_ = self.get_term(m.group(1))
-                assert isa(noun_, self.noun)
-            else:
-                noun_ = self.thing
+    def _make_name(self, name, noun_):
         return Term(name, ttype=noun_)
 
     def _make_verb(self, name, bases=None, vtype=None, objs=None):
-        if not bases:
-            bases = (self.exists,)
-        elif isa(bases, self.verb):
-            bases = (bases,)
         if objs is None:
             objs = {}
         for l in objs:
             if '_' in l:
                 raise exceptions.IllegalLabel(l)
         if vtype is None:
-            if bases:
-                vtype = bases[0].term_type
-            else:
-                vtype = self.verb
+            vtype = bases[0].term_type
         return Term(name, ttype=vtype, bases=tuple(bases), objs=objs)
 
     def _make_subverb(self, name, bases=None):
-        if bases is None:
-            bases = (self.verb,)
         return Term(name, ttype=self.word, bases=tuple(bases))
 
     def make_number(self, num):

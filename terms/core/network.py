@@ -305,22 +305,15 @@ class Node(Base):
             children = chcls.get_children(parent, value, network)
             for ch in children:
                 for child in ch:
-                    good = True
                     new_match = match.copy()
                     if child.var:
                         val = None
                         if chcls is VerbNode and isa(child.value, network.lexicon.exists):
                             val = TermNode.resolve(match.pred, path)
-                        elif value:
+                        else:
                             val = value
-                        else:
-                            good = False
-                        if child.var in match and match[child.var] != val:
-                            good = False
-                        else:
-                            new_match[child.var] = val
-                    if good:
-                        chcls.dispatch(child, new_match, network)
+                        new_match[child.var] = val
+                    chcls.dispatch(child, new_match, network)
         if parent.terminal:
             parent.terminal.dispatch(match, network)
 
@@ -355,11 +348,8 @@ class NegNode(Node):
     
     @classmethod
     def resolve(cls, pred, path):
-        try:
-            for segment in path[:-1]:
-                pred = pred.get_object(segment)
-        except AttributeError:
-            return None
+        for segment in path[:-1]:
+            pred = pred.get_object(segment)
         try:
             return pred.true
         except AttributeError:
@@ -419,11 +409,8 @@ class VerbNode(Node):
     
     @classmethod
     def resolve(cls, term, path):
-        try:
-            for segment in path[:-1]:
-                term = term.get_object(segment)
-        except (AttributeError, KeyError):
-            return None
+        for segment in path[:-1]:
+            term = term.get_object(segment)
         if term.var:
             return term
         return term.term_type

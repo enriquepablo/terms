@@ -211,11 +211,8 @@ class TermSegment(Segment):
         a sting (for label nodes),
         a word, or some custom value for custom node types.
         '''
-        try:
-            for segment in path[:-1]:
-                term = term.get_object(segment)
-        except (KeyError, AttributeError):
-            return None
+        for segment in path[:-1]:
+            term = term.get_object(segment)
         return term
 
     @classmethod
@@ -253,11 +250,8 @@ class VerbSegment(Segment):
     
     @classmethod
     def resolve(cls, term, path, factset, preds=False):
-        try:
-            for segment in path[:-1]:
-                term = term.get_object(segment)
-        except AttributeError:
-            return None
+        for segment in path[:-1]:
+            term = term.get_object(segment)
         if term.var or preds:
             return term
         return term.term_type
@@ -268,7 +262,7 @@ class VerbSegment(Segment):
         talias = aliased(Term)
         if value.name in taken_vars:
             sec_vars.append({'cls': cls, 'path': path, 'first': taken_vars[value.name][1]})
-            return
+            return qfacts
         else:
             taken_vars[value.name] = (path, salias)
 #        if value.name == 'Exists1':
