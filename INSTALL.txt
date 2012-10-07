@@ -7,7 +7,7 @@ Dependencies
 Python 3 (tested on 3.2).
 
 Python libraries (these should be pulled by ``easy_install``):
-    * Ply
+    * ply
     * sqlalchemy
 
 Some RDBM system compatible with sqlalchemy (tested with postgreqsl and sqlite).
@@ -27,9 +27,7 @@ Interfacing
 +++++++++++
 
 Once installed, you should have a ``terms`` script,
-that provides a REPL. You invoke it with the name of a knowledge store,
-that coresponds to a database in the RDBMS.
-If you do not provide a name, it will default to "test".
+that provides a REPL.
 You control which RDBMS to use with a config file,
 ``~/.terms.cfg``, with contents like::
 
@@ -37,10 +35,18 @@ You control which RDBMS to use with a config file,
     dbms = postgres://terms:terms@localhost
     dbname = terms
 
-If you omit this file, the db will default to an in-memory
-sqlite db. If you specify another db, you must create it,
-and the db user provided to Terms must be able to create
-and drop tables.
+The default is::
+
+    [db]
+    dbms = sqlite://
+    dbname = :memory:
+
+You can invoke the terms script with the name of a knowledge store,
+that coresponds to a database in the RDBMS,
+and that overrides the ``dbname`` config setting.
+
+The specified database must exist, and the terms user
+must be able to create and drop tables and indexes.
 
 So, for example, once you are set, open the REPL::
 
@@ -55,3 +61,7 @@ So, for example, once you are set, open the REPL::
     true
     >>> (loves sue, who john)?
     false
+    >>> quit
+    eperez@calandria$ terms testing
+    >>> (loves john, who sue)?
+    true

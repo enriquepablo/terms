@@ -60,8 +60,10 @@ Among the predifined words, these relations are given::
 To define a new word, you put it in relation to an existing word. For example::
 
     a person is a thing.
-    john is a person.
-    sue is a person.
+    a man is a person.
+    a woman is a person.
+    john is a man.
+    sue is a woman.
 
 These relations have consecuences, given by 2 implicit rules::
 
@@ -70,19 +72,29 @@ These relations have consecuences, given by 2 implicit rules::
 
 Therefore, from all the above, we have, for example, that::
 
+    thing is a word.
     person is a word.
     person is a noun.
     john is a word.
     a man is a thing.
     john is a thing.
+    sue is a person.
 
-Verbs are special in that they can have modifiers (or objects) when used to build facts.
+With these words, we can build facts.
+A fact consists of a verb and any number of (labelled) objects.
+
+Verbs are special words in that they can have modifiers (or objects) when used to build facts.
 These modifiers are words, and are labeled. To define a new verb, you provide
 the types of words that can be objects for the verb in a fact,
 associated with their label.
 For example::
 
     loves is exists, subj a person, who a person.
+
+That can be read as:
+``loves`` is a word of type ``verb``, subtype of ``exists``,
+and when used in facts it can take a subject of type ``person``
+and an object labelled ``who`` of type ``person``.
 
 Facts
 -----
@@ -114,7 +126,7 @@ Facts are of type ``exists``, and also of type <verb>,
 were <verb> is the verb used to build the fact.
 
 The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
-a ``number``). In addition, they can also be facts (``exists``).
+a ``number``). In addition, they can also be facts (type ``exists``).
 So, if we define a verb like::
 
     wants is exists, subj a person, what a exists.
@@ -122,6 +134,10 @@ So, if we define a verb like::
 We can then build facts like::
 
     (wants john, what (loves sue, who john)).
+
+And indeed::
+
+    (wants john, what (wants sue, what (loves sue, who john))).
 
 Rules
 -----
@@ -143,7 +159,7 @@ among matching facts concerns the variables in the conditions.
 
 We can use variables in rules. They are logical variables, used only to match words or facts,
 and with a scope limited to the rule were they are used. We build variables by
-capitalizing the name of the type of terms that it can match and appending any number of
+capitalizing the name of the type of terms that it can match, and appending any number of
 digits. So, for example, a variable ``Person1`` would match any person, such as
 ``sue`` or ``john``. With variables, we may build a rule like::
 
@@ -165,7 +181,7 @@ With this, and ``(wants john, what (loves sue, who john)).``, the system would c
 that ``(loves sue, who john)``.
 
 Variables that match verbs or nouns have a special form, in that they are prefixed by
-the name of a verb, so that they match verbs that are subtypes of the given verb.
+the name of a verb (or a noun), so that they match verbs that are subtypes of the given verb.
 For example, with the terms we have from above, we might make a rule like::
 
     (LovesVerb1 john, who Person1)
@@ -176,7 +192,11 @@ In this case, ``LovesVerb1`` would match both ``loves`` and ``adores``, so both
 ``(loves john, who sue)`` and ``(adores john, who sue)`` would produce the conclusion
 that ``(loves sue, who john)``.
 
-Finally, number variables are composed just with a capital letter an an integer, like
+Likewise for noun variables. In this case
+an example might be ``PersonNoun1``. This variable would match ``person``,
+and also ``man`` and ``woman``.
+
+Finally, number variables are composed just with a capital letter and an integer, like
 ``N1``, ``P3``, or ``F122``.
 
 Pythonic conditions
@@ -188,7 +208,7 @@ and to perform arithetic operations. This section is placed after the conditions
 between the symbols ``<-`` and ``->``. The results of the tests are placed in a
 ``condition`` python variable, and if it evaluates to ``False``, the rule is not fired.
 
-As an example, let's imagine some new terms::
+To give an example, let's imagine some new terms::
 
     aged is exists, age a number.
     a bar is a thing.
@@ -211,4 +231,97 @@ If we have that::
     (wants sue, what (enters sue, where club-momentos)).
     (wants john, what (enters john, where club-momentos)).
 
-The system will (only) conclude that ``(enters john, where club_momentos)``.
+The system will (only) conclude that ``(enters john, where club-momentos)``.
+
+Time
+----
+
+In the monotonic classical logic we have depicted so far,
+it is very simple to represent physical time:
+you only need to add a ``time`` object of type number
+to any temporal verb.
+However, to represent the present time,
+i.e., a changing distinguished instant of time,
+this logic is not enough.
+We need to use some non-monotonic tricks for that,
+that are implemented in terms as a kind of temporal logic.
+This temporal logic can be activated in the settings file::
+
+
+    [db]
+    dbms = sqlite://
+    dbname = :memory:
+    [time]
+    mode = normal
+
+If it is activated, several things happen.
+
+The first is that the system starts tracking the present time.
+It has an integer register whose value represents the current time.
+This register is updated each time we add new facts.
+There are 3 possible values for the ``mode``
+setting for time:
+If the setting is ``none``, nothing is done with time.
+If the setting is ``normal``, the current time of the system is incremented by 1 when it is updated.
+If the setting is ``real``, the current time of the system
+is updated with Python's ``import time; int(time.time())``.
+
+The second thing that happens is that, rather than defining verbs extending ``exists``,
+we use 2 new verbs, ``now`` and ``onwards``, both subtypes of ``exists``.
+These new verbs have special number objects:
+``now`` has an ``at_`` object, and ``onwards`` a ``since_`` and a ``till_`` objects.
+
+The third is that the system starts keeping 2 different fatsets,
+one for the present and one for the past.
+All reasoning occurs in the present factset.
+When we add a fact made with these verbs, the system automatically adds
+to ``now`` an ``at_`` object and to ``onwards`` a ``since_`` object,
+both with the value of its "present" register.
+The ``till_`` object of ``onwards`` facts is left undefined.
+We never explicitly set those objects.
+When added, ``now`` facts go through the rule network, producing consecuences,
+and then are added to the past factset;
+``onwards`` facts go through the rules network and then are added
+to the present factset.
+Queries for ``now`` facts go to the past factset,
+and those for ``onwards`` facts are done against the present.
+We might say that the facts in the present factset are in
+present continuous tense.
+
+The fourth thing that happens when we activate the temporal logic
+is that we can use a new predicate in the consecuances of our rules:
+``finish``. We use it with an ``onwards`` fact: ``finish (<fact>).``
+And when a rule with such a consecuence is activated,
+it grabs the provided fact from the present factset,
+adds to it a ``till_`` object with the present time as value,
+removes it from the present factset,
+and adds it to the past factset.
+The system keeps track of the ancestry of facts obtained by reasoning,
+and when a fact is finished, its descent (if otherwise unsupported)
+is also finished.
+
+**Miscelaneous technical notes.**
+
+  * I have shown several different kinds of variables,
+    for things, for verbs, for numbers, for facts.
+    But the logic behind Terms is first order,
+    there is only one kind of individuals,
+    and the proliferation of kinds of variable
+    is just syntactic sugar.
+    ``Person1`` would be equivalent to something like
+    "for all x, x is a person and x...".
+    ``LovesVerb1`` would be equivalent to something like
+    "for all x, a x is a loves and x...".
+
+ *  The design of the system is such that
+    both adding new facts (with their consecuences)
+    and querying for facts should be independent of
+    the size of the knowledge base.
+    The only place where we depend on the size of the data
+    is in arithmetic conditions,
+    since at present number objects are not indexed as such.
+
+ * The Python section of the rules is ``exec``ed
+   with a dict with the ``condition`` variable in locals
+   and an empty dict as globals. We might add whatever we
+   like as globals; for example, numpy.
