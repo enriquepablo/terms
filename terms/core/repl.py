@@ -12,18 +12,11 @@ from terms.core.compiler import KnowledgeBase
 
 
 def repl(dbname):
+    config = ConfigParser()
     d = os.path.dirname(sys.modules['terms.core'].__file__)
     fname = os.path.join(d, 'etc', 'terms.cfg')
-    name = os.path.join('etc', 'terms.cfg')
-    if os.path.exists(name):
-        fname = name
-    name = os.path.join(sys.prefix, 'etc', 'terms.cfg')
-    if os.path.exists(name):
-        fname = name
-    config = ConfigParser()
-    f = open(fname, 'r')
-    config.read_file(f)
-    f.close()
+    config.readfp(open(fname))
+    config.read([os.path.join('etc', 'terms.cfg'), os.path.expanduser('~/.terms.cfg')])
     if dbname:
         config['db']['dbname'] = dbname
     kb = KnowledgeBase(config)

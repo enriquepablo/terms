@@ -244,7 +244,7 @@ However, to represent the present time,
 i.e., a changing distinguished instant of time,
 this logic is not enough.
 We need to use some non-monotonic tricks for that,
-that are implemented in terms as a kind of temporal logic.
+that are implemented in Terms as a kind of temporal logic.
 This temporal logic can be activated in the settings file::
 
 
