@@ -1,2 +1,5 @@
 include *.txt
 recursive-include docs *.txt
+recursive-include terms/core/etc *.cfg
+recursive-include terms/core/tests *.test
+recursive-include terms/core/examples *.trm
