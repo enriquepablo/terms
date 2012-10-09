@@ -63,7 +63,7 @@ def test_terms(): # test generator
                     yacc_debug=True)
             yield run_terms, kb, os.path.join(d, f)
             kb.session.close()
-            Base.metadata.drop_all(kb.engine)
+            Base.metadata.drop_all(engine)
 
 
 def run_terms(kb, fname):
