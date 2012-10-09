@@ -37,36 +37,31 @@ from terms.core.utils import Match, merge_submatches
 
 class Network(object):
 
-    def __init__(self, session, config, sec_session):
+    def __init__(self, session, config):
         self.session = session
         self.config = config
         self.activations = []
-        initialize = False
-        try:
-            self.root = self.session.query(RootNode).one()
-        except (OperationalError, ProgrammingError, NoResultFound):
-            initialize =  True
-            self.session.close()
-            self.session = sec_session
-            self.initialize()
-        else:
-            sec_session.close()
-        self.lexicon = Lexicon(self.session, config, initialize=initialize)
-        self.past = FactSet('past', self.lexicon, config)
+        self.root = self.session.query(RootNode).one()
+        self.lexicon = Lexicon(session, config)
         self.present = FactSet('present', self.lexicon, config)
+        self.past = FactSet('past', self.lexicon, config)
 
-    def initialize(self):
-        Base.metadata.create_all(self.session.connection().engine)
-        self.root = RootNode()
-        self.session.add(self.root)
-        self.session.commit()
+    @classmethod
+    def initialize(self, session):
+        Base.metadata.create_all(session.connection().engine)
+        try:
+            root = self.session.query(RootNode).one()
+        except NoResultFound:
+            root = RootNode()
+            session.add(root)
+            Lexicon.initialize(session)
 
     def passtime(self):
         past = eval(self.now, {}, {})
         now = 0
-        if self.config['time']['mode'] == 'normal':
+        if self.config['time'] == 'normal':
             now = past + 1
-        elif self.config['time']['mode'] == 'real':
+        elif self.config['time'] == 'real':
             now = int(time.time())
         self.now = now
 

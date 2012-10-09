@@ -22,6 +22,9 @@ import os
 from configparser import ConfigParser
 import nose
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from terms.core.terms import Base
 from terms.core.network import Network
 from terms.core.compiler import KnowledgeBase
@@ -29,13 +32,12 @@ from terms.core.exceptions import Contradiction
 
 
 CONFIG = '''
-[db]
-dbms = postgres://terms:terms@localhost
+[test]
+dbms = postgresql://terms:terms@localhost
 dbname = test
 #dbms = sqlite://
 #dbname = :memory:
-[time]
-mode = normal
+time = normal
 '''
 
 
@@ -47,9 +49,15 @@ def test_terms(): # test generator
     files = os.listdir(d)
     config = ConfigParser()
     config.read_string(CONFIG)
+    config = config['test']
     for f in files:
         if f.endswith('.test'):
-            kb = KnowledgeBase(config,
+            address = '%s/%s' % (config['dbms'], config['dbname'])
+            engine = create_engine(address)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+            Network.initialize(session)
+            kb = KnowledgeBase(session, config,
                     lex_optimize=False,
                     yacc_optimize=False,
                     yacc_debug=True)

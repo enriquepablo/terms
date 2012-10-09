@@ -22,7 +22,7 @@ setup(
 
     entry_points = {
         'console_scripts': [
-            'terms = terms.core.repl:repl',
+            'terms = terms.core.scripts.repl:repl',
             'initterms = terms.core.scripts.initterms:init_terms',
         ],
     },

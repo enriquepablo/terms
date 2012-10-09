@@ -23,9 +23,6 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from terms.core import register_fun
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
@@ -144,19 +141,16 @@ class KnowledgeBase(object):
         )
 
     def __init__(
-            self,
-            config,
+            self, session, config,
             lex_optimize=False,
             yacc_optimize=True,
             yacc_debug=False):
 
-        address = '%s/%s' % (config['db']['dbms'], config['db']['dbname'])
-        self.engine = create_engine(address)
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+        self.session = session
         self.config = config
-        self.network = Network(self.session, config, sec_session=Session())
-        self.session = self.network.session
+        if config['dbname'] == ':memory:':
+            Network.initialize(session)
+        self.network = Network(session, config)
         self.lexicon = self.network.lexicon
         self.lex = Lexer()
 
@@ -251,7 +245,7 @@ class KnowledgeBase(object):
 
     def p_fact_set(self, p):
         '''fact-set : fact-list DOT'''
-        if self.config['time']['mode'] != 'none':
+        if self.config['time'] != 'none':
             self.network.passtime()
         nows = []
         for pred in p[1]:

@@ -31,50 +31,48 @@ from terms.core.terms import Term, ObjectType, Predicate, isa, are, Time
 
 class Lexicon(object):
 
-    def __init__(self, session, config, initialize=False):
+    def __init__(self, session, config):
         self.config = config
         self.session = session
-        if initialize:
-            self.initialize()
-        else:
-            self.word = self.get_term('word')
-            self.verb = self.get_term('verb')
-            self.noun = self.get_term('noun')
-            self.number = self.get_term('number')
-            self.exists = self.get_term('exists')
-            self.onwards = self.get_term('onwards')
-            self.now = self.get_term('now')
-            self.thing = self.get_term('thing')
-            self.time = self.session.query(Time).one()
+        self.word = self.get_term('word')
+        self.verb = self.get_term('verb')
+        self.noun = self.get_term('noun')
+        self.number = self.get_term('number')
+        self.exists = self.get_term('exists')
+        self.onwards = self.get_term('onwards')
+        self.now = self.get_term('now')
+        self.thing = self.get_term('thing')
+        self.time = self.session.query(Time).one()
         self.now_term = self.make_term(str(0 + self.time.now), self.number)
 
-    def initialize(self):
+    @classmethod
+    def initialize(cls, session):
         '''
         Create basic terms.
         '''
-        self.word = Term('word', _bootstrap=True)
-        self.session.add(self.word)
-        self.session.commit()
-        self.word.term_type = self.word
-        self.session.commit()
-        self.verb = Term('verb', ttype=self.word, bases=(self.word,))
-        self.session.add(self.verb)
-        self.noun = Term('noun', ttype=self.word, bases=(self.word,))
-        self.session.add(self.noun)
-        self.number = Term('number', ttype=self.word, bases=(self.word,))
-        self.session.add(self.number)
-        self.exists = Term('exists', ttype=self.verb, objs={'subj': self.word})
-        self.session.add(self.exists)
-        self.onwards = Term('onwards', ttype=self.verb, bases=(self.exists,), objs={'since_': self.number,
-                                                                                    'till_': self.number})
-        self.session.add(self.onwards)
-        self.now = Term('now', ttype=self.verb, bases=(self.exists,), objs={'at_': self.number})
-        self.session.add(self.now)
-        self.thing = Term('thing', ttype=self.noun, bases=(self.word,))
-        self.session.add(self.thing)
-        self.time = Time()
-        self.session.add(self.time)
-        self.session.commit()
+        word = Term('word', _bootstrap=True)
+        session.add(word)
+        session.commit()
+        word.term_type = word
+        session.commit()
+        verb = Term('verb', ttype=word, bases=(word,))
+        session.add(verb)
+        noun = Term('noun', ttype=word, bases=(word,))
+        session.add(noun)
+        number = Term('number', ttype=word, bases=(word,))
+        session.add(number)
+        exists = Term('exists', ttype=verb, objs={'subj': word})
+        session.add(exists)
+        onwards = Term('onwards', ttype=verb, bases=(exists,), objs={'since_': number,
+                                                                     'till_': number})
+        session.add(onwards)
+        now = Term('now', ttype=verb, bases=(exists,), objs={'at_': number})
+        session.add(now)
+        thing = Term('thing', ttype=noun, bases=(word,))
+        session.add(thing)
+        time = Time()
+        session.add(time)
+        session.commit()
 
     def get_term(self, name):
         '''
