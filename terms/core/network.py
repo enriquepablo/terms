@@ -50,7 +50,7 @@ class Network(object):
     def initialize(self, session):
         Base.metadata.create_all(session.connection().engine)
         try:
-            root = self.session.query(RootNode).one()
+            session.query(RootNode).one()
         except NoResultFound:
             root = RootNode()
             session.add(root)
