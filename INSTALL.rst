@@ -24,7 +24,7 @@ you can simply use ``easy_install``, from a command line::
 
     # easy_install Terms
 
-Alternatively you can download `the tarball <http://pypi.python.org/packages/source/t/Terms/Terms-0.1.0a1.tar.gz>`_,
+Alternatively you can download `the tarball <http://pypi.python.org/packages/source/T/Terms/Terms-0.1.0a1.tar.gz>`_,
 uncompress it,
 ``cd`` into the extracted directory,
 and run ``python3 setup.py install``.
