@@ -12,7 +12,9 @@ setup(
     url = 'http://pypi.python.org/terms.core',
     license = 'GNU GENERAL PUBLIC LICENSE Version 3',
     description = 'A smart knowledge store',
-    long_description = open('INSTALL.txt').read() + open('README.txt').read(),
+    long_description = (open('INSTALL.rst').read() +
+                        '\n' + open('SUPPORT.rst').read() +
+                        '\n' + open('README.rst').read()),
 
     packages = ['terms', 'terms.core',],
     namespace_packages = ['terms'],
