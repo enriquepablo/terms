@@ -22,7 +22,6 @@ from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.collections import attribute_mapped_collection
-from sqlalchemy.ext.declarative import declared_attr
 
 
 class Base(object): pass
@@ -267,7 +266,7 @@ def eq(t1, t2):
     if t1 == t2:
         return True
     try:
-        equals = get_equals(t1, search=t2)
+        get_equals(t1, search=t2)
     except SearchFound:
         return True
     return False

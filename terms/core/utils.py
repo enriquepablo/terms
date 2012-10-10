@@ -17,14 +17,6 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import Table, Column, Sequence
-from sqlalchemy import ForeignKey, Integer, String, Boolean
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-
-from terms.core import patterns
-from terms.core.terms import isa, are
-
 
 class Match(dict):
 

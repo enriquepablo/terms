@@ -28,7 +28,6 @@ from sqlalchemy.orm import sessionmaker
 from terms.core.terms import Base
 from terms.core.network import Network
 from terms.core.compiler import KnowledgeBase
-from terms.core.exceptions import Contradiction
 
 
 CONFIG = '''

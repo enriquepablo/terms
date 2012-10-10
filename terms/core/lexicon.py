@@ -17,16 +17,11 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-import re
-
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.exc import InternalError
-from sqlalchemy.orm import sessionmaker
 
 from terms.core import exceptions
 from terms.core import patterns
-from terms.core.terms import get_bases
-from terms.core.terms import Term, ObjectType, Predicate, isa, are, Time
+from terms.core.terms import Term, Predicate, isa, are, Time
 
 
 class Lexicon(object):

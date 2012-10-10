@@ -17,14 +17,13 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-import re
 import time
 
-from sqlalchemy import Table, Column, Sequence, Index
+from sqlalchemy import Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import OperationalError, InvalidRequestError, ProgrammingError
+from sqlalchemy.exc import InvalidRequestError
 
 from terms.core import exec_globals
 from terms.core.terms import isa, are, get_bases
@@ -166,7 +165,6 @@ class Network(object):
 
     def add_rule(self, prems, conds, cons, finishes):
         rule = Rule()
-        prempairs = []
         for n, pred in enumerate(prems):
             vars = {}
             paths = self.get_paths(pred)
@@ -699,7 +697,7 @@ class Rule(Base):
             for n, pvar in enumerate(pvars):
                 pvar_map.append((pvar.num, val))
                 if n > 1:
-                    raise Corruption('should not happen')
+                    raise exceptions.Corruption('should not happen')
         return pvar_map
 
     def get_varname(self, prem, num):
@@ -782,7 +780,7 @@ class CondCode(Condition):
                 exec_locals[k] = v
         try:
             exec(self.code, {}, exec_locals)
-        except Exception as e:
+        except Exception:
             if exec_locals['condition']:
                 raise
             return False

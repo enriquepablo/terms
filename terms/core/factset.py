@@ -17,16 +17,13 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import Table, Column, Sequence, Index
+from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import OperationalError
 
-from terms.core import exceptions
 from terms.core.terms import get_bases
-from terms.core.terms import Base, Term, Predicate
-from terms.core.terms import isa, are
+from terms.core.terms import Base, Term
+from terms.core.terms import isa
 from terms.core.utils import Match
 
 
@@ -277,7 +274,7 @@ class VerbSegment(Segment):
         return qfacts
 
     @classmethod
-    def filter_segment_sec_var(cls, qfatcs, path, salias):
+    def filter_segment_sec_var(cls, qfacts, path, salias):
         alias = aliased(cls)
         path_str = '.'.join(path)
         qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.verb_id==salias.verb_id)

@@ -26,9 +26,7 @@ from ply.lex import TOKEN
 from terms.core import register_fun
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
-from terms.core.lexicon import Lexicon
-from terms.core.terms import isa, are
-from terms.core.utils import merge_submatches
+from terms.core.terms import isa
 from terms.core.exceptions import Contradiction
 
 class Lexer(object):
@@ -127,7 +125,7 @@ class Lexer(object):
     def test(self,data):
         self.lexer.input(data)
         while True:
-             tok = lexer.token()
+             tok = self.lexer.token()
              if not tok: break
              print(tok)
 
