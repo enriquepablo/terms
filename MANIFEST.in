@@ -1,3 +1,5 @@
+include distribute_setup.py
+include *.rst
 include *.txt
 recursive-include docs *.txt
 recursive-include terms/core/etc *.cfg

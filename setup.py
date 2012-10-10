@@ -1,6 +1,6 @@
 import distribute_setup
 distribute_setup.use_setuptools()
-from setuptools import setup
+from setuptools import setup, find_packages
 
 VERSION = '0.1.0a1'
 
@@ -16,9 +16,8 @@ setup(
                         '\n' + open('SUPPORT.rst').read() +
                         '\n' + open('README.rst').read()),
 
-    packages = ['terms', 'terms.core',],
+    packages = find_packages(),
     namespace_packages = ['terms'],
-    py_modules = ['distribute_setup'],
     test_suite = 'nose.collector',
     include_package_data = True,
 

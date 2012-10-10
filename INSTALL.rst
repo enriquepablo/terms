@@ -4,7 +4,7 @@ Installation and usage
 Dependencies
 ++++++++++++
 
-Python 3 (tested on 3.2).
+Python 3 (tested on 3.2, 3.3).
 
 Python libraries (these should be pulled by ``easy_install``):
     * ply
@@ -22,9 +22,10 @@ It is advisable to install in a virtualenv.
 If you have setuptools installed in your python,
 you can simply use ``easy_install``, from a command line::
 
-    # easy_install terms
+    # easy_install Terms
 
-Alternatively you can download the tarball, uncompress it,
+Alternatively you can download `the tarball <http://pypi.python.org/packages/source/t/Terms/Terms-0.1.0a1.tar.gz>`_,
+uncompress it,
 ``cd`` into the extracted directory,
 and run ``python3 setup.py install``.
 
