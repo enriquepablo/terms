@@ -1,0 +1,87 @@
+Installation and usage
+======================
+
+Dependencies
+++++++++++++
+
+Python 3 (tested on 3.2).
+
+Python libraries (these should be pulled by ``easy_install``):
+    * ply
+    * sqlalchemy
+
+Some RDBM system compatible with sqlalchemy (tested with postgreqsl and sqlite).
+
+To run the tests, you need the ``nose`` framework.
+
+Installation
+++++++++++++
+
+It is advisable to install in a virtualenv.
+
+If you have setuptools installed in your python,
+you can simply use ``easy_install``, from a command line::
+
+    # easy_install terms
+
+Alternatively you can download the tarball, uncompress it,
+``cd`` into the extracted directory,
+and run ``python3 setup.py install``.
+
+Interfacing
++++++++++++
+
+Once installed, you should have a ``terms`` script,
+that provides a REPL.
+
+If you just type ``terms`` in the command line,
+you will get a command line interpreter,
+bound to an in-memory sqlite database.
+
+If you want to make your Terms knowledge store persistent,
+You have to write a small configuration file ``~/.terms.cfg``::
+
+  [mykb]
+  dbms = sqlite:///home/eperez/mykbs
+  dmname = mykb
+  time = none
+
+Then you must initialize the knowledge store::
+
+  $ initterms mykb
+
+And now you can start the REPL::
+
+  $ terms mykb
+  >>>
+
+In the configuration file you can put as many
+sections as you like, one for each knowledge store.
+
+Installing Terms installs everything needed for the
+postgresql backend of sqlalchemy (except postgresql itself),
+so out of the box you can provide postgresql URLs in the
+config file.
+
+The specified database must exist if you use
+postgresql,
+and the terms user (specified in the URL)
+must be able to create and drop tables and indexes.
+
+So, for example, once you are set, open the REPL::
+
+    eperez@calandria$ initterms testing
+    eperez@calandria$ terms testing
+    >>> a person is a thing.
+    >>> loves is exists, subj a person, who a person.
+    >>> john is a person.
+    >>> sue is a person.
+    >>> (loves john, who sue).
+    >>> (loves john, who sue)?
+    true
+    >>> (loves sue, who john)?
+    false
+    >>> quit
+    eperez@calandria$ terms testing
+    >>> (loves john, who sue)?
+    true
