@@ -22,7 +22,7 @@ import distribute_setup
 distribute_setup.use_setuptools()
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0a2dev1'
+VERSION = '0.1.0a2dev2'
 
 setup(
     name = 'Terms',
@@ -51,9 +51,10 @@ setup(
         'Nose',
         'coverage',
     ],
+    extras_require = {
+        'PG': ['psycopg2 == 2.4.5', 'sqlalchemy == 0.7.8'],
+        },
     install_requires = [
-        'psycopg2 == 2.4.5',
-        'sqlalchemy == 0.7.8',
         'ply == 3.4',
     ],
 )
