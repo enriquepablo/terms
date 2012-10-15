@@ -15,7 +15,10 @@ Here I will describe the Terms language.
 To try the given examples, if you have installed Terms,
 you have to type "terms" in a terminal,
 and you will get a REPL where you can enter Terms constructs.
-Follow the instuctions in the INSTALL.txt.
+Follow the instuctions in the INSTALL.rst.
+
+More examples can be found in the
+`github repository <https://github.com/enriquepablo/terms/tree/master/terms/core/examples>`_.
 
 Words
 -----
@@ -82,7 +85,7 @@ Therefore, from all the above, we have, for example, that::
 With these words, we can build facts.
 A fact consists of a verb and any number of (labelled) objects.
 
-Verbs are special words in that they can have modifiers (or objects) when used to build facts.
+Verbs are special words in that they have modifiers (or objects) when used to build facts.
 These modifiers are words, and are labeled. To define a new verb, you provide
 the types of words that can be objects for the verb in a fact,
 associated with their label.
@@ -118,7 +121,7 @@ A new verb can override an inherited object type to provide a subtype of the ori
 object type (like we have done above with ``subj``.)
 
 Facts are not words,
-but they are also individuals of the language,
+but they are also individuals of the language (terms),
 "first class citizens",
 and can be used wherever a word can be used.
 Facts are of type ``exists``, and also of type <verb>,
@@ -191,12 +194,34 @@ In this case, ``LovesVerb1`` would match both ``loves`` and ``adores``, so both
 ``(loves john, who sue)`` and ``(adores john, who sue)`` would produce the conclusion
 that ``(loves sue, who john)``.
 
+For a more elaborate example we can define a new verb::
+
+    allowed is exists, subj a person, to a verb.
+
+and a rule::
+
+    (wants Person1, what (LovesVerb1 Person1, who Person2));
+    (allowed Person1, to LovesVerb1)
+    ->
+    (LovesVerb1 Person1, who Person2).
+
+Then, ``(allowed john, to adores)`` would allow him to adore but not to love.
+
 Likewise for noun variables. In this case
 an example might be ``PersonNoun1``. This variable would match ``person``,
 and also ``man`` and ``woman``.
 
 Finally, number variables are composed just with a capital letter and an integer, like
 ``N1``, ``P3``, or ``F122``.
+
+Numbers
+-------
+
+Numbers, together with words and facts, are terms, and can be used
+wherever words or facts can. Numbers are of type ``number``.
+We don't define numbers, we just use them.
+Any sequence of characters that can be cast as a number type in Python
+are numbers in Terms: ``1``, ``-1e12``, ``2-3j``, ``10.009`` are numbers.
 
 Pythonic conditions
 -------------------
@@ -232,6 +257,34 @@ If we have that::
 
 The system will (only) conclude that ``(enters john, where club-momentos)``.
 
+Negation
+--------
+
+We can use 2 kinds of negation in Terms, classical negation and
+negation by failure.
+
+**Classical negation**
+
+Any fact can be negated by prepending ``!`` to its verb::
+
+    (!aged sue, age 17).
+
+A negated fact is the same as a non-negated one.
+Only a negated fact can match a negated fact,
+and they can be asserted or used in rules.
+The only special thing about classical negation is that
+the system will not allow a fact and its negation
+if the same knowledge base: it will warn of a contradiction
+and will reject the offending fact.
+
+**Negation by failure**
+
+In pythonic conditions, we can use a function ``count``
+with a single string argument, a Terms fact (possibly with variables),
+that will return the number of facts in the db matching the given one.
+We can use this to test for the absence of any given fact
+in the knowledge base, and thus have negation by failure.
+
 Time
 ----
 
@@ -247,11 +300,10 @@ that are implemented in Terms as a kind of temporal logic.
 This temporal logic can be activated in the settings file::
 
 
-    [db]
-    dbms = sqlite://
-    dbname = :memory:
-    [time]
-    mode = normal
+    [mykb]
+    dbms = postgresql://terms:terms@localhost
+    dbname = mykb
+    time = normal
 
 If it is activated, several things happen.
 
@@ -267,10 +319,10 @@ is updated with Python's ``import time; int(time.time())``.
 
 The second thing that happens is that, rather than defining verbs extending ``exists``,
 we use 2 new verbs, ``now`` and ``onwards``, both subtypes of ``exists``.
-These new verbs have special number objects:
+These new verbs have special ``number`` objects:
 ``now`` has an ``at_`` object, and ``onwards`` a ``since_`` and a ``till_`` objects.
 
-The third is that the system starts keeping 2 different fatsets,
+The third is that the system starts keeping 2 different factsets,
 one for the present and one for the past.
 All reasoning occurs in the present factset.
 When we add a fact made with these verbs, the system automatically adds
@@ -305,7 +357,7 @@ is also finished.
     for things, for verbs, for numbers, for facts.
     But the logic behind Terms is first order,
     there is only one kind of individuals,
-    and the proliferation of kinds of variable
+    and the proliferation of kinds of variables
     is just syntactic sugar.
     ``Person1`` would be equivalent to something like
     "for all x, x is a person and x...".
