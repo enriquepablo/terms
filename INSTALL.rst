@@ -62,12 +62,14 @@ one for each knowledge store.
 
 To use PostgreSQL, you need the psycopg2 package,
 that you can get with easy_install. Of course,
-you need PostgreSQL and its header files for that.
+you need PostgreSQL and its header files for that::
+
+    $ easy_install Terms[PG]
 
 The specified database must exist if you use
 postgresql,
 and the terms user (specified in the config file in the dbms URL)
-must be able to create and drop tables and indexes.
+must be able to create and drop tables and indexes::
 
     [testkb]
     dbms = postgresql://terms:terms@localhost

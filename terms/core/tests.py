@@ -55,6 +55,7 @@ def test_terms(): # test generator
             engine = create_engine(address)
             Session = sessionmaker(bind=engine)
             session = Session()
+            Base.metadata.create_all(engine)
             Network.initialize(session)
             kb = KnowledgeBase(session, config,
                     lex_optimize=False,

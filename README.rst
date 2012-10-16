@@ -7,6 +7,9 @@ It provides a declarative language with which to express the knowledge.
 It is smart because this language can be used to express rules,
 and these rules combine existing knowledge to produce new knowledge.
 
+Terms is licensed under the GPLv3, and is hosted at
+`github <https://github.com/enriquepablo/terms>`_.
+
 The Terms language
 ++++++++++++++++++
 
