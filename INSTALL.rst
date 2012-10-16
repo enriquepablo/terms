@@ -43,8 +43,8 @@ If you want to make your Terms knowledge store persistent,
 You have to write a small configuration file ``~/.terms.cfg``::
 
   [mykb]
-  dbms = sqlite:///home/eperez/mykbs
-  dmname = mykb
+  dbms = sqlite:////path/to/my/kbs
+  dbname = mykb
   time = none
 
 Then you must initialize the knowledge store::
@@ -57,22 +57,27 @@ And now you can start the REPL::
   >>>
 
 In the configuration file you can put as many
-sections as you like, one for each knowledge store.
+sections (e.g., ``[mykb]``) as you like,
+one for each knowledge store.
 
-Installing Terms installs everything needed for the
-postgresql backend of sqlalchemy (except postgresql itself),
-so out of the box you can provide postgresql URLs in the
-config file.
+To use PostgreSQL, you need the psycopg2 package,
+that you can get with easy_install. Of course,
+you need PostgreSQL and its header files for that.
 
 The specified database must exist if you use
 postgresql,
-and the terms user (specified in the URL)
+and the terms user (specified in the config file in the dbms URL)
 must be able to create and drop tables and indexes.
+
+    [testkb]
+    dbms = postgresql://terms:terms@localhost
+    dbname = testkb
+    time = none
 
 So, for example, once you are set, open the REPL::
 
-    eperez@calandria$ initterms testing
-    eperez@calandria$ terms testing
+    eperez@calandria$ initterms mykb
+    eperez@calandria$ terms mykb
     >>> a person is a thing.
     >>> loves is exists, subj a person, who a person.
     >>> john is a person.

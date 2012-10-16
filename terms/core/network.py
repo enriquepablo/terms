@@ -47,7 +47,6 @@ class Network(object):
 
     @classmethod
     def initialize(self, session):
-        Base.metadata.create_all(session.connection().engine)
         try:
             session.query(RootNode).one()
         except NoResultFound:

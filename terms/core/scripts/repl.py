@@ -12,6 +12,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from terms.core.compiler import KnowledgeBase
+from terms.core.network import Network
+from terms.core.terms import Base
 
 
 def repl():
@@ -33,6 +35,9 @@ def repl():
     engine = create_engine(address)
     Session = sessionmaker(bind=engine)
     session = Session()
+    if config['dbname'] == ':memory:':
+        Base.metadata.create_all(engine)
+        Network.initialize(session)
     kb = KnowledgeBase(session, config)
     ic = InteractiveConsole()
     while True:

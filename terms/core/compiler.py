@@ -146,8 +146,6 @@ class KnowledgeBase(object):
 
         self.session = session
         self.config = config
-        if config['dbname'] == ':memory:':
-            Network.initialize(session)
         self.network = Network(session, config)
         self.lexicon = self.network.lexicon
         self.lex = Lexer()

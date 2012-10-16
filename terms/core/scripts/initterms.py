@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from terms.core.network import Network
+from terms.core.terms import Base
 
 
 def init_terms():
@@ -22,6 +23,7 @@ def init_terms():
         config['dbname'] = name
     address = '%s/%s' % (config['dbms'], config['dbname'])
     engine = create_engine(address)
+    Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
     Network.initialize(session)
