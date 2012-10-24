@@ -60,7 +60,9 @@ Among the predifined words, these relations are given::
     thing is a noun.
     a thing is a word.
     exists is a verb.
+    a exists is a word.
     number is a word.
+    a number is a word.
 
 To define a new word, you put it in relation to an existing word. For example::
 
@@ -123,8 +125,7 @@ a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type (like we have done above with ``subj``.)
 
-Facts are not words,
-but they are also individuals of the language (terms),
+Facts are words,
 "first class citizens",
 and can be used wherever a word can be used.
 Facts are of type ``exists``, and also of type <verb>,
