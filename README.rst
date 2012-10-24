@@ -210,9 +210,8 @@ and a rule::
 
 Then, ``(allowed john, to adores)`` would allow him to adore but not to love.
 
-Likewise for noun variables. In this case
-an example might be ``PersonNoun1``. This variable would match ``person``,
-and also ``man`` and ``woman``.
+We can use word variables, e.g. ``Word1``, that will match any word or fact.
+An example can be seen `here <https://github.com/enriquepablo/terms/blob/master/terms/core/tests/shegets.test>`_.
 
 Finally, number variables are composed just with a capital letter and an integer, like
 ``N1``, ``P3``, or ``F122``.
