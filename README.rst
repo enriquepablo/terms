@@ -353,6 +353,20 @@ The system keeps track of the ancestry of facts obtained by reasoning,
 and when a fact is finished, its descent (if otherwise unsupported)
 is also finished.
 
+Querying
+--------
+
+Right now the query language of Terms is a bit limited.
+Queries are facts, with or without variables.
+If the query contains no variables, the answer will be ``true``
+for presence of the asked facts or ``false`` for their absence.
+To find out whether a fact is negated we must query its negation.
+
+If we include variables in the query,
+we will obtain all the variable substitutions
+that would produce a ``true`` query.
+
+
 **Miscelaneous technical notes.**
 
   * I have shown several different kinds of variables,
