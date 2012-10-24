@@ -165,7 +165,7 @@ among matching facts concerns the variables in the conditions.
 
 We can use variables in rules. They are logical variables, used only to match words or facts,
 and with a scope limited to the rule were they are used. We build variables by
-capitalizing the name of the type of terms that it can match, and appending any number of
+capitalizing the name of the type of words that it can match, and appending any number of
 digits. So, for example, a variable ``Person1`` would match any person, such as
 ``sue`` or ``john``. With variables, we may build a rule like::
 
@@ -188,7 +188,7 @@ that ``(loves sue, who john)``.
 
 Variables that match verbs or nouns have a special form, in that they are prefixed by
 the name of a verb (or a noun), so that they match verbs that are subtypes of the given verb.
-For example, with the terms we have from above, we might make a rule like::
+For example, with the words we have from above, we might make a rule like::
 
     (LovesVerb1 john, who Person1)
     ->
@@ -220,11 +220,10 @@ Finally, number variables are composed just with a capital letter and an integer
 Numbers
 -------
 
-Numbers, together with words and facts, are terms, and can be used
-wherever words or facts can. Numbers are of type ``number``.
+Numbers are of type ``number``.
 We don't define numbers, we just use them.
 Any sequence of characters that can be cast as a number type in Python
-are numbers in Terms: ``1``, ``-1e12``, ``2-3j``, ``10.009`` are numbers.
+are numbers in Terms, e.g.: ``1``, ``-1e12``, ``2-3j``, ``10.009`` are numbers.
 
 Pythonic conditions
 -------------------
