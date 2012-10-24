@@ -182,7 +182,12 @@ class Predicate(Base):
             if isinstance(o.value, Predicate):
                 obj.value = o.value.substitute(match)
             elif o.value.var:
-                obj.value = match[o.value.name]
+                value = match[o.value.name]
+                if isinstance(o, TObject) and isinstance(value, Predicate):
+                    obj = PObject(o.label, value)
+                else:
+                    obj.value = value
+                    obj.value.var = False
             new.objects[obj.label] = obj
         return new
 
@@ -225,9 +230,7 @@ class Object(Base):
 class TObject(Object):
     '''
     '''
-    __tablename__ = 'tobjects'
     __mapper_args__ = {'polymorphic_identity': 0}
-    oid = Column(Integer, ForeignKey('objects.id'), primary_key=True)
     term_id = Column(Integer, ForeignKey('terms.id'))
     value = relationship('Term', primaryjoin="Term.id==TObject.term_id")
 
@@ -235,9 +238,7 @@ class TObject(Object):
 class PObject(Object):
     '''
     '''
-    __tablename__ = 'pobjects'
     __mapper_args__ = {'polymorphic_identity': 1}
-    oid = Column(Integer, ForeignKey('objects.id'), primary_key=True)
     pred_id = Column(Integer, ForeignKey('predicates.id'))
     value = relationship('Predicate', cascade='all',
                          primaryjoin="Predicate.id==PObject.pred_id")

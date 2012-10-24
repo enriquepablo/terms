@@ -377,18 +377,22 @@ class TermNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
+        if isa(value, network.lexicon.exists):
+            types = (value.term_type.term_type,) + get_bases(value.term_type.term_type)
+            type_ids = [t.id for t in types]
+            return network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids)),
         children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
         vchildren = ()
         types = (value.term_type,) + get_bases(value.term_type)
         type_ids = [t.id for t in types]
         if type_ids:
             vchildren = network.session.query(cls).filter(cls.parent_id==parent.id).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
-        if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
-            bases = (value,) + get_bases(value)
-            tbases = aliased(Term)
-            base_ids = (b.id for b in bases)
-            if base_ids and vchildren:
-                vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
+#         if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
+#             bases = (value,) + get_bases(value)
+#             tbases = aliased(Term)
+#             base_ids = (b.id for b in bases)
+#             if base_ids and vchildren:
+#                 vchildren = vchildren.join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(base_ids))  # XXX can get duplicates
         return children, vchildren
 
 

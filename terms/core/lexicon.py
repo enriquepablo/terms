@@ -56,7 +56,7 @@ class Lexicon(object):
         session.add(noun)
         number = Term('number', ttype=word, bases=(word,))
         session.add(number)
-        exists = Term('exists', ttype=verb, objs={'subj': word})
+        exists = Term('exists', ttype=verb, bases=(word,), objs={'subj': word})
         session.add(exists)
         onwards = Term('onwards', ttype=verb, bases=(exists,), objs={'since_': number,
                                                                      'till_': number})
@@ -101,6 +101,8 @@ class Lexicon(object):
             return self.make_pred(name, term_type, **objs)
         elif term_type == self.number:
             return self.make_number(name)
+        else:
+            return Term(name, ttype=term_type)
 
     def make_subterm(self, name, super_terms, **objs):
         '''

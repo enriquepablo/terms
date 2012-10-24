@@ -32,10 +32,10 @@ from terms.core.compiler import KnowledgeBase
 
 CONFIG = '''
 [test]
-dbms = postgresql://terms:terms@localhost
-dbname = test
-#dbms = sqlite://
-#dbname = :memory:
+#dbms = postgresql://terms:terms@localhost
+#dbname = test
+dbms = sqlite://
+dbname = :memory:
 time = normal
 '''
 

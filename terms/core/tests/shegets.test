@@ -1,0 +1,40 @@
+
+she is a thing.
+
+wants is exists, what a word.
+gets is exists, what a word.
+
+(wants she, what Word1)
+->
+(gets she, what Word1).
+
+
+a fruit is a thing.
+this-banana is a fruit.
+eats is exists, what a fruit.
+
+(wants she, what this-banana).
+(gets she, what this-banana)?
+true
+
+(wants she, what fruit).
+(gets she, what fruit)?
+true
+
+(wants she, what eats).
+(gets she, what eats)?
+true
+
+(wants she, what number).
+(gets she, what number)?
+true
+
+(wants she, what 42).
+(gets she, what 42)?
+true
+
+(wants she, what (eats she, what this-banana)).
+(gets she, what (eats she, what this-banana))?
+true
+
+
