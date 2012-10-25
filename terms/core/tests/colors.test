@@ -1,0 +1,56 @@
+
+a color is a thing.
+
+red is a color.
+
+blue is a color.
+
+has is unique, col a color.
+
+light is a thing.
+
+changes is now.
+
+reds is changes.
+blues is changes.
+
+assigned is onwards, subj a verb, init a color, final a color.
+
+(ChangesVerb1 light);
+(assigned ChangesVerb1, init Color1, final Color2);
+(has light, col Color1)
+->
+(has light, col Color2).
+
+(assigned reds, init blue, final red).
+(assigned blues, init red, final blue).
+
+(has light, col red).
+(has light, col red)?
+true
+(has light, col blue)?
+false
+
+(blues light).
+(has light, col blue)?
+true
+(has light, col red)?
+false
+
+(reds light).
+(has light, col red)?
+true
+(has light, col blue)?
+false
+
+(blues light).
+(has light, col red)?
+false
+(has light, col blue)?
+true
+
+(reds light).
+(has light, col red)?
+true
+(has light, col blue)?
+false

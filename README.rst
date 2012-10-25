@@ -353,6 +353,12 @@ The system keeps track of the ancestry of facts obtained by reasoning,
 and when a fact is finished, its descent (if otherwise unsupported)
 is also finished.
 
+There is also the temporal verb ``unique``, subverb of ``onwards``.
+The peculiarity of ``unique`` is that whenever a fact with
+such verb is added to the knowledge base,
+any previous present facts with the same subject and verb are ``finish``ed.
+
+
 Querying
 --------
 

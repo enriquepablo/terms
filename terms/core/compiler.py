@@ -26,7 +26,7 @@ from ply.lex import TOKEN
 from terms.core import register_fun
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
-from terms.core.terms import isa
+from terms.core.terms import isa, Predicate
 from terms.core.exceptions import Contradiction
 
 class Lexer(object):
@@ -312,7 +312,7 @@ class KnowledgeBase(object):
             cons = p[3]
         prems = []
         for sen in p[1]:
-            if isa(sen, self.lexicon.exists):
+            if isinstance(sen, Predicate):
                 prems.append(sen)
             else:
                 if sen.type == 'name-def':

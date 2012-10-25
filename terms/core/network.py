@@ -107,6 +107,12 @@ class Network(object):
         factset = self.present
         if isa(pred, self.lexicon.onwards):
             pred.add_object('since_', self.lexicon.now_term)
+        if isa(pred, self.lexicon.unique):
+            old_pred = Predicate(pred.true, pred.term_type)
+            old_pred.add_object('subj', pred.get_object('subj'))
+            olds = self.present.query_facts(old_pred, {})
+            for old in olds:
+                self.finish(old.pred)
         neg = pred.copy()
         neg.true = not neg.true
         contradiction = factset.query(neg)
@@ -673,6 +679,12 @@ class Rule(Base):
             factset = network.present
             if isa(con, network.lexicon.onwards):
                 con.add_object('since_', network.lexicon.now_term)
+            if isa(con, network.lexicon.unique):
+                old_pred = Predicate(con.true, con.term_type)
+                old_pred.add_object('subj', con.get_object('subj'))
+                olds = network.present.query_facts(old_pred, {})
+                for old in olds:
+                    network.finish(old.pred)
             neg = con.copy()
             neg.true = not neg.true
             contradiction = factset.query(neg)

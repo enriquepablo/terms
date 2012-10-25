@@ -35,6 +35,7 @@ class Lexicon(object):
         self.number = self.get_term('number')
         self.exists = self.get_term('exists')
         self.onwards = self.get_term('onwards')
+        self.unique = self.get_term('unique')
         self.now = self.get_term('now')
         self.thing = self.get_term('thing')
         self.time = self.session.query(Time).one()
@@ -61,6 +62,8 @@ class Lexicon(object):
         onwards = Term('onwards', ttype=verb, bases=(exists,), objs={'since_': number,
                                                                      'till_': number})
         session.add(onwards)
+        unique = Term('unique', ttype=verb, bases=(onwards,))
+        session.add(unique)
         now = Term('now', ttype=verb, bases=(exists,), objs={'at_': number})
         session.add(now)
         thing = Term('thing', ttype=noun, bases=(word,))
