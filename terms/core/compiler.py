@@ -303,12 +303,13 @@ class KnowledgeBase(object):
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list DOT
                 | sentence-list pylines IMPLIES sentence-list DOT'''
+        conds = []
         if len(p) == 6:
             code_str = '\n'.join(p[2])
-            conds = [CondCode(code_str.strip())]
+            condcode = CondCode(code_str.strip())
             cons = p[4]
         else:
-            conds = []
+            condcode = None
             cons = p[3]
         prems = []
         for sen in p[1]:
@@ -327,7 +328,7 @@ class KnowledgeBase(object):
                 finish.append(con)
             else:
                 consecs.append(con)
-        self.network.add_rule(prems, conds, consecs, finish)
+        self.network.add_rule(prems, conds, condcode, consecs, finish)
         self.session.commit()
         p[0] = 'OK'
 

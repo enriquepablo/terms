@@ -168,7 +168,7 @@ class Network(object):
         for ch in descent:
             self.session.delete(ch)
 
-    def add_rule(self, prems, conds, cons, finishes):
+    def add_rule(self, prems, conds, condcode, cons, finishes):
         rule = Rule()
         for n, pred in enumerate(prems):
             vars = {}
@@ -186,6 +186,7 @@ class Network(object):
             for n, varname in vars.values():
                 rule.pvars.append(PVarname(premise, n, varname))
         rule.conditions = conds
+        rule.condcode = condcode
         for con in cons:
             if isinstance(con, Predicate):
                 rule.consecuences.append(con)
@@ -664,6 +665,10 @@ class Rule(Base):
             if not cond.test(match, network):
                 return
 
+        if self.condcode:
+            if not self.condcode.test(match, network):
+                return
+
         for finish in self.finishes:
             tofinish = finish.pred.substitute(match)
             network.finish(tofinish)
@@ -761,28 +766,26 @@ class Condition(Base):
 
 
 class CondIsa(Condition):
-    __tablename__ = 'condisas'
     __mapper_args__ = {'polymorphic_identity': 0}
-    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
     def test(self, match, network):
         return isa(self.args[0].solve(match), self.args[1].solve(match))
 
 
 class CondIs(Condition):
-    __tablename__ = 'condiss'
     __mapper_args__ = {'polymorphic_identity': 1}
-    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
     def test(self, match, network):
         return are(self.args[0].solve(match), self.args[1].solve(match))
 
 
-class CondCode(Condition):
+class CondCode(Base):
     __tablename__ = 'condcodes'
-    __mapper_args__ = {'polymorphic_identity': 2}
-    cid = Column(Integer, ForeignKey('conditions.id'), primary_key=True)
 
+    id = Column(Integer, Sequence('condcode_id_seq'), primary_key=True)
+    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
+    rule = relationship('Rule', backref=backref('condcode', uselist=False),
+                         primaryjoin="Rule.id==CondCode.rule_id")
     code = Column(String)
 
     def test(self, match, network):
