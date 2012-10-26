@@ -33,6 +33,7 @@ condition &= N2 < 10
 
 N5 = N1 + N3
 N6 = N2 + 1
+
 ->
 (vel Body1, vel N5, at N6).
 

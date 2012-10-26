@@ -11,6 +11,12 @@ marries is exists, subj a person, who a person.
 (LovesVerb1 Person1, who Person2)
 <-
 condition &= count('(LovesVerb1 Person1, who Person2)') == 2
+
+if condition:
+    f = open('ho', 'w')
+    f.write('ho')
+    f.close()
+
 ->
 (marries Person2, who Person1).
 
