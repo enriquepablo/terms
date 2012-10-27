@@ -63,6 +63,7 @@ class FactSet(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, pred, prev):
+        print(pred)
         if prev:
             return prev[0]
         fact = Fact(pred, self.name)

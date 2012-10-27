@@ -130,7 +130,7 @@ class Lexer(object):
              print(tok)
 
 
-class KnowledgeBase(object):
+class Parser(object):
 
     precedence = (
         ('left', 'COMMA'),
@@ -139,20 +139,12 @@ class KnowledgeBase(object):
         )
 
     def __init__(
-            self, session, config,
+            self,
             lex_optimize=False,
             yacc_optimize=True,
             yacc_debug=False):
 
-        self.session = session
-        self.config = config
-        self.network = Network(session, config)
-        self.lexicon = self.network.lexicon
         self.lex = Lexer()
-
-        self._buffer = ''  # for line input
-        self.no_response = object()
-        self.prompt = '>>> '
 
         self.lex.build(
             optimize=lex_optimize)
@@ -164,7 +156,255 @@ class KnowledgeBase(object):
             debug=yacc_debug,
             optimize=yacc_optimize)
 
+    def parse(self, text, filename='', debuglevel=0):
+        """ 
+            text:
+                A string containing the source code
+            
+            filename:
+                Name of the file being parsed (for meaningful
+                error messages)
+            
+            debuglevel:
+                Debug level to yacc
+        """
+        self.lex.filename = filename
+        # self.lex.reset_lineno()
+        return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
+
+    # BNF
+
+    def p_construct(self, p):
+        '''construct : definition
+                     | rule
+                     | fact-set
+                     | question
+                     | removal
+                     | import
+                     | pdb'''
+        p[0] = p[1]
+
+    def p_pdb(self, p):
+        '''pdb : PDB DOT'''
+        import pdb;pdb.set_trace()
+
+    def p_fact_set(self, p):
+        '''fact-set : fact-list DOT'''
+        p[0] = AstNode('fact-set', facts=p[1])
+
+    def p_definition(self, p):
+        '''definition : def DOT'''
+        p[0] = AstNode('definition', definition=p[1])
+
+    def p_question(self, p):
+        '''question : sentence-list QMARK'''
+        p[0] = AstNode('question', facts=p[1])
+
+    def p_removal(self, p):
+        '''removal : RM fact-list DOT'''
+        p[0] = AstNode('removal', facts=p[2])
+
+    def p_import(self, p):
+        '''import : IMPORT URL DOT'''
+        p[0] = AstNode('import', url=p[2][1:-1])
+
+    def p_rule(self, p):
+        '''rule : sentence-list IMPLIES sentence-list DOT
+                | sentence-list pylines IMPLIES sentence-list DOT'''
+        if len(p) == 6:
+            pycode = '\n'.join(p[2]).strip()
+            p[0] = AstNode('rule', prems=p[1], pycode=pycode, cons=p[4])
+        else:
+            p[0] = AstNode('rule', prems=p[1], pycode='', cons=p[3])
+
+    def p_pylines(self, p):
+        '''pylines : PYCODE pylines
+                   | PYCODE'''
+        if len(p) == 3:
+            p[0] = (p[1],) + p[2]
+        else:
+            p[0] = (p[1],)
+
+    def p_fact_list(self, p):
+        '''fact-list : fact SEMICOLON fact-list
+                     | fact'''
+        if len(p) == 4:
+            p[0] = (p[1],) + p[3]
+        else:
+            p[0] = (p[1],)
+
+    def p_sentence_list(self, p):
+        '''sentence-list : sentence SEMICOLON sentence-list
+                         | sentence'''
+        if len(p) == 4:
+            p[0] = (p[1],) + p[3]
+        else:
+            p[0] = (p[1],)
+
+    def p_sentence(self, p):
+        '''sentence : def
+                    | fact
+                    | FINISH fact'''
+        if len(p) == 3:
+            p[0] = AstNode('finish', fact=p[2])
+        else:
+            p[0] = p[1]
+
+    def p_fact(self, p):
+        '''fact : LPAREN predicate RPAREN
+                | LPAREN NOT predicate RPAREN'''
+        if len(p) == 5:
+            p[0] = AstNode('fact', predicate=p[3], true=False)
+        else:
+            p[0] = AstNode('fact', predicate=p[2], true=True)
+
+    def p_predicate(self, p):
+        '''predicate : var
+                     | verb subject
+                     | verb subject COMMA mods'''
+        if len(p) == 2:
+            p[0] = AstNode('predicate', verb=p[1], subj=None, mods=())
+        elif len(p) == 3:
+            p[0] = AstNode('predicate', verb=p[1], subj=p[2], mods=())
+        else:
+            p[0] = AstNode('predicate', verb=p[1], subj=p[2], mods=p[4])
+
+    def p_verb(self, p):
+        '''verb : vterm'''
+        p[0] = p[1]
+
+    def p_subject(self, p):
+        '''subject : vterm'''
+        p[0] = p[1]
+
+    def p_vterm(self, p):
+        '''vterm : term
+                 | var'''
+        p[0] = p[1]
+
+    def p_term(self, p):
+        '''term : SYMBOL'''
+        p[0] = AstNode('term', val=p[1])
+
+    def p_var(self, p):
+        '''var : VAR'''
+        p[0] = AstNode('var', val=p[1])
+
+    def p_number(self, p):
+        '''number : NUMBER'''
+        p[0] = AstNode('number', val=p[1])
+
+    def p_mods(self, p):
+        '''mods : mod COMMA mods
+                | mod'''
+        if len(p) == 4:
+            p[0] = p[3] + (p[1],)
+        else:
+            p[0] = (p[1],)
+ 
+    def p_mod(self, p):
+        '''mod : SYMBOL object'''
+        p[0] = AstNode('mod', label=p[1], obj=p[2])
+    
+ 
+    def p_object(self, p):
+        '''object : vterm
+                  | fact
+                  | number'''
+        p[0] = p[1]
+
+    def p_def(self, p):
+        '''def : noun-def
+               | name-def
+               | verb-def'''
+        p[0] = p[1]
+
+    def p_noun_def(self, p):
+        '''noun-def : A vterm IS A vterm'''
+        p[0] = AstNode('noun-def', name=p[2], bases=[p[5]])
+
+    def p_terms(self, p):
+        '''terms : term COMMA terms
+                 | term'''
+        if len(p) == 4:
+            p[0] = p[3] + (p[1],)
+        else:
+            p[0] = (p[1],)
+
+    def p_name_def(self, p):
+        '''name-def : SYMBOL IS A term
+                    | vterm IS A vterm'''
+        if isinstance(p[1], str):
+            p[1] = AstNode('term', val=p[1])
+        p[0] = AstNode('name-def', name=p[1], term_type=p[4])
+
+    def p_verb_def(self, p):
+        '''verb-def : SYMBOL IS terms
+                    | SYMBOL IS terms COMMA mod-defs'''
+        name = AstNode('term', val=p[1])
+        if len(p) == 4:
+            p[0] = AstNode('verb-def', name=name, bases=p[3], objs=())
+        else:
+            p[0] = AstNode('verb-def', name=name, bases=p[3], objs=p[5])
+
+    def p_mod_defs(self, p):
+        '''mod-defs : mod-def COMMA mod-defs
+                    | mod-def'''
+        if len(p) == 4:
+            p[0] = p[3] + (p[1],)
+        else:
+            p[0] = (p[1],)
+
+    def p_mod_def(self, p):
+        'mod-def : SYMBOL A term'
+        p[0] = AstNode('mod-def', label=p[1], obj_type=p[3])
+
+    def p_error(self, p):
+        raise Exception('syntax error: ' + str(p) + ' parsing ' + self.lex.lexer.lexdata)
+
+
+class AstNode(object):
+    def __init__(self, type, **kwargs):
+        self.type = type
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+class KnowledgeBase(object):
+
+    def __init__(
+            self, session, config,
+            lex_optimize=False,
+            yacc_optimize=True,
+            yacc_debug=False):
+
+        self.session = session
+        self.config = config
+        self.network = Network(session, config)
+        self.lexicon = self.network.lexicon
+
+        self._buffer = ''  # for line input
+        self.no_response = object()
+        self.prompt = '>>> '
+
+        self.parser = Parser(
+            lex_optimize=lex_optimize,
+            yacc_optimize=yacc_optimize,
+            yacc_debug=yacc_debug)
+
         register_fun(self.count)
+
+    def parse(self, s):
+        ast = self.parser.parse(s)
+        return self.compile(ast)
+
+    def count(self, sen):
+        resp = self.parse(sen + '?')
+        if resp == 'false':
+            return 0
+        elif resp == 'true':
+            return 1
+        return len(resp)
 
     def _parse_buff(self):
         return self.parse(self._buffer)
@@ -198,53 +438,117 @@ class KnowledgeBase(object):
                 self.reset_state()
         return resp
 
-    def parse(self, text, filename='', debuglevel=0):
-        """ 
-            text:
-                A string containing the source code
-            
-            filename:
-                Name of the file being parsed (for meaningful
-                error messages)
-            
-            debuglevel:
-                Debug level to yacc
-        """
-        self.lex.filename = filename
-        # self.lex.reset_lineno()
-        return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
+    def compile(self, ast):
+        if ast.type == 'definition':
+            return self.compile_definition(ast.definition)
+        elif ast.type == 'rule':
+            return self.compile_rule(ast)
+        elif ast.type == 'fact-set':
+            return self.compile_factset(ast.facts)
+        elif ast.type == 'question':
+            return self.compile_question(ast.facts)
+        elif ast.type == 'removal':
+            return self.compile_removal(ast.facts)
+        elif ast.type == 'import':
+            return self.compile_import(ast.url)
 
-    def count(self, sen):
-        resp = self.parse(sen + '?')
-        if resp == 'false':
-            return 0
-        elif resp == 'true':
-            return 1
-        return len(resp)
+    def compile_definition(self, definition):
+        if definition.type == 'verb-def':
+            term = self.compile_verbdef(definition)
+        elif definition.type == 'noun-def':
+            term = self.compile_noundef(definition)
+        elif definition.type == 'name-def':
+            term = self.compile_namedef(definition)
+        self.session.commit()
+        return term
 
-    # BNF
+    def compile_verbdef(self, defn):
+        bases = [self.lexicon.get_term(t.val) for t in defn.bases]
+        objs = {o.label: self.lexicon.get_term(o.obj_type.val) for o in defn.objs}
+        return self.lexicon.add_subterm(defn.name.val, bases, **objs)
 
-    def p_construct(self, p):
-        '''construct : definition
-                     | rule
-                     | fact-set
-                     | question
-                     | removal
-                     | import
-                     | pdb'''
-        p[0] = p[1]
+    def compile_noundef(self, defn):
+        bases = [self.lexicon.get_term(t.val) for t in defn.bases]
+        return self.lexicon.add_subterm(defn.name.val, bases)
 
-    def p_pdb(self, p):
-        '''pdb : PDB DOT'''
-        import pdb;pdb.set_trace()
-        p[0] = p[1]
+    def compile_namedef(self, defn):
+        term_type = self.lexicon.get_term(defn.term_type.val)
+        return self.lexicon.add_term(defn.name.val, term_type)
 
-    def p_fact_set(self, p):
-        '''fact-set : fact-list DOT'''
+    def compile_rule(self, rule):
+        condcode = None
+        if rule.pycode:
+            condcode = CondCode(rule.pycode)
+        conds, prems = [], []
+        for sen in rule.prems:
+            if sen.type == 'fact':
+                prem = self.compile_fact(sen)
+                prems.append(prem)
+            else:
+                cond = self.compile_conddef(sen)
+                conds.append(cond)
+        finish, consecs = [], []
+        for sen in rule.cons:
+            if sen.type == 'finish':
+                fin = self.compile_finish(sen)
+                finish.append(fin)
+            else:
+                con = self.compile_fact(sen)
+                consecs.append(con)
+        self.network.add_rule(prems, conds, condcode, consecs, finish)
+        self.session.commit()
+        return 'OK'
+
+    def compile_fact(self, fact):
+        true = fact.true
+        verb = self.compile_vterm(fact.predicate.verb)
+        if fact.predicate.subj is None:
+            return verb
+        subj = self.compile_vterm(fact.predicate.subj)
+        mods = self.compile_mods(fact.predicate.mods)
+        mods['subj'] = subj
+        return Predicate(true, verb, **mods)
+
+    def compile_vterm(self, vterm):
+        if vterm.type == 'var':
+            return self.lexicon.make_var(vterm.val)
+        return self.lexicon.get_term(vterm.val)
+
+    def compile_mods(self, ast):
+        mods = {}
+        for mod in ast:
+            label = mod.label
+            if mod.obj.type == 'var':
+                obj = self.lexicon.make_var(mod.obj.val)
+            elif mod.obj.type == 'term':
+                obj = self.lexicon.get_term(mod.obj.val)
+            elif mod.obj.type == 'fact':
+                obj = self.compile_fact(mod.obj)
+            elif mod.obj.type == 'number':
+                obj = self.lexicon.make_term(mod.obj.val, self.lexicon.number)
+            mods[label] = obj
+        return mods
+
+    def compile_conddef(self, sen):
+        if sen.type == 'name-def':
+            name = self.lexicon.get_term(sen.name.val)
+            term_type = self.lexicon.get_term(sen.term_type.val)
+            return CondIsa(name, term_type)
+        else:
+            name = self.lexicon.get_term(sen.name.val)
+            base = self.lexicon.get_term(sen.bases[0].val)
+            return CondIs(name, base)
+
+    def compile_finish(self, fin):
+        fact = self.compile_fact(fin.fact)
+        return Finish(fact)
+
+    def compile_factset(self, facts):
         if self.config['time'] != 'none':
             self.network.passtime()
         nows = []
-        for pred in p[1]:
+        for f in facts:
+            pred = self.compile_fact(f)
             fact = self.network.add_fact(pred)
             if isa(pred, self.lexicon.now):
                 nows.append(fact)
@@ -256,239 +560,34 @@ class KnowledgeBase(object):
                     ch.factset = 'past'
                     ch.matches = []
         self.session.commit()
-        p[0] = 'OK'
+        return 'OK'
 
-    def p_definition(self, p):
-        '''definition : def DOT'''
-        if p[1].type == 'noun-def':
-            term = self.lexicon.add_subterm(p[1].name, p[1].bases)
-        elif p[1].type == 'verb-def':
-            term = self.lexicon.add_subterm(p[1].name, p[1].bases, **(p[1].objs))
-        elif p[1].type == 'name-def':
-            term = self.lexicon.add_term(p[1].name, p[1].term_type)
-        self.session.add(term)
-        self.session.commit()
-        p[0] = 'OK'
-
-    def p_question(self, p):
-        '''question : sentence-list QMARK'''
+    def compile_question(self, facts):
         matches = []
-        if p[1]:
-            matches = self.network.query(*p[1])
+        if facts:
+            if isinstance(facts, str):
+                facts = (facts,)
+            q = [self.compile_fact(f) for f in facts]
+            matches = self.network.query(*q)
         if not matches:
             matches = 'false'
         elif not matches[0]:
             matches = 'true'
-        p[0] = matches
+        return matches
 
-    def p_removal(self, p):
-        '''removal : RM fact-list DOT'''
-        for pred in p[2]:
+    def compile_removal(self, facts):
+        for f in facts:
+            pred = self.compile_fact(f)
             self.network.del_fact(pred)
         self.session.commit()
-        p[0] = 'OK'
+        return 'OK'
 
-    def p_import(self, p):
-        '''import : IMPORT URL DOT'''
-        lineno = self.lex.lexer.lineno
-        resp = urlopen(p[2][1:-1])
+    def compile_import(self, url):
+        resp = urlopen(url)
         code = resp.read()
         self._buffer = ''
         for line in code.decode('ascii').splitlines():
             self.process_line(line)
-        self.lex.lexer.lineno = lineno + 1
         self.session.commit()
-        p[0] = 'OK'
+        return 'OK'
 
-    def p_rule(self, p):
-        '''rule : sentence-list IMPLIES sentence-list DOT
-                | sentence-list pylines IMPLIES sentence-list DOT'''
-        conds = []
-        if len(p) == 6:
-            code_str = '\n'.join(p[2])
-            condcode = CondCode(code_str.strip())
-            cons = p[4]
-        else:
-            condcode = None
-            cons = p[3]
-        prems = []
-        for sen in p[1]:
-            if isinstance(sen, Predicate):
-                prems.append(sen)
-            else:
-                if sen.type == 'name-def':
-                    if isinstance(sen.name, str):
-                        sen.name = self.lexicon.get_term(sen.name)
-                    conds.append(CondIsa(sen.name, sen.term_type))
-                else:
-                    conds.append(CondIs(sen.name, sen.bases[0]))
-        finish, consecs = [], []
-        for con in cons:
-            if isinstance(con, Finish):
-                finish.append(con)
-            else:
-                consecs.append(con)
-        self.network.add_rule(prems, conds, condcode, consecs, finish)
-        self.session.commit()
-        p[0] = 'OK'
-
-    def p_pylines(self, p):
-        '''pylines : PYCODE pylines
-                   | PYCODE'''
-        if len(p) == 3:
-            p[0] = (p[1],) + p[2]
-        else:
-            p[0] = (p[1],)
-
-    def p_fact_list(self, p):
-        '''fact-list : fact SEMICOLON fact-list
-                     | fact'''
-        if len(p) == 4:
-            p[0] = (p[1],) + p[3]
-        else:
-            p[0] = (p[1],)
-
-    def p_sentence_list(self, p):
-        '''sentence-list : sentence SEMICOLON sentence-list
-                         | sentence'''
-        if len(p) == 4:
-            p[0] = (p[1],) + p[3]
-        else:
-            p[0] = (p[1],)
-
-    def p_sentence(self, p):
-        '''sentence : def
-                    | fact
-                    | FINISH fact'''
-        if len(p) == 3:
-            p[0] = Finish(p[2])
-        else:
-            p[0] = p[1]
-
-    def p_fact(self, p):
-        '''fact : LPAREN predicate RPAREN
-                | LPAREN NOT predicate RPAREN'''
-        if len(p) == 5:
-            p[3].true = False
-            p[0] = p[3]
-        else:
-            p[0] = p[2]
-
-    def p_predicate(self, p):
-        '''predicate : var
-                     | verb subject
-                     | verb subject COMMA mods'''
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            if len(p) == 3:
-                p[0] = self.lexicon.make_pred(True, p[1], subj=p[2])
-            else:
-                p[0] = self.lexicon.make_pred(True, p[1], subj=p[2], **p[4])
-            self.session.add(p[0])
-
-    def p_verb(self, p):
-        '''verb : vterm'''
-        p[0] = p[1]
-
-    def p_subject(self, p):
-        '''subject : vterm'''
-        p[0] = p[1]
-
-    def p_vterm(self, p):
-        '''vterm : term
-                 | var'''
-        if isinstance(p[1], str):
-            p[0] = self.lexicon.get_term(p[1])
-        else:
-            p[0] = p[1]
-
-    def p_term(self, p):
-        '''term : SYMBOL'''
-        p[0] = p[1]
-
-    def p_var(self, p):
-        '''var : VAR'''
-        p[0] = self.lexicon.make_var(p[1])
-        self.session.add(p[0])
-
-
-    def p_mods(self, p):
-        '''mods : mod COMMA mods
-                | mod'''
-        if len(p) == 4:
-            p[1].update(p[3])
-        p[0] = p[1]
- 
-    def p_mod(self, p):
-        '''mod : SYMBOL object'''
-        p[0] = {p[1]: p[2]}
-    
- 
-    def p_object(self, p):
-        '''object : vterm
-                  | fact
-                  | NUMBER'''
-        if isinstance(p[1], str):
-            p[0] = self.lexicon.make_term(p[1], self.lexicon.number)
-            self.session.add(p[0])
-        else:
-            p[0] = p[1]
-
-    def p_def(self, p):
-        '''def : noun-def
-               | name-def
-               | verb-def'''
-        p[0] = p[1]
-
-    def p_noun_def(self, p):
-        '''noun-def : A SYMBOL IS A term
-                    | A vterm IS A vterm'''
-        if isinstance(p[5], str):
-            p[5] = self.lexicon.get_term(p[5])
-        p[0] = AstNode(p[2], 'noun-def', bases=[p[5]])
-
-    def p_terms(self, p):
-        '''terms : term COMMA terms
-                 | term'''
-        if len(p) == 4:
-            p[0] = p[3] + (self.lexicon.get_term(p[1]),)
-        else:
-            p[0] = (self.lexicon.get_term(p[1]),)
-
-    def p_name_def(self, p):
-        '''name-def : SYMBOL IS A term
-                    | vterm IS A vterm'''
-        if isinstance(p[4], str):
-            p[4] = self.lexicon.get_term(p[4])
-        p[0] = AstNode(p[1], 'name-def', term_type=p[4])
-
-    def p_verb_def(self, p):
-        '''verb-def : SYMBOL IS terms
-                    | SYMBOL IS terms COMMA mod-defs'''
-        if len(p) == 4:
-            p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs={})
-        else:
-            p[0] = AstNode(p[1], 'verb-def', bases=p[3], objs=p[5])
-
-    def p_mod_defs(self, p):
-        '''mod-defs : mod-def COMMA mod-defs
-                    | mod-def'''
-        if len(p) == 4:
-            p[1].update(p[3])
-        p[0] = p[1]
-
-    def p_mod_def(self, p):
-        'mod-def : SYMBOL A term'
-        p[0] = {p[1]: self.lexicon.get_term(p[3])}
-
-    def p_error(self, p):
-        raise Exception('syntax error: ' + str(p))
-
-
-class AstNode(object):
-    def __init__(self, name, type, **kwargs):
-        self.name = name
-        self.type = type
-        for k, v in kwargs.items():
-            setattr(self, k, v)

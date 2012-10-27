@@ -78,7 +78,7 @@ def run_terms(kb, fname):
                 sen = sen.strip('.')
                 nose.tools.assert_equals(sen, resp,
                     msg='returned "%s" is not "%s" at line %d for query: %s' %
-                        (resp, sen, kb.lex.lexer.lineno, kb.lex.lexer.lexdata))
+                        (resp, sen, kb.parser.lex.lexer.lineno, kb.parser.lex.lexer.lexdata))
                 resp = kb.no_response
             elif sen and not sen.startswith('#'):
                 resp = kb.process_line(sen)
