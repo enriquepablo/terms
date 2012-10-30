@@ -19,5 +19,5 @@
 
 exec_globals = {'__builtins__': __builtins__}
 
-def register_fun(fun):
+def register(fun):
     exec_globals[fun.__func__.__name__] = fun

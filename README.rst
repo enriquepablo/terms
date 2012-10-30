@@ -4,7 +4,7 @@ The Terms knowledge store
 Terms is a smart knowledge store.
 It is used to store knowledge, that can later be queried.
 It provides a declarative language with which to express the knowledge.
-It is smart because this language can be used to express rules,
+I call it smart because its language can be used to express rules,
 and these rules combine existing knowledge to produce new knowledge.
 
 Terms is licensed under the GPLv3, and is hosted at
@@ -125,11 +125,17 @@ a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type (like we have done above with ``subj``.)
 
+A fact must always provide all the objects that the verb can take.
+(The reason for the labels is that in rules and in queries
+it is not necessary to provide all the objects).
+
 Facts are words,
 "first class citizens",
 and can be used wherever a word can be used.
-Facts are of type ``exists``, and also of type <verb>,
+Facts are words of type ``exists``, and also of type <verb>,
 were <verb> is the verb used to build the fact.
+So our facts are actually synctactic sugar for
+``(loves john, who sue) is a loves.``
 
 The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
 a ``number``). In addition, they can also be facts (type ``exists``).
@@ -163,7 +169,7 @@ and when all the conditions of a rule are matched by coherent facts,
 the consecuences are added to the knowledge base. The required coherence
 among matching facts concerns the variables in the conditions.
 
-We can use variables in rules. They are logical variables, used only to match words or facts,
+We can use variables in rules. They are logical variables, used only to match words,
 and with a scope limited to the rule were they are used. We build variables by
 capitalizing the name of the type of words that it can match, and appending any number of
 digits. So, for example, a variable ``Person1`` would match any person, such as
@@ -186,7 +192,7 @@ build a rule such as::
 With this, and ``(wants john, what (loves sue, who john)).``, the system would conclude
 that ``(loves sue, who john)``.
 
-Variables that match verbs or nouns have a special form, in that they are prefixed by
+Variables that match verbs have a special form, in that they are prefixed by
 the name of a verb (or a noun), so that they match verbs that are subtypes of the given verb.
 For example, with the words we have from above, we might make a rule like::
 
@@ -274,9 +280,9 @@ Any fact can be negated by prepending ``!`` to its verb::
 A negated fact is the same as a non-negated one.
 Only a negated fact can match a negated fact,
 and they can be asserted or used in rules.
-The only special thing about classical negation is that
+The only special thing about negation is that
 the system will not allow a fact and its negation
-if the same knowledge base: it will warn of a contradiction
+in the same knowledge base: it will warn of a contradiction
 and will reject the offending fact.
 
 **Negation by failure**

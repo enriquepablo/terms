@@ -23,7 +23,7 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
-from terms.core import register_fun
+from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate
@@ -392,7 +392,7 @@ class KnowledgeBase(object):
             yacc_optimize=yacc_optimize,
             yacc_debug=yacc_debug)
 
-        register_fun(self.count)
+        register(self.count)
 
     def parse(self, s):
         ast = self.parser.parse(s)
@@ -421,7 +421,6 @@ class KnowledgeBase(object):
         return '; '.join(resps)
 
     def process_line(self, line):
-        line = line.strip()
         self.prompt = '... '
         resp = self.no_response
         if line:

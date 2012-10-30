@@ -73,7 +73,7 @@ def run_terms(kb, fname):
     with open(fname) as f:
         resp = kb.no_response
         for sen in f:
-            sen = sen.strip()
+            sen = sen.rstrip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
                 nose.tools.assert_equals(sen, resp,
