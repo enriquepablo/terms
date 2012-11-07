@@ -293,6 +293,23 @@ that will return the number of facts in the db matching the given one.
 We can use this to test for the absence of any given fact
 in the knowledge base, and thus have negation by failure.
 
+Some care must be taken with the ``count`` function.
+If a fact is entered that might match a pythonic ``count`` condition,
+it will never by itself trigger any rule.
+Rules are activated by facts matching normal conditions;
+and pythonic conditions can only allow or abort
+those activations.
+In other words, when a fact is added,
+it is tested against all normal conditions in all rules,
+and if it activates any rule, the pythonic conditions are tested.
+An example of this behaviour can be seen
+`here <https://github.com/enriquepablo/terms/blob/master/terms/core/tests/person_loves.test>`_.
+If you examine the ontology in the previous link,
+you will see that it is obviously wrong;
+that's the reason I say that care must be taken.
+Counting happens in time,
+and it is not advisable to use it without activating time.
+
 Time
 ----
 
