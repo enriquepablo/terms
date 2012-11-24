@@ -1,0 +1,24 @@
+
+import <https://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms3.trm>.
+
+(has-role sue, which reviewer, where ctx1).
+(is-allowed sue, for pending, in ctx1, to review)?
+true
+(is-allowed sue, for pending, in Context1, to review)?
+Context1: ctx1
+(has-role sue, since_ 31, where ctx1, which reviewer)?
+true
+(has-role sue, where ctx1, which reviewer)?
+true
+(has-role sue, where Context1, which reviewer)?
+Context1: ctx1
+(wants mary, do (submit mary, what doc1)).
+(wants mary, do (submit mary, what doc1))?
+true
+(submit mary, what doc1)?
+true
+(must sue, do review, since_ 32, to doc1)?
+true
+(has-status doc1, since_ 32, which pending)?
+true
+(wants sue, do (publish sue, what doc1)).

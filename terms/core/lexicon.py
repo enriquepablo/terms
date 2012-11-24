@@ -84,6 +84,15 @@ class Lexicon(object):
         except NoResultFound:
             raise exceptions.TermNotFound(name)
 
+    def get_terms(self, term_type):
+        '''
+        Get all terms of type term_type.
+        The term_type must exist.
+        '''
+        types = self.get_subterms(term_type)
+        type_ids = [t.id for t in types]
+        return self.session.query(Term).filter(Term.type_id.in_(type_ids)).all()
+
     def make_term(self, name, term_type, **objs):
         '''
         Make a Term from a name (string) and a term_type (Term).

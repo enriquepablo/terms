@@ -1,0 +1,187 @@
+
+a person is a thing.
+
+a content is a thing.
+a document is a content.
+a image is a content.
+
+a context is a thing.
+
+content-action is now, subj a person, what a content.
+view is content-action.
+edit is content-action.
+
+owns is onwards, subj a person, what a content.
+
+located is onwards, subj a thing, in a context.
+
+(located Thing1, in Context1);
+(located Context1, in Context2)
+->
+(located Thing1, in Context2).
+
+has is onwards, subj a thing, which a thing, where a context.
+
+(HasVerb1 Thing1, which Thing2, where Context1);
+(located Context2, in Context1)
+->
+(HasVerb1 Thing1, which Thing2, where Context2).
+
+wants is now, subj a person, do a content-action.
+
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
+(owns Person1, what Content1)
+->
+(Content-actionVerb1 Person1, what Content1).
+
+must is onwards, subj a person, do a verb, what a content.
+
+(must Person1, do Content-actionVerb1, what Content1);
+(Content-actionVerb1 Person1, what Content1)
+->
+finish (must Person1, do Content-actionVerb1, what Content1).
+
+may is onwards, subj a person, do a content-action.
+
+(wants Person1, do (Content-action1));
+(may Person1, do (Content-action1))
+->
+(Content-action1).
+
+a role is a thing.
+has-role is has, subj a person, which a role, where a context.
+
+a permission is a thing.
+has-permission is has, subj a role, which a permission, where a context.
+
+a status is a thing.
+has-status is unique, subj a content, which a status.
+
+is-allowed is exists, subj a person, to a verb, in a context, for a status.
+
+is-protected is onwards, subj a verb, by a permission, in a context, for a status.
+
+(is-protected Content-actionVerb1, by Permission1, for Status1, in Context1);
+(has-role Person1, which Role1, where Context1);
+(has-permission Role1, which Permission1, where Context1)
+->
+(is-allowed Person1, to Content-actionVerb1, for Status1, in Context1).
+
+(wants Person1, do (Content-actionVerb1 Person1, what Content1));
+(is-allowed Person1, to Content-actionVerb2, for Status1, in Context1);
+(has-status Content1, which Status1);
+(located Content1, in Context1);
+a Content-actionVerb1 is a Content-actionVerb2
+->
+(Content-actionVerb1 Person1, what Content1).
+
+a workflow is a thing.
+
+is-assigned is onwards, subj a workflow, to a noun, in a context.
+
+a transition is a thing.
+has-transition is onwards, subj a workflow, which a transition.
+
+wf-action is content-action.
+
+
+executed is onwards, subj a transition, by a verb, from a status, to a status.
+
+(Wf-actionVerb1 Person1, what Content1);
+(is-assigned Workflow1, to ContentNoun1, in Context1);
+(has-transition Workflow1, which Transition1);
+(executed Transition1, by Wf-actionVerb1, from Status1, to Status2);
+(has-status Content1, which Status1);
+Content1 is a ContentNoun1
+->
+(has-status Content1, which Status2).
+
+global is a context.
+ctx1 is a context.
+
+(located ctx1, in global).
+
+manager is a role.
+reviewer is a role.
+editor is a role.
+visitor is a role.
+
+basic-perm is a permission.
+edit-perm is a permission.
+manage-perm is a permission.
+review-perm is a permission.
+
+(has-permission manager, which manage-perm, where global).
+(has-permission manager, which edit-perm, where global).
+(has-permission manager, which basic-perm, where global).
+(has-permission editor, which edit-perm, where global).
+(has-permission editor, which basic-perm, where global).
+(has-permission visitor, which basic-perm, where global).
+(has-permission reviewer, which review-perm, where global).
+
+public is a status.
+private is a status.
+pending is a status.
+
+hide is wf-action.
+submit is wf-action.
+review is wf-action.
+publish is review.
+reject is review.
+
+(ReviewVerb1 Person1, what Content1)
+->
+(review Person1, what Content1).
+
+(submit Person1, what Content1);
+(has-role Person2, which reviewer, where Context1);
+(located Content1, in Context1)
+->
+(must Person2, do review, what Content1).
+
+(is-protected edit,  by edit-perm, in ctx1, for private).
+(is-protected edit, by manage-perm, in ctx1, for public).
+(is-protected view, by edit-perm, in ctx1, for private).
+(is-protected view, by basic-perm, in ctx1, for public).
+(is-protected hide, by edit-perm, in ctx1, for public).
+(is-protected submit, by edit-perm, in ctx1, for private).
+(is-protected review, by review-perm, in ctx1, for pending).
+
+wf1 is a workflow.
+
+hide-tr is a transition.
+(has-transition wf1, which hide-tr).
+(executed hide-tr, by hide, from public, to private).
+
+submit-tr is a transition.
+(has-transition wf1, which submit-tr).
+(executed submit-tr, by submit, from private, to pending).
+
+publish-tr is a transition.
+(has-transition wf1, which publish-tr).
+(executed publish-tr, by publish, from pending, to public).
+
+reject-tr is a transition.
+(has-transition wf1, which reject-tr).
+(executed reject-tr, by reject, from pending, to private).
+
+(is-assigned wf1, to document, in ctx1).
+
+
+john is a person.
+sue is a person.
+pete is a person.
+mary is a person.
+doc1 is a document.
+doc2 is a document.
+img1 is a image.
+img2 is a image.
+ctx2 is a context.
+(located ctx2, in global).
+
+(has-role john , which manager, where ctx1).
+(has-role mary, which editor, where ctx1).
+(has-role pete, which visitor, where ctx1).
+
+(located doc1, in ctx1).
+(has-status doc1, which private).

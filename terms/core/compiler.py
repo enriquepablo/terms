@@ -530,12 +530,12 @@ class KnowledgeBase(object):
 
     def compile_conddef(self, sen):
         if sen.type == 'name-def':
-            name = self.lexicon.get_term(sen.name.val)
-            term_type = self.lexicon.get_term(sen.term_type.val)
+            name = self.compile_vterm(sen.name)
+            term_type = self.compile_vterm(sen.term_type)
             return CondIsa(name, term_type)
         else:
-            name = self.lexicon.get_term(sen.name.val)
-            base = self.lexicon.get_term(sen.bases[0].val)
+            name = self.compile_vterm(sen.name)
+            base = self.compile_vterm(sen.bases[0])
             return CondIs(name, base)
 
     def compile_finish(self, fin):
