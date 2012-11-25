@@ -582,7 +582,7 @@ class KnowledgeBase(object):
         return 'OK'
 
     def compile_import(self, url):
-        if url.statrswith('file://'):
+        if url.startswith('file://'):
             path = url[7:]
             f = open(path, 'r')
             resp = f.read()
