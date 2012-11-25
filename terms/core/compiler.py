@@ -582,13 +582,13 @@ class KnowledgeBase(object):
         return 'OK'
 
     def compile_import(self, url):
-        code = ''
+        code = b''
         if url.startswith('file://'):
             path = url[7:]
-            f = open(path, 'r')
+            f = open(path, 'rb')
             code = f.read()
             f.close()
-        elif url.startswith('http://'):
+        elif url.startswith('http'):
             resp = urlopen(url)
             code = resp.read()
         self._buffer = ''
