@@ -582,8 +582,14 @@ class KnowledgeBase(object):
         return 'OK'
 
     def compile_import(self, url):
-        resp = urlopen(url)
-        code = resp.read()
+        if url.statrswith('file://'):
+            path = url[7:]
+            f = open(path, 'r')
+            resp = f.read()
+            f.close()
+        elif url.startswith('http://'):
+            resp = urlopen(url)
+            code = resp.read()
         self._buffer = ''
         for line in code.decode('ascii').splitlines():
             self.process_line(line)

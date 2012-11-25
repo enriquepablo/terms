@@ -137,6 +137,8 @@ class Network(object):
     def unsupported_descent(self, fact, descent=None):
         if descent is None:
             descent = []
+        if isa(fact.pred, self.lexicon.now):
+            return descent
         for descendant in fact.descent:
             for ch in descendant.children:
                 if ch is fact:
@@ -148,14 +150,15 @@ class Network(object):
                     ch.ancestors.remove(descendant)
         return descent
 
-    def finish(self, pred):
-        fact = self.present.query_facts(pred, []).one()
+    def finish(self, predicate):
+        fact = self.present.query_facts(predicate, []).one()
         tofinish = self.unsupported_descent(fact) + [fact]
         for f in tofinish:
             pred = f.pred
-            self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
-            f.factset = 'past'
-            f.matches = []
+            if isa(pred, self.lexicon.onwards):
+                self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
+                f.factset = 'past'
+                f.matches = []
 
     def del_fact(self, pred):
         fact = self.present.query_facts(pred, []).one()
