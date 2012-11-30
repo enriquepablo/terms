@@ -507,11 +507,17 @@ class Premise(Base):
             matches = [nmatch]
         else:
             matches = [match]
-        for prem in rule.prems:
+        prems = [p for p in rule.prems if p.order != self.order]
+        pvars = set([v.num for v in self.pvars])
+        oprems = []
+        while prems:
+            next = sorted(prems, key=lambda p: len(set([v.num for v in p.pvars]).intersection(pvars)), reverse=True)[0]
+            prems.remove(next)
+            pvars = pvars.union([v.num for v in next.pvars])
+            oprems.append(next)
+        for prem in oprems:
             if not matches:
                 break
-            if prem.order == self.order:
-                continue
             premnode = prem.node
             new_matches = []
             for m in matches:
