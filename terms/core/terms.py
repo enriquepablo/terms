@@ -330,3 +330,14 @@ class Time(Base):
     __tablename__ = 'time'
     id = Column(Integer, default=0, primary_key=True)
     now = Column(Integer, default=0)
+
+
+class Import(Base):
+    '''
+    '''
+    __tablename__ = 'imports'
+    id = Column(Integer, default=0, primary_key=True)
+    url = Column(String)
+
+    def __init__(self, url):
+        self.url = url

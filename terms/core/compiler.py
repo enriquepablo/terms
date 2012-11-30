@@ -23,10 +23,12 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
+from sqlalchemy.orm.exc import NoResultFound
+
 from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
-from terms.core.terms import isa, Predicate
+from terms.core.terms import isa, Predicate, Import
 from terms.core.exceptions import Contradiction
 
 class Lexer(object):
@@ -582,6 +584,12 @@ class KnowledgeBase(object):
         return 'OK'
 
     def compile_import(self, url):
+        try:
+            prev = self.session.query(Import).filter_by(url=url).one()
+        except NoResultFound:
+            pass
+        else:
+            return 'OK'
         code = b''
         if url.startswith('file://'):
             path = url[7:]
@@ -594,6 +602,8 @@ class KnowledgeBase(object):
         self._buffer = ''
         for line in code.decode('ascii').splitlines():
             self.process_line(line)
+        new = Import(url)
+        self.session.add(new)
         self.session.commit()
         return 'OK'
 

@@ -1,5 +1,6 @@
 
 import <http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms-time.trm>.
+import <http://github.com/enriquepablo/terms/raw/master/terms/core/examples/cms-time.trm>.
 
 (wants john, do (publish john, what doc1)).
 
