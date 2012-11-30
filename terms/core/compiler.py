@@ -262,8 +262,8 @@ class Parser(object):
 
     def p_predicate(self, p):
         '''predicate : var
-                     | verb subject
-                     | verb subject COMMA mods'''
+                     | verb object
+                     | verb object COMMA mods'''
         if len(p) == 2:
             p[0] = AstNode('predicate', verb=p[1], subj=None, mods=())
         elif len(p) == 3:
@@ -273,10 +273,6 @@ class Parser(object):
 
     def p_verb(self, p):
         '''verb : vterm'''
-        p[0] = p[1]
-
-    def p_subject(self, p):
-        '''subject : vterm'''
         p[0] = p[1]
 
     def p_vterm(self, p):
@@ -505,7 +501,7 @@ class KnowledgeBase(object):
         verb = self.compile_vterm(fact.predicate.verb)
         if fact.predicate.subj is None:
             return verb
-        subj = self.compile_vterm(fact.predicate.subj)
+        subj = self.compile_obj(fact.predicate.subj)
         mods = self.compile_mods(fact.predicate.mods)
         mods['subj'] = subj
         return Predicate(true, verb, **mods)
@@ -515,18 +511,21 @@ class KnowledgeBase(object):
             return self.lexicon.make_var(vterm.val)
         return self.lexicon.get_term(vterm.val)
 
+    def compile_obj(self, obj):
+        if obj.type == 'var':
+            return self.lexicon.make_var(obj.val)
+        elif obj.type == 'term':
+            return self.lexicon.get_term(obj.val)
+        elif obj.type == 'fact':
+            return self.compile_fact(obj)
+        elif obj.type == 'number':
+            return self.lexicon.make_term(obj.val, self.lexicon.number)
+
     def compile_mods(self, ast):
         mods = {}
         for mod in ast:
             label = mod.label
-            if mod.obj.type == 'var':
-                obj = self.lexicon.make_var(mod.obj.val)
-            elif mod.obj.type == 'term':
-                obj = self.lexicon.get_term(mod.obj.val)
-            elif mod.obj.type == 'fact':
-                obj = self.compile_fact(mod.obj)
-            elif mod.obj.type == 'number':
-                obj = self.lexicon.make_term(mod.obj.val, self.lexicon.number)
+            obj = self.compile_obj(mod.obj)
             mods[label] = obj
         return mods
 
