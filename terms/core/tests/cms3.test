@@ -210,6 +210,8 @@ true
 true
 (should sue, do review, since_ 32, what doc1)?
 true
+
+
 (wants sue, do (publish sue, what doc1)).
 (publish sue, what doc1)?
 true
@@ -218,4 +220,49 @@ false
 (should sue, do review, what doc1)?
 false
 (has-status doc1, which public)?
+true
+
+mike is a person.
+(has-role mike, which reviewer, where ctx1).
+
+
+(wants john, do (hide john, what doc1)).
+(hide john, what doc1)?
+true
+(has-status doc1, which private)?
+true
+(should sue, do review, what doc1)?
+false
+(has-status doc1, which public)?
+false
+
+(wants mary, do (submit mary, what doc1)).
+(wants mary, do (submit mary, what doc1))?
+true
+(submit mary, what doc1)?
+true
+(has-status doc1, which pending)?
+true
+(should sue, do review, what doc1)?
+true
+(has-status doc1, which private)?
+false
+(should sue, do review, what doc1)?
+true
+(should mike, do review, what doc1)?
+true
+
+
+(wants mike, do (reject mike, what doc1)).
+(reject mike, what doc1)?
+true
+(has-status doc1, which pending)?
+false
+(should sue, do review, what doc1)?
+false
+(should mike, do review, what doc1)?
+false
+(has-status doc1, which public)?
+false
+(has-status doc1, which private)?
 true

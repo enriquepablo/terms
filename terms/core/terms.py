@@ -78,6 +78,8 @@ class Term(Base):
                        _bootstrap=False):
         self.name = name
         self.var = var
+        self._sup_cache = None
+        self._sub_cache = None
         if not _bootstrap:
             self.term_type = ttype or bases[0].term_type
         used = []
@@ -104,6 +106,24 @@ class Term(Base):
     def copy(self):
         #  immutable
         return self
+
+    def purge_cache(self, lexicon):
+        for sub in lexicon.get_subterms(self):
+            sub.purge_sup()
+        for sup in get_bases(self):
+            sup.purge_sub(lexicon)
+
+    def purge_sup(self):
+        for sup in get_bases(self):
+            sup.purge_sup()
+        self._sup_cache = None
+
+    def purge_sub(self, lexicon):
+        for sub in lexicon.get_subterms(self):
+            if sub is self:
+                continue
+            sub.purge_sub(lexicon)
+        self._sub_cache = None
 
 
 class ObjectType(Base):
@@ -273,7 +293,14 @@ def eq(t1, t2):
     return False
 
 def get_bases(term, search=None):
-    return _get_desc(term, 'bases', search=search)
+    cache = getattr(term, '_sup_cache', None)
+    if cache is not None:
+        if search and search in cache:
+            raise SearchFound(search)
+        return cache
+    bases = _get_desc(term, 'bases', search=search)
+    term._sup_cache = bases
+    return bases
 
 def get_equals(term, search=None):
     return (term,) + _get_desc(term, 'equals', search=search)
@@ -294,7 +321,6 @@ def _get_desc(term, desc, search=None, bset=None):
         if desc != 'equals':
             for eq in base.equals:
                 bset.add(eq)
-                get_bases(eq, desc, bset)
     return tuple(bset)
 
 

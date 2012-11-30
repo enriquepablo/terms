@@ -40,6 +40,7 @@ class Lexicon(object):
         self.thing = self.get_term('thing')
         self.time = self.session.query(Time).one()
         self.now_term = self.make_term(str(0 + self.time.now), self.number)
+        self._term_cache = {}
 
     @classmethod
     def initialize(cls, session):
@@ -77,6 +78,12 @@ class Lexicon(object):
         Given a name (string), get a Term from the database.
         The Term must exist.
         '''
+        cache = getattr(self, '_term_cache', None)
+        if cache is not None:
+            if name in cache:
+                return cache[name]
+        else:
+            self._term_cache = {}
         try:
             return self.session.query(Term).filter_by(name=name).one()
         except MultipleResultsFound:
@@ -102,19 +109,18 @@ class Lexicon(object):
         try:
             return self.get_term(name)
         except exceptions.TermNotFound:
-            pass
-        if are(term_type, self.noun):
-            return self._make_noun(name, ntype=term_type)
-        elif are(term_type, self.thing):
-            return self._make_name(name, term_type)
-        elif are(term_type, self.verb):
-            return self._make_verb(name, vtype=term_type, objs=objs)
-        elif are(term_type, self.exists):
-            return self.make_pred(name, term_type, **objs)
-        elif term_type == self.number:
-            return self.make_number(name)
-        else:
-            return Term(name, ttype=term_type)
+            if are(term_type, self.noun):
+                return self._make_noun(name, ntype=term_type)
+            elif are(term_type, self.thing):
+                return self._make_name(name, term_type)
+            elif are(term_type, self.verb):
+                return self._make_verb(name, vtype=term_type, objs=objs)
+            elif are(term_type, self.exists):
+                return self.make_pred(name, term_type, **objs)
+            elif term_type == self.number:
+                return self.make_number(name)
+            else:
+                return Term(name, ttype=term_type)
 
     def make_subterm(self, name, super_terms, **objs):
         '''
@@ -126,30 +132,36 @@ class Lexicon(object):
         try:
             return self.get_term(name)
         except exceptions.TermNotFound:
-            pass
-        if isa(super_terms, self.word):
-            super_terms = (super_terms,)
-        term_base = super_terms[0]
-        if are(term_base, self.noun):
-            return self._make_subnoun(name, bases=super_terms)
-        elif are(term_base, self.thing):
-            return self._make_noun(name, bases=super_terms)
-        elif are(term_base, self.verb):
-            return self._make_subverb(name, bases=super_terms)
-        elif are(term_base, self.exists):
-            return self._make_verb(name, bases=super_terms, objs=objs)
+            if isa(super_terms, self.word):
+                super_terms = (super_terms,)
+            term_base = super_terms[0]
+            if are(term_base, self.noun):
+                return self._make_subnoun(name, bases=super_terms)
+            elif are(term_base, self.thing):
+                return self._make_noun(name, bases=super_terms)
+            elif are(term_base, self.verb):
+                return self._make_subverb(name, bases=super_terms)
+            elif are(term_base, self.exists):
+                return self._make_verb(name, bases=super_terms, objs=objs)
 
     def add_term(self, name, term_type, **objs):
         term = self.make_term(name, term_type, **objs)
         self.session.add(term)
+        term.purge_cache(self)
+        self._term_cache[name] = term
         return term
 
     def add_subterm(self, name, super_terms, **objs):
         term = self.make_subterm(name, super_terms, **objs)
         self.session.add(term)
+        term.purge_cache(self)
+        self._term_cache[name] = term
         return term
 
     def get_subterms(self, term):
+        cache = getattr(term, '_sub_cache', None)
+        if cache is not None:
+            return cache
         name = term.name
         m = patterns.varpat.match(name)
         if m:
@@ -157,9 +169,11 @@ class Lexicon(object):
                 term = self.get_term(m.group(1).lower())
             else:
                 return ()
-        subtypes = [term]
+        subtypes = set([term])
         self._recurse_subterms(term, subtypes)
-        return tuple(subtypes)
+        subterms = tuple(subtypes)
+        term._sub_cache = subterms
+        return subterms
 
     def make_var(self, name):
         '''
@@ -192,11 +206,11 @@ class Lexicon(object):
         return var
 
     def _recurse_subterms(self, term, subterms):
-        sterms = term.subwords
-        for st in sterms:
-            if st not in subterms:
-                subterms.append(st)
-                self._recurse_subterms(st, subterms)
+        for st in term.subwords:
+            if st.var:
+                continue
+            subterms.add(st)
+            self._recurse_subterms(st, subterms)
 
     def _make_noun(self, name, bases=None, ntype=None):
         if bases is None:

@@ -113,11 +113,11 @@ class Network(object):
             olds = self.present.query_facts(old_pred, {})
             for old in olds:
                 self.finish(old.pred)
-        neg = pred.copy()
-        neg.true = not neg.true
-        contradiction = factset.query(neg)
-        if contradiction:
-            raise exceptions.Contradiction('we already have ' + str(neg))
+        #neg = pred.copy()
+        #neg.true = not neg.true
+        #contradiction = factset.query(neg)
+        #if contradiction:
+        #    raise exceptions.Contradiction('we already have ' + str(neg))
         prev = factset.query_facts(pred, {}).all()
         fact = factset.add_fact(pred, prev)
         ancestor = Ancestor(fact)
@@ -129,7 +129,11 @@ class Network(object):
             m.paths = self.get_paths(pred)
             m.fact = fact
             Node.dispatch(self.root, m, self)
+        n = 0
         while self.activations:
+            n += 1
+            if n % 25 == 0:
+                self.session.commit()
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
         return fact
@@ -693,11 +697,11 @@ class Rule(Base):
                 olds = network.present.query_facts(old_pred, {})
                 for old in olds:
                     network.finish(old.pred)
-            neg = con.copy()
-            neg.true = not neg.true
-            contradiction = factset.query(neg)
-            if contradiction:
-                raise exceptions.Contradiction('we already have ' + str(neg))
+            #neg = con.copy()
+            #neg.true = not neg.true
+            #contradiction = factset.query(neg)
+            #if contradiction:
+            #    raise exceptions.Contradiction('we already have ' + str(neg))
             prev = factset.query_facts(con, {}).all()
             fact = factset.add_fact(con, prev)
             if match.ancestor:
