@@ -34,12 +34,12 @@ wants is now, subj a person, do a content-action.
 ->
 (Content-actionVerb1 Person1, what Content1).
 
-must is onwards, subj a person, do a verb, what a content.
+should is onwards, subj a person, do a verb, what a content.
 
-(must Person1, do Content-actionVerb1, what Content1);
-(Content-actionVerb1 Person1, what Content1)
+(should Person1, do Content-actionVerb1, what Content1);
+(Content-actionVerb1 Person2, what Content1)
 ->
-finish (must Person1, do Content-actionVerb1, what Content1).
+finish (should Person1, do Content-actionVerb1, what Content1).
 
 may is onwards, subj a person, do a content-action.
 
@@ -137,7 +137,7 @@ reject is review.
 (has-role Person2, which reviewer, where Context1);
 (located Content1, in Context1)
 ->
-(must Person2, do review, what Content1).
+(should Person2, do review, what Content1).
 
 (is-protected edit,  by edit-perm, in ctx1, for private).
 (is-protected edit, by manage-perm, in ctx1, for public).

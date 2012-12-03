@@ -44,6 +44,8 @@ def repl():
         line = ic.raw_input(prompt=kb.prompt)
         if line in ('quit', 'exit'):
             session.close()
+            if int(config['instant_duration']):
+                kb.ticking = False
             sys.exit('bye')
         resp = kb.process_line(line)
         if resp is not kb.no_response:

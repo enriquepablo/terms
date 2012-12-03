@@ -17,7 +17,9 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+import time
 from urllib.request import urlopen
+from threading import Thread, Lock
 
 import ply.lex as lex
 import ply.yacc
@@ -385,12 +387,36 @@ class KnowledgeBase(object):
         self.no_response = object()
         self.prompt = '>>> '
 
+        if int(self.config['instant_duration']):
+            self.clock = Thread(target=self.tick)
+            self.time_lock = Lock()
+            self.ticking = True
+            self.clock.start()
+
         self.parser = Parser(
             lex_optimize=lex_optimize,
             yacc_optimize=yacc_optimize,
             yacc_debug=yacc_debug)
 
         register(self.count)
+
+    def tick(self):
+        while self.ticking:
+            time.sleep(float(self.config['instant_duration']))
+            self.time_lock.acquire()
+            pred = Predicate(True, self.lexicon.vtime, subj=self.lexicon.now_term)
+            try:
+                fact = self.network.present.query_facts(pred, []).one()
+            except NoResultFound:
+                pass
+            else:
+                self.session.delete(fact)
+                self.session.commit()
+            self.network.passtime()
+            pred = Predicate(True, self.lexicon.vtime, subj=self.lexicon.now_term)
+            self.network.add_fact(pred)
+            self.session.commit()
+            self.time_lock.release()
 
     def parse(self, s):
         ast = self.parser.parse(s)
@@ -450,6 +476,8 @@ class KnowledgeBase(object):
             return self.compile_import(ast.url)
 
     def compile_definition(self, definition):
+        if int(self.config['instant_duration']):
+            self.time_lock.acquire()
         if definition.type == 'verb-def':
             term = self.compile_verbdef(definition)
         elif definition.type == 'noun-def':
@@ -457,6 +485,8 @@ class KnowledgeBase(object):
         elif definition.type == 'name-def':
             term = self.compile_namedef(definition)
         self.session.commit()
+        if int(self.config['instant_duration']):
+            self.time_lock.release()
         return term
 
     def compile_verbdef(self, defn):
@@ -473,6 +503,8 @@ class KnowledgeBase(object):
         return self.lexicon.add_term(defn.name.val, term_type)
 
     def compile_rule(self, rule):
+        if int(self.config['instant_duration']):
+            self.time_lock.acquire()
         condcode = None
         if rule.pycode:
             condcode = CondCode(rule.pycode)
@@ -494,6 +526,8 @@ class KnowledgeBase(object):
                 consecs.append(con)
         self.network.add_rule(prems, conds, condcode, consecs, finish)
         self.session.commit()
+        if int(self.config['instant_duration']):
+            self.time_lock.release()
         return 'OK'
 
     def compile_fact(self, fact):
@@ -545,6 +579,8 @@ class KnowledgeBase(object):
 
     def compile_factset(self, facts):
         if self.config['time'] != 'none':
+            if int(self.config['instant_duration']):
+                self.time_lock.acquire()
             self.network.passtime()
         nows = []
         for f in facts:
@@ -560,6 +596,8 @@ class KnowledgeBase(object):
                     ch.factset = 'past'
                     ch.matches = []
         self.session.commit()
+        if int(self.config['instant_duration']):
+            self.time_lock.release()
         return 'OK'
 
     def compile_question(self, facts):
