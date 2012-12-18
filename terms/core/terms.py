@@ -43,7 +43,7 @@ class Term(Base):
     __tablename__ = 'terms'
 
     id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
-    name = Column(String)
+    name = Column(String(20))
     type_id = Column(Integer, ForeignKey('terms.id'))
     term_type = relationship('Term', remote_side=[id],
                          primaryjoin="Term.id==Term.type_id",
@@ -131,7 +131,7 @@ class ObjectType(Base):
     __tablename__ = 'objecttypes'
 
     id = Column(Integer, Sequence('objecttypes_id_seq'), primary_key=True)
-    label = Column(String)
+    label = Column(String(20))
     obj_type_id = Column(Integer, ForeignKey('terms.id'))
     obj_type = relationship(Term, primaryjoin='Term.id==ObjectType.obj_type_id')
 
@@ -150,7 +150,7 @@ class Predicate(Base):
     id = Column(Integer, Sequence('predicate_id_seq'), primary_key=True)
     true = Column(Boolean)
     type_id = Column(Integer, ForeignKey('terms.id'))
-    term_type = relationship('Term', primaryjoin="Term.id==Predicate.type_id")
+    term_type = relationship('Term', primaryjoin="Term.id==Predicate.type_id", lazy='joined')
     rule_id = Column(Integer, ForeignKey('rules.id'))
     rule = relationship('Rule', backref=backref('consecuences', cascade='all'),
                          primaryjoin="Rule.id==Predicate.rule_id")
@@ -230,9 +230,10 @@ class Object(Base):
     parent = relationship('Predicate',
                           backref=backref('objects',
                                           collection_class=attribute_mapped_collection('label'),
+                                          lazy='joined',
                                           cascade='all,delete-orphan'),
                           primaryjoin="Predicate.id==Object.parent_id")
-    label = Column(String)
+    label = Column(String(20))
 
     otype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': otype}
@@ -252,7 +253,7 @@ class TObject(Object):
     '''
     __mapper_args__ = {'polymorphic_identity': 0}
     term_id = Column(Integer, ForeignKey('terms.id'))
-    value = relationship('Term', primaryjoin="Term.id==TObject.term_id")
+    value = relationship('Term', primaryjoin="Term.id==TObject.term_id", lazy='joined')
 
 
 class PObject(Object):
@@ -260,7 +261,7 @@ class PObject(Object):
     '''
     __mapper_args__ = {'polymorphic_identity': 1}
     pred_id = Column(Integer, ForeignKey('predicates.id'))
-    value = relationship('Predicate', cascade='all',
+    value = relationship('Predicate', cascade='all', lazy='joined',
                          primaryjoin="Predicate.id==PObject.pred_id")
 
 
@@ -337,7 +338,7 @@ class Import(Base):
     '''
     __tablename__ = 'imports'
     id = Column(Integer, default=0, primary_key=True)
-    url = Column(String)
+    url = Column(String(100))
 
     def __init__(self, url):
         self.url = url
