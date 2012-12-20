@@ -6,31 +6,18 @@ try:
 except ImportError:
     pass
 from code import InteractiveConsole
-from configparser import ConfigParser
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from terms.core.utils import get_config
 from terms.core.compiler import KnowledgeBase
 from terms.core.network import Network
 from terms.core.terms import Base
 
 
 def repl():
-    if len(sys.argv) > 1:
-        name = sys.argv[1]
-    else:
-        name = 'test'
-    config = ConfigParser()
-    d = os.path.dirname(sys.modules['terms.core'].__file__)
-    fname = os.path.join(d, 'etc', 'terms.cfg')
-    config.readfp(open(fname))
-    config.read([os.path.join('etc', 'terms.cfg'), os.path.expanduser('~/.terms.cfg')])
-    if name in config:
-        config = config[name]
-    else:
-        config = config['default']
-        config['dbname'] = name
+    config = get_config()
     address = '%s/%s' % (config['dbms'], config['dbname'])
     engine = create_engine(address)
     Session = sessionmaker(bind=engine)
@@ -45,7 +32,7 @@ def repl():
         if line in ('quit', 'exit'):
             session.close()
             if int(config['instant_duration']):
-                kb.ticking = False
+                kb.clock.ticking = False
             sys.exit('bye')
         resp = kb.process_line(line)
         if resp is not kb.no_response:

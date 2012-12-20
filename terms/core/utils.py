@@ -17,6 +17,9 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+import os.path
+from configparser import ConfigParser
+from optparse import OptionParser
 
 class Match(dict):
 
@@ -83,3 +86,23 @@ def merge_submatches(submatches):
                     new.append(nm)
         final = new
     return final
+
+def get_config():
+    parser = OptionParser(usage="usage: %prog [options] [name]")
+    _opt = parser.add_option
+    _opt("-c", "--config", help="path to config file.")
+    opt, args = parser.parse_args()
+    name = args and args[0] or 'default'
+    config = ConfigParser()
+    d = os.path.dirname(sys.modules['terms.core'].__file__)
+    fname = os.path.join(d, 'etc', 'terms.cfg')
+    config.readfp(open(fname))
+    config.read([os.path.join('etc', 'terms.cfg'), os.path.expanduser('~/.terms.cfg')])
+    if opt.config:
+        config.read([opt.config])
+    if name in config:
+        config = config[name]
+    else:
+        config = config['default']
+        config['dbname'] = name
+    return config
