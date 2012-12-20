@@ -25,6 +25,9 @@ import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from terms.core import register
@@ -370,27 +373,61 @@ class AstNode(object):
             setattr(self, k, v)
 
 
+class Ticker(Thread):
+
+    def __init__(self, config, lock, *args, **kwargs):
+        super(Ticker, self).__init__(*args, **kwargs)
+        address = '%s/%s' % (config['dbms'], config['dbname'])
+        engine = create_engine(address)
+        Session = sessionmaker(bind=engine)
+        self.session = Session()
+        self.kb = KnowledgeBase(self.session, config, first=False)
+        self.config = config
+        self.time_lock = lock
+        self.ticking = True
+
+    def run(self):
+        while self.ticking:
+            self.time_lock.acquire()
+            pred = Predicate(True, self.kb.lexicon.vtime, subj=self.kb.lexicon.now_term)
+            try:
+                fact = self.kb.network.present.query_facts(pred, []).one()
+            except NoResultFound:
+                pass
+            else:
+                self.session.delete(fact)
+                self.session.commit()
+            self.kb.network.passtime()
+            pred = Predicate(True, self.kb.lexicon.vtime, subj=self.kb.lexicon.now_term)
+            self.kb.network.add_fact(pred)
+            self.session.commit()
+            self.time_lock.release()
+            if self.ticking:
+                time.sleep(float(self.config['instant_duration']))
+
+
 class KnowledgeBase(object):
 
     def __init__(
             self, session, config,
             lex_optimize=False,
             yacc_optimize=True,
-            yacc_debug=False):
+            yacc_debug=False,
+            first=True):
 
         self.session = session
         self.config = config
         self.network = Network(session, config)
         self.lexicon = self.network.lexicon
+        self.actions = {}
 
         self._buffer = ''  # for line input
         self.no_response = object()
         self.prompt = '>>> '
 
-        if int(self.config['instant_duration']):
-            self.clock = Thread(target=self.tick)
+        if first and 'instant_duration' in self.config and self.config['instant_duration']:
             self.time_lock = Lock()
-            self.ticking = True
+            self.clock = Ticker(config, self.time_lock)
             self.clock.start()
 
         self.parser = Parser(
@@ -400,23 +437,10 @@ class KnowledgeBase(object):
 
         register(self.count)
 
-    def tick(self):
-        while self.ticking:
-            time.sleep(float(self.config['instant_duration']))
-            self.time_lock.acquire()
-            pred = Predicate(True, self.lexicon.vtime, subj=self.lexicon.now_term)
-            try:
-                fact = self.network.present.query_facts(pred, []).one()
-            except NoResultFound:
-                pass
-            else:
-                self.session.delete(fact)
-                self.session.commit()
-            self.network.passtime()
-            pred = Predicate(True, self.lexicon.vtime, subj=self.lexicon.now_term)
-            self.network.add_fact(pred)
-            self.session.commit()
-            self.time_lock.release()
+    def act(self, fact):
+        action = self.actions.get(fact.verb.name, None)
+        if action:
+            action(fact, self)
 
     def parse(self, s):
         ast = self.parser.parse(s)
