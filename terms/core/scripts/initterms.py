@@ -11,8 +11,10 @@ from terms.core.terms import Base
 def init_terms():
     config = get_config()
     address = '%s/%s' % (config['dbms'], config['dbname'])
-    if config['schemata']:
-        __import__(config['schemata'])
+    if config['plugins']:
+        plugins = config['plugins'].strip().split('\n')
+        for plugin in plugins:
+            __import__(plugin + '.schemata')
     engine = create_engine(address)
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
@@ -20,4 +22,4 @@ def init_terms():
     Network.initialize(session)
     session.commit()
     session.close()
-    sys.exit('Created knowledge store %s' % name)
+    sys.exit('Created knowledge store %s' % config['dbname'])

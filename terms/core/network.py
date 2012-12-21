@@ -351,7 +351,7 @@ class NegNode(Node):
     __mapper_args__ = {'polymorphic_identity': '_neg'}
 
     value = Column(Boolean, index=True)
-    
+
     @classmethod
     def resolve(cls, pred, path):
         for segment in path[:-1]:
@@ -373,7 +373,7 @@ class TermNode(Node):
     __mapper_args__ = {'polymorphic_identity': '_term'}
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==TermNode.term_id")
-    
+
     @classmethod
     def resolve(cls, term, path):
         '''
@@ -416,7 +416,7 @@ class VerbNode(Node):
     __mapper_args__ = {'polymorphic_identity': '_verb'}
     verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==VerbNode.verb_id")
-    
+
     @classmethod
     def resolve(cls, term, path):
         for segment in path[:-1]:
@@ -472,7 +472,7 @@ class Premise(Base):
 
     id = Column(Integer, Sequence('premise_id_seq'), primary_key=True)
     prem_id = Column(Integer, ForeignKey('premnodes.id'), index=True)
-    node = relationship('PremNode', backref='prems', 
+    node = relationship('PremNode', backref='prems',
                          primaryjoin="PremNode.id==Premise.prem_id")
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
     rule = relationship('Rule', backref=backref('prems', lazy='dynamic'),
@@ -803,21 +803,20 @@ class CondCode(Base):
 
     def test(self, match, network):
         exec_locals = {'condition': True}
-        exec_locals.update(exec_globals)
         for k, v in match.items():
             if getattr(v, 'number', False):
                 exec_locals[k] = eval(v.name, {}, {})
             else:
                 exec_locals[k] = v
         try:
-            exec(self.code, {}, exec_locals)
+            exec(self.code, exec_globals, exec_locals)
         except Exception:
             if exec_locals['condition']:
                 raise
             return False
 
         for k, v in exec_locals.items():
-            if k in ('condition', '__builtins__') or k in exec_globals:
+            if k in ('condition', '__builtins__'):
                 continue
             try:
                 match[k] = network.lexicon.make_term(str(0 + v), network.lexicon.number)
