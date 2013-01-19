@@ -42,7 +42,7 @@ instant_duration = 0
 '''
 
 
-def test_terms(): # test generator
+def test_terms():  # test generator
     # read contents of tests/
     # feed each test to run_npl
     d = os.path.dirname(sys.modules['terms.core'].__file__)
@@ -60,9 +60,9 @@ def test_terms(): # test generator
             Base.metadata.create_all(engine)
             Network.initialize(session)
             kb = KnowledgeBase(session, config,
-                    lex_optimize=False,
-                    yacc_optimize=False,
-                    yacc_debug=True)
+                               lex_optimize=False,
+                               yacc_optimize=False,
+                               yacc_debug=True)
             yield run_terms, kb, os.path.join(d, f)
             kb.session.close()
             Base.metadata.drop_all(engine)
@@ -70,7 +70,7 @@ def test_terms(): # test generator
 
 def run_terms(kb, fname):
     # open file, read lines
-    # tell asserions
+    # tell assertions
     # compare return of questions with provided output
     with open(fname) as f:
         resp = kb.no_response
@@ -78,9 +78,11 @@ def run_terms(kb, fname):
             sen = sen.rstrip()
             if resp is not kb.no_response:
                 sen = sen.strip('.')
-                nose.tools.assert_equals(sen, resp,
-                    msg='returned "%s" is not "%s" at line %d for query: %s' %
-                        (resp, sen, kb.parser.lex.lexer.lineno, kb.parser.lex.lexer.lexdata))
+                pmsg = 'returned "%s" is not "%s" at line %d for query: %s'
+                msg = pmsg % (resp, sen,
+                              kb.parser.lex.lexer.lineno,
+                              kb.parser.lex.lexer.lexdata)
+                nose.tools.assert_equals(sen, resp, msg=msg)
                 resp = kb.no_response
             elif sen and not sen.startswith('#'):
                 resp = kb.process_line(sen)

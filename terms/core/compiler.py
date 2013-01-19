@@ -36,41 +36,42 @@ from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
 from terms.core.exceptions import Contradiction
 
+
 class Lexer(object):
 
     states = (
-            ('pycode', 'exclusive'),
+        ('pycode', 'exclusive'),
     )
 
     tokens = (
-            'SYMBOL',
-            'NUMBER',
-            'COMMA',
-            'LPAREN',
-            'RPAREN',
-            'DOT',
-            'QMARK',
-            'NOT',
-            'IS',
-            'A',
-            'SEMICOLON',
-            'VAR',
-            'IMPLIES',
-            'RM',
-            'PYCODE',
-            'FINISH',
-            'IMPORT',
-            'URL',
-            'PDB',
+        'SYMBOL',
+        'NUMBER',
+        'COMMA',
+        'LPAREN',
+        'RPAREN',
+        'DOT',
+        'QMARK',
+        'NOT',
+        'IS',
+        'A',
+        'SEMICOLON',
+        'VAR',
+        'IMPLIES',
+        'RM',
+        'PYCODE',
+        'FINISH',
+        'IMPORT',
+        'URL',
+        'PDB',
     )
 
     reserved = {
-            'is': 'IS',
-            'a': 'A',
-            'finish': 'FINISH',
-            'import': 'IMPORT',
-            'pdb': 'PDB',
-            }
+        'is': 'IS',
+        'a': 'A',
+        'finish': 'FINISH',
+        'import': 'IMPORT',
+        'pdb': 'PDB',
+    }
 
     t_NUMBER = NUM_PAT
     t_COMMA = r','
@@ -86,8 +87,9 @@ class Lexer(object):
     t_URL = r'<[^>]+>'
 
     @TOKEN(SYMBOL_PAT)
-    def t_SYMBOL(self,t):
-        t.type = self.reserved.get(t.value, 'SYMBOL')    # Check for reserved words
+    def t_SYMBOL(self, t):
+        # Check for reserved words
+        t.type = self.reserved.get(t.value, 'SYMBOL')
         return t
 
     # Define a rule so we can track line numbers
@@ -96,7 +98,7 @@ class Lexer(object):
         t.lexer.lineno += len(t.value)
 
     # A string containing ignored characters (spaces and tabs)
-    t_ignore  = ' \t'
+    t_ignore = ' \t'
 
     def t_begin_pycode(self, t):
         r'<-'
@@ -117,24 +119,25 @@ class Lexer(object):
         r'.+'
         return t
 
-    t_pycode_ignore  = ''
+    t_pycode_ignore = ''
 
     # Error handling rule
-    def t_pycode_INITIAL_error(self,t):
+    def t_pycode_INITIAL_error(self, t):
         print("Illegal character '%s'" % t.value[0])
         t.lexer.skip(1)
 
     # Build the lexer
-    def build(self,**kwargs):
+    def build(self, **kwargs):
         self.lexer = lex.lex(module=self, **kwargs)
-    
+
     # Test it output
-    def test(self,data):
+    def test(self, data):
         self.lexer.input(data)
         while True:
-             tok = self.lexer.token()
-             if not tok: break
-             print(tok)
+            tok = self.lexer.token()
+            if not tok:
+                break
+            print(tok)
 
 
 class Parser(object):
@@ -143,7 +146,7 @@ class Parser(object):
         ('left', 'COMMA'),
         ('left', 'LPAREN'),
         ('left', 'SEMICOLON'),
-        )
+    )
 
     def __init__(
             self,
@@ -158,20 +161,20 @@ class Parser(object):
         self.tokens = self.lex.tokens
 
         self.parser = ply.yacc.yacc(
-            module=self, 
+            module=self,
             start='construct',
             debug=yacc_debug,
             optimize=yacc_optimize)
 
     def parse(self, text, filename='', debuglevel=0):
-        """ 
+        """
             text:
                 A string containing the source code
-            
+
             filename:
                 Name of the file being parsed (for meaningful
                 error messages)
-            
+
             debuglevel:
                 Debug level to yacc
         """
@@ -193,7 +196,8 @@ class Parser(object):
 
     def p_pdb(self, p):
         '''pdb : PDB DOT'''
-        import pdb;pdb.set_trace()
+        import pdb
+        pdb.set_trace()
 
     def p_fact_set(self, p):
         '''fact-set : fact-list DOT'''
@@ -304,12 +308,11 @@ class Parser(object):
             p[0] = p[3] + (p[1],)
         else:
             p[0] = (p[1],)
- 
+
     def p_mod(self, p):
         '''mod : SYMBOL object'''
         p[0] = AstNode('mod', label=p[1], obj=p[2])
-    
- 
+
     def p_object(self, p):
         '''object : vterm
                   | fact
@@ -363,7 +366,8 @@ class Parser(object):
         p[0] = AstNode('mod-def', label=p[1], obj_type=p[3])
 
     def p_error(self, p):
-        raise Exception('syntax error: ' + str(p) + ' parsing ' + self.lex.lexer.lexdata)
+        raise Exception('syntax error: ' + str(p) +
+                        ' parsing ' + self.lex.lexer.lexdata)
 
 
 class AstNode(object):
@@ -389,7 +393,8 @@ class Ticker(Thread):
     def run(self):
         while self.ticking:
             self.time_lock.acquire()
-            pred = Predicate(True, self.kb.lexicon.vtime, subj=self.kb.lexicon.now_term)
+            pred = Predicate(True, self.kb.lexicon.vtime,
+                             subj=self.kb.lexicon.now_term)
             try:
                 fact = self.kb.network.present.query_facts(pred, []).one()
             except NoResultFound:
@@ -398,7 +403,8 @@ class Ticker(Thread):
                 self.session.delete(fact)
                 self.session.commit()
             self.kb.network.passtime()
-            pred = Predicate(True, self.kb.lexicon.vtime, subj=self.kb.lexicon.now_term)
+            pred = Predicate(True, self.kb.lexicon.vtime,
+                             subj=self.kb.lexicon.now_term)
             self.kb.network.add_fact(pred)
             self.session.commit()
             self.time_lock.release()
@@ -425,7 +431,8 @@ class KnowledgeBase(object):
         self.no_response = object()
         self.prompt = '>>> '
 
-        if first and 'instant_duration' in self.config and self.config['instant_duration']:
+        if (first and 'instant_duration' in self.config and
+                self.config['instant_duration']):
             self.time_lock = Lock()
             self.clock = Ticker(config, self.time_lock)
             self.clock.start()
@@ -464,8 +471,8 @@ class KnowledgeBase(object):
     def format_results(self, res):
         if isinstance(res, str):
             return res
-        resps = [', '.join([k + ': ' + str(v) for k, v in r.items()]) \
-                for r in res]
+        resps = [', '.join([k + ': ' + str(v) for k, v in r.items()])
+                 for r in res]
         return '; '.join(resps)
 
     def process_line(self, line):
@@ -515,7 +522,8 @@ class KnowledgeBase(object):
 
     def compile_verbdef(self, defn):
         bases = [self.lexicon.get_term(t.val) for t in defn.bases]
-        objs = {o.label: self.lexicon.get_term(o.obj_type.val) for o in defn.objs}
+        objs = {o.label: self.lexicon.get_term(o.obj_type.val)
+                for o in defn.objs}
         return self.lexicon.add_subterm(defn.name.val, bases, **objs)
 
     def compile_noundef(self, defn):
@@ -616,7 +624,9 @@ class KnowledgeBase(object):
             descent = fact.get_descent()
             for ch in descent:
                 if isa(ch.pred, self.lexicon.now):
-                    self.network.present.add_object_to_fact(ch, self.lexicon.now_term, ('at_', '_term'))
+                    now_term = self.lexicon.now_term
+                    self.network.present.add_object_to_fact(ch, now_term,
+                                                            ('at_', '_term'))
                     ch.factset = 'past'
                     ch.matches = []
         self.session.commit()
@@ -646,7 +656,7 @@ class KnowledgeBase(object):
 
     def compile_import(self, url):
         try:
-            prev = self.session.query(Import).filter_by(url=url).one()
+            self.session.query(Import).filter_by(url=url).one()
         except NoResultFound:
             pass
         else:
@@ -667,4 +677,3 @@ class KnowledgeBase(object):
         self.session.add(new)
         self.session.commit()
         return 'OK'
-

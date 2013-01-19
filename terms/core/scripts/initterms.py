@@ -12,7 +12,7 @@ def init_terms():
     config = get_config()
     address = '%s/%s' % (config['dbms'], config['dbname'])
     if config['plugins']:
-        plugins = config['plugins'].strip().split('\n')
+        plugins = [p for p in config['plugins'].strip().split('\n') if p]
         for plugin in plugins:
             __import__(plugin + '.schemata')
     engine = create_engine(address)
