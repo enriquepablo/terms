@@ -24,7 +24,8 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 
-class Base(object): pass
+class Base(object):
+    pass
 
 Base = declarative_base(cls=Base)
 
@@ -39,6 +40,7 @@ term_to_objtype = Table('term_to_objtype', Base.metadata,
     Column('objtype_id', Integer, ForeignKey('objecttypes.id'))
 )
 
+
 class Term(Base):
     __tablename__ = 'terms'
 
@@ -50,11 +52,11 @@ class Term(Base):
                          post_update=True)
     bases = relationship('Term', backref='subwords',
                          secondary=term_to_base,
-                         primaryjoin=id==term_to_base.c.term_id,
-                         secondaryjoin=id==term_to_base.c.base_id)
+                         primaryjoin=id == term_to_base.c.term_id,
+                         secondaryjoin=id == term_to_base.c.base_id)
     object_types = relationship('ObjectType',
                          secondary=term_to_objtype,
-                         primaryjoin=id==term_to_objtype.c.term_id,
+                         primaryjoin=id == term_to_objtype.c.term_id,
                          secondaryjoin='ObjectType.id==term_to_objtype.c.objtype_id')
     equals = ()
     var = Column(Boolean)
@@ -160,7 +162,6 @@ class Predicate(Base):
     name = ''
     var = False
 
-
     def __init__(self, true, verb_, **objs):
         '''
         verb is a string.
@@ -237,7 +238,7 @@ class Object(Base):
 
     otype = Column(Integer)
     __mapper_args__ = {'polymorphic_on': otype}
-    
+
     def __init__(self, label, term):
         self.label = label
         self.value = term
