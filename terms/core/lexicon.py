@@ -100,7 +100,7 @@ class Lexicon(object):
         The term_type must exist.
         '''
         types = self.get_subterms(term_type)
-        type_ids = [t.id for t in types]
+        type_ids = [t.id for t in types if t is not self.number]
         return self.session.query(Term).filter(Term.type_id.in_(type_ids)).all()
 
     def make_term(self, name, term_type, **objs):
@@ -183,7 +183,7 @@ class Lexicon(object):
         Make a term that represents a variable in a rule or query.
         It is not added to the session.
         Its name has the original trailing digits.
-        
+
         '''
         try:
             return self.get_term(name)

@@ -63,7 +63,7 @@ class FactSet(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, pred, prev):
-        #print(pred)
+        print(pred)
         if prev:
             return prev[0]
         fact = Fact(pred, self.name)
@@ -124,7 +124,7 @@ class Fact(Base):
                          cascade='all',
                          primaryjoin="Predicate.id==Fact.pred_id")
     factset = Column(String(16))
-    
+
     def __init__(self, pred, name):
         self.pred = pred
         self.factset = name
@@ -183,7 +183,7 @@ class NegSegment(Segment):
 
     __mapper_args__ = {'polymorphic_identity': '_neg'}
     value = Column(Boolean, index=True)
-    
+
     @classmethod
     def resolve(cls, pred, path, factset, preds=False):
         try:
@@ -195,12 +195,12 @@ class NegSegment(Segment):
 
 
 class TermSegment(Segment):
-    
+
     __mapper_args__ = {'polymorphic_identity': '_term'}
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==TermSegment.term_id")
-    
+
     @classmethod
     def resolve(cls, term, path, factset, preds=False):
         '''
@@ -245,7 +245,7 @@ class VerbSegment(Segment):
     verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term',
                          primaryjoin="Term.id==VerbSegment.verb_id")
-    
+
     @classmethod
     def resolve(cls, term, path, factset, preds=False):
         for segment in path[:-1]:

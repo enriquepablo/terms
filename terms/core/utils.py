@@ -104,8 +104,4 @@ def get_config():
                 os.path.expanduser('~/.terms.cfg')])
     if opt.config:
         config.read([opt.config])
-    if name in config:
-        config = config[name]
-    else:
-        config = config['default']
-    return config
+    return config[name]

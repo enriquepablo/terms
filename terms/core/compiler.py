@@ -432,7 +432,7 @@ class KnowledgeBase(object):
         self.prompt = '>>> '
 
         if (first and 'instant_duration' in self.config and
-                self.config['instant_duration']):
+                int(self.config['instant_duration'])):
             self.time_lock = Lock()
             self.clock = Ticker(config, self.time_lock)
             self.clock.start()
