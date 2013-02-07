@@ -53,7 +53,7 @@ noun = _Word('noun', type=word, bases=(word,))
 verb = _Word('verb', type=word, bases=(word,))
 number = _Word('number', type=word)
 thing = _Word('thing', type=noun, bases=(word,))
-exists = _Word('exists', type=verb, bases=(word,), args={'subject': thing})
+exists = _Word('exists', type=verb, bases=(word,), args={'subject': word})
 
 
 class fact(object):
@@ -86,13 +86,38 @@ class fact(object):
 # (animal, thing, word)
 # >>> api.isa(john, api.word)
 # True
-# >>> isa(f1, loves)
-# Traceback (most recent call last):
-#   File "<stdin>", line 1, in <module>
-# NameError: name 'isa' is not defined
 # >>> api.isa(f1, loves)
 # True
 # >>> Person1 = person('Person1')
 # >>> f2 = api.fact(Person1, wants, what=f1)
 # >>> str(f2)
 # '(wants Person1, what (loves john, who anne))'
+
+
+class Brain(object):
+
+    def __init__(self):
+        self._config = None
+        self._session = None
+        self._lexicon = None
+        self._factset = None
+        self._network = None
+        self._compiler = None
+
+    def tell_terms(self, trms):
+        return self._compiler.parse(trms)
+
+    def tell_word(self, w):
+        pass
+
+    def tell_fact(self, f):
+        pass
+
+    def ask_fact(self, f):
+        pass
+
+    def get_words(self, type):
+        pass
+
+    def get_subwords(self, base):
+        pass
