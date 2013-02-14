@@ -18,6 +18,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import time
+from importlib import import_module
 from urllib.request import urlopen
 from threading import Thread, Lock
 
@@ -34,6 +35,7 @@ from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
+from terms.core.pluggable import get_plugin_names
 from terms.core.exceptions import Contradiction
 
 
@@ -425,7 +427,11 @@ class KnowledgeBase(object):
         self.config = config
         self.network = Network(session, config)
         self.lexicon = self.network.lexicon
+
         self.actions = {}
+        for plugin in get_plugin_names(config):
+            actions = import_module(plugin + '.actions')
+            self.actions.update(actions.__dict__)
 
         self._buffer = ''  # for line input
         self.no_response = object()

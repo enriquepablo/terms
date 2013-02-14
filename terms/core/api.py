@@ -1,4 +1,7 @@
 
+import json
+from terms.core.compiler import KnowledgeBase
+
 
 class _Word(object):
     def __init__(self, id, type=None, bases=(), args=None):
@@ -6,6 +9,10 @@ class _Word(object):
         self.type = type
         self.bases = bases
         self.args = args or {}
+
+    @classmethod
+    def _from_term(cls, term):
+        return cls(term.name, term.term_type.name)
 
     def __call__(self, id, *bases, **kwargs):
         new = _Word(id, type=self)
@@ -33,6 +40,18 @@ class _Word(object):
         if self.id == w.id:
             return True
         return False
+
+    def define(self):
+        if self.bases:
+            sb = ', '.join([b.id for b in self.bases])
+            if self.args:
+                sa = ', '.join(['%s %s' % (label, a.id) for label, a in self.args.items()])
+                s = '%s is %s, %s' % (self.id, sb, sa)
+            else:
+                s = 'a %s is a %s' % (self.id, sb)
+        else:
+            s = '%s is a %s' % (self.id, self.type.id)
+        return s
 
 
 def isa(w1, w2):
@@ -96,28 +115,35 @@ class fact(object):
 
 class Brain(object):
 
-    def __init__(self):
-        self._config = None
-        self._session = None
-        self._lexicon = None
-        self._factset = None
-        self._network = None
-        self._compiler = None
+    def __init__(self, session, config):
+        self._config = config
+        self._sa_session = session
+        self._compiler = KnowledgeBase(session, config)
+        self._network = self._compiler.network
+        self._lexicon = self._compiler.lexicon
+        self._present = self._network.present
+        self._memory = self._network.past
 
-    def tell_terms(self, trms):
-        return self._compiler.parse(trms)
+    def tell(self, s):
+        return self._compiler.parse(s)
 
     def tell_word(self, w):
-        pass
+        return self.tell(w.define())
 
     def tell_fact(self, f):
-        pass
+        return self.tell(str(f))
 
     def ask_fact(self, f):
-        pass
+        resp = self._network.query(str(f))
+        resp = ({label: str(obj) for label, obj in row} for row in resp)
+        return resp
 
     def get_words(self, type):
-        pass
+        term_type = self._lexicon.get_term(type)
+        terms = self._lexicon.get_terms(term_type)
+        return json.dumps(terms)
 
     def get_subwords(self, base):
-        pass
+        sterm = self._lexicon.get_term(base)
+        terms = self._lexicon.get_subterms(sterm)
+        return json.dumps(terms)
