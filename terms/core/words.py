@@ -1,6 +1,6 @@
 
 import json
-from terms.core.compiler import KnowledgeBase
+from terms.core.compiler import Compiler
 
 
 class _Word(object):
@@ -113,12 +113,12 @@ class fact(object):
 # '(wants Person1, what (loves john, who anne))'
 
 
-class Brain(object):
+class KnowledgeBase(object):
 
     def __init__(self, session, config):
         self._config = config
         self._sa_session = session
-        self._compiler = KnowledgeBase(session, config)
+        self._compiler = Compiler(session, config)
         self._network = self._compiler.network
         self._lexicon = self._compiler.lexicon
         self._present = self._network.present

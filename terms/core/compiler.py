@@ -387,7 +387,7 @@ class Ticker(Thread):
         engine = create_engine(address)
         Session = sessionmaker(bind=engine)
         self.session = Session()
-        self.kb = KnowledgeBase(self.session, config, first=False)
+        self.compiler = Compiler(self.session, config, first=False)
         self.config = config
         self.time_lock = lock
         self.ticking = True
@@ -395,26 +395,27 @@ class Ticker(Thread):
     def run(self):
         while self.ticking:
             self.time_lock.acquire()
-            pred = Predicate(True, self.kb.lexicon.vtime,
-                             subj=self.kb.lexicon.now_term)
+            pred = Predicate(True, self.compiler.lexicon.vtime,
+                             subj=self.compiler.lexicon.now_term)
             try:
-                fact = self.kb.network.present.query_facts(pred, []).one()
+                fact = self.compiler.network.present.query_facts(pred,
+                                                                 []).one()
             except NoResultFound:
                 pass
             else:
                 self.session.delete(fact)
                 self.session.commit()
-            self.kb.network.passtime()
-            pred = Predicate(True, self.kb.lexicon.vtime,
-                             subj=self.kb.lexicon.now_term)
-            self.kb.network.add_fact(pred)
+            self.compiler.network.passtime()
+            pred = Predicate(True, self.compiler.lexicon.vtime,
+                             subj=self.compiler.lexicon.now_term)
+            self.compiler.network.add_fact(pred)
             self.session.commit()
             self.time_lock.release()
             if self.ticking:
                 time.sleep(float(self.config['instant_duration']))
 
 
-class KnowledgeBase(object):
+class Compiler(object):
 
     def __init__(
             self, session, config,
@@ -427,11 +428,6 @@ class KnowledgeBase(object):
         self.config = config
         self.network = Network(session, config)
         self.lexicon = self.network.lexicon
-
-        self.actions = {}
-        for plugin in get_plugin_names(config):
-            actions = import_module(plugin + '.actions')
-            self.actions.update(actions.__dict__)
 
         self._buffer = ''  # for line input
         self.no_response = object()
@@ -449,11 +445,6 @@ class KnowledgeBase(object):
             yacc_debug=yacc_debug)
 
         register(self.count)
-
-    def act(self, fact):
-        action = self.actions.get(fact.verb.name, None)
-        if action:
-            action(fact, self)
 
     def parse(self, s):
         ast = self.parser.parse(s)
