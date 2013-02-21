@@ -44,6 +44,7 @@ class Network(object):
         self.lexicon = Lexicon(session, config)
         self.present = FactSet('present', self.lexicon, config)
         self.past = FactSet('past', self.lexicon, config)
+        self.pipe = None
 
     @classmethod
     def initialize(self, session):
@@ -122,6 +123,9 @@ class Network(object):
         fact = factset.add_fact(pred, prev)
         ancestor = Ancestor(fact)
         ancestor.children.append(fact)
+        if isa(pred, self.lexicon.totell):
+            if self.pipe is not None:
+                self.pipe.send(str(pred))
         if prev:
             return prev[0]
         if self.root.child_path:
@@ -703,6 +707,7 @@ class Rule(Base):
                 olds = network.present.query_facts(old_pred, {})
                 for old in olds:
                     network.finish(old.pred)
+            # XXX make contradiction configurabe
             #neg = con.copy()
             #neg.true = not neg.true
             #contradiction = factset.query(neg)
@@ -715,6 +720,9 @@ class Rule(Base):
                     fact.ancestors.append(match.ancestor)
                 except InvalidRequestError:
                     pass
+            if isa(con, network.lexicon.totell):
+                if network.pipe is not None:
+                    network.pipe.send(str(con))
             if prev:
                 continue
             if network.root.child_path:

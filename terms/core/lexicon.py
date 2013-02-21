@@ -37,6 +37,7 @@ class Lexicon(object):
         self.onwards = self.get_term('onwards')
         self.unique = self.get_term('unique')
         self.now = self.get_term('now')
+        self.totell = self.get_term('totell')
         self.vtime = self.get_term('time')
         self.thing = self.get_term('thing')
         self.time = self.session.query(Time).one()
@@ -59,16 +60,21 @@ class Lexicon(object):
         session.add(noun)
         number = Term('number', ttype=word, bases=(word,))
         session.add(number)
-        exists = Term('exists', ttype=verb, bases=(word,), objs={'subj': word})
+        exists = Term('exists', ttype=verb, bases=(word,),
+                      objs={'subj': word})
         session.add(exists)
-        onwards = Term('onwards', ttype=verb, bases=(exists,), objs={'since_': number,
-                                                                     'till_': number})
+        onwards = Term('onwards', ttype=verb, bases=(exists,),
+                       objs={'since_': number, 'till_': number})
         session.add(onwards)
         unique = Term('unique', ttype=verb, bases=(onwards,))
         session.add(unique)
-        now = Term('now', ttype=verb, bases=(exists,), objs={'at_': number})
+        now = Term('now', ttype=verb, bases=(exists,),
+                   objs={'at_': number})
         session.add(now)
-        time = Term('time', ttype=verb, bases=(exists,), objs={'subj': number})
+        totell = Term('totell', ttype=verb, bases=(now,))
+        session.add(totell)
+        time = Term('time', ttype=verb, bases=(exists,),
+                    objs={'subj': number})
         session.add(time)
         thing = Term('thing', ttype=noun, bases=(word,))
         session.add(thing)
