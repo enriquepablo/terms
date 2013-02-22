@@ -45,6 +45,7 @@ setup(
         'console_scripts': [
             'terms = terms.core.scripts.repl:repl',
             'initterms = terms.core.scripts.initterms:init_terms',
+            'kbdaemon = terms.core.scripts.kbdaemon:main',
         ],
     },
     tests_require = [
@@ -55,6 +56,8 @@ setup(
         'PG': ['psycopg2 == 2.4.5',],
         },
     install_requires = [
+        'distribute',
+        #'python-daemon == 1.5.5',
         'sqlalchemy == 0.7.8',
         'ply == 3.4',
     ],

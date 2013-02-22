@@ -1,6 +1,5 @@
 
 import sys
-import os.path
 try:
     import readline
 except ImportError:
@@ -11,7 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from terms.core.utils import get_config
-from terms.core.compiler import KnowledgeBase
+from terms.core.compiler import Compiler
 from terms.core.network import Network
 from terms.core.terms import Base
 
@@ -25,15 +24,15 @@ def repl():
     if config['dbname'] == ':memory:':
         Base.metadata.create_all(engine)
         Network.initialize(session)
-    kb = KnowledgeBase(session, config)
+    compiler = Compiler(session, config)
     ic = InteractiveConsole()
     while True:
-        line = ic.raw_input(prompt=kb.prompt)
+        line = ic.raw_input(prompt=compiler.prompt)
         if line in ('quit', 'exit'):
             session.close()
             if int(config['instant_duration']):
-                kb.clock.ticking = False
+                compiler.clock.ticking = False
             sys.exit('bye')
-        resp = kb.process_line(line)
-        if resp is not kb.no_response:
+        resp = compiler.process_line(line)
+        if resp is not compiler.no_response:
             print(resp)

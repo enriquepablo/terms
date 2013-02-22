@@ -1,4 +1,5 @@
 
+import time
 from multiprocessing import Pool, Pipe
 from multiprocessing.connection import Listener
 
@@ -43,10 +44,16 @@ class KnowledgeBase(object):
     def __init__(self, config):
         self.config = config
         session_factory = get_sasession(config)
-        self.tellers = Pool(config['teller_processes'], init_tellers,
+        self.tellers = Pool(int(config['teller_processes']), init_tellers,
                             (config, session_factory))
 
     def run(self):
-        socket = Listener((self.config['kb_host'], self.config['kb_port']))
-        self.listeners = Pool(self.config['teller_processes'], init_listeners,
+        host = self.config['kb_host']
+        port = int(self.config['kb_port'])
+        nproc = int(self.config['teller_processes'])
+        socket = Listener((host, port))
+        self.listeners = Pool(nproc, init_listeners,
                               (self.tellers, socket))
+        while True:
+            time.sleep(1)
+        # XXX tick
