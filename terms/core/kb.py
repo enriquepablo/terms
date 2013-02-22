@@ -1,14 +1,18 @@
 
 from multiprocessing import Pool, Pipe
+from multiprocessing.connection import Listener
 
+from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
 
 
 compiler = None
 
+
 def init_tellers(config, session_factory):
     global compiler
     compiler = Compiler(session_factory(), config)
+
 
 def tell_teller(pipe, totell):
     compiler.network.pipe = pipe
@@ -18,16 +22,19 @@ def tell_teller(pipe, totell):
     pipe.close()
     return resp
 
+
 def init_listeners(tellers, socket):
     while True:
-        totell = socket.get()
+        client = socket.accept()
+        totell = client.recv()
         conn, tconn = Pipe()
         tellers.appy_async(tell_teller, (tconn, totell))
         while True:
-            resp = conn.get()
-            socket.put(resp)
+            resp = conn.recv()
+            client.send(resp)
             if resp == 'END':
                 conn.close()
+                client.close()
                 break
 
 
@@ -40,8 +47,6 @@ class KnowledgeBase(object):
                             (config, session_factory))
 
     def run(self):
-        socket = None  # XXX
-        self.listeners = Pool(config['teller_processes'], init_listeners,
+        socket = Listener((self.config['kb_host'], self.config['kb_port']))
+        self.listeners = Pool(self.config['teller_processes'], init_listeners,
                               (self.tellers, socket))
-
-
