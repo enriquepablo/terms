@@ -35,7 +35,6 @@ from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
-from terms.core.pluggable import get_plugin_names
 from terms.core.exceptions import Contradiction
 
 
@@ -165,6 +164,7 @@ class Parser(object):
         self.parser = ply.yacc.yacc(
             module=self,
             start='construct',
+            write_tables=False,
             debug=yacc_debug,
             optimize=yacc_optimize)
 

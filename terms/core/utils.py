@@ -17,8 +17,11 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-import sys
+
+import os
 import os.path
+import sys
+import logging
 from configparser import ConfigParser
 from optparse import OptionParser
 
@@ -90,18 +93,42 @@ def merge_submatches(submatches):
     return final
 
 
-def get_config():
-    parser = OptionParser(usage="usage: %prog [options] [name]")
-    _opt = parser.add_option
-    _opt("-c", "--config", help="path to config file.")
-    opt, args = parser.parse_args()
-    name = args and args[0] or 'default'
+def get_config(cmd_line=True):
     config = ConfigParser()
     d = os.path.dirname(sys.modules['terms.core'].__file__)
     fname = os.path.join(d, 'etc', 'terms.cfg')
     config.readfp(open(fname))
-    config.read([os.path.join('etc', 'terms.cfg'),
-                os.path.expanduser('~/.terms.cfg')])
-    if opt.config:
-        config.read([opt.config])
+    config.read([os.path.expanduser('~/.terms.cfg'),
+                 os.path.join('etc', 'terms.cfg')])
+    name = 'default'
+    if cmd_line:
+        parser = OptionParser(usage="usage: %prog [options] [name]")
+        _opt = parser.add_option
+        _opt("-c", "--config", help="path to config file.")
+        opt, args = parser.parse_args()
+        name = args[0] if args else name
+        if opt.config:
+            config.read([opt.config])
     return config[name]
+
+logger = None
+
+
+def get_logger(config):
+    global logger
+    if logger is None:
+        logger = logging.getLogger('kbdaemon')
+        log_file = config['logfile']
+        log_dir = os.path.dirname(log_file)
+        if not os.path.isfile(log_file):
+            if not os.path.isdir(log_dir):
+                os.mkdir(log_dir)
+            f = open(log_file, 'w')
+            f.write('log file for nl\n\n')
+            f.close()
+        hdlr = logging.FileHandler(log_file)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+        hdlr.setFormatter(formatter)
+        logger.addHandler(hdlr)
+        logger.setLevel(getattr(logging, config['logfile']))
+    return logger
