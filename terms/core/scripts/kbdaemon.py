@@ -15,7 +15,7 @@ def start(config):
 
 def stop(config):
     # Get the pid from the pidfile
-    pidfile = config['pidfile']
+    pidfile = os.path.abspath(config['pidfile'])
     try:
         with open(pidfile, 'r') as pf:
             pid = int(pf.read().strip())

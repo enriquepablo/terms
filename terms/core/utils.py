@@ -21,7 +21,6 @@
 import os
 import os.path
 import sys
-import logging
 from configparser import ConfigParser
 from optparse import OptionParser
 
@@ -110,25 +109,3 @@ def get_config(cmd_line=True):
         if opt.config:
             config.read([opt.config])
     return config[name]
-
-logger = None
-
-
-def get_logger(config):
-    global logger
-    if logger is None:
-        logger = logging.getLogger('kbdaemon')
-        log_file = config['logfile']
-        log_dir = os.path.dirname(log_file)
-        if not os.path.isfile(log_file):
-            if not os.path.isdir(log_dir):
-                os.mkdir(log_dir)
-            f = open(log_file, 'w')
-            f.write('log file for nl\n\n')
-            f.close()
-        hdlr = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-        hdlr.setFormatter(formatter)
-        logger.addHandler(hdlr)
-        logger.setLevel(getattr(logging, config['logfile']))
-    return logger

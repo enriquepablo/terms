@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from multiprocessing import Pool, Pipe
+from multiprocessing import Pool
 from multiprocessing.connection import Listener
 
 from terms.core.compiler import Compiler
@@ -10,36 +10,18 @@ from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
 
 
-compiler = None
-
-
-def init_tellers(config, session_factory):
-    global compiler
+def init_listeners(config, session_factory, socket):
     compiler = Compiler(session_factory(), config)
-
-
-def tell_teller(pipe, totell):
-    compiler.network.pipe = pipe
-    resp = compiler.compile(totell)
-    compiler.network.pipe = None
-    pipe.send(resp)
-    pipe.send('END')
-    pipe.close()
-
-
-def init_listeners(tellers, socket):
     while True:
         client = socket.accept()
-        totell = client.recv()
-        conn, tconn = Pipe()
-        tellers.appy_async(tell_teller, (tconn, totell))
-        while True:
-            resp = conn.recv()
-            client.send(resp)
-            if resp == 'END':
-                conn.close()
-                client.close()
-                break
+        totell = client.recv_bytes()
+        totell = totell.decode()
+        compiler.network.pipe = client
+        resp = compiler.parse(totell)
+        compiler.network.pipe = None
+        client.send_bytes(str(resp).encode('ascii'))
+        client.send_bytes(b'END')
+        client.close()
 
 
 class KnowledgeBase(Daemon):
@@ -52,18 +34,15 @@ class KnowledgeBase(Daemon):
         reader_logger = get_rlogger(self.config)
         sys.stdout = reader_logger
         sys.stderr = reader_logger
-        print(reader_logger.logger.handlers)
         session_factory = get_sasession(self.config)
-        self.tellers = Pool(int(self.config['teller_processes']), init_tellers,
-                            (self.config, session_factory))
         host = self.config['kb_host']
         port = int(self.config['kb_port'])
         nproc = int(self.config['teller_processes'])
         socket = Listener((host, port))
         self.listeners = Pool(nproc, init_listeners,
-                              (self.tellers, socket))
+                              (self.config, session_factory, socket))
         while True:
-            time.sleep(1)
+            time.sleep(10)
         # XXX tick
 
     def cleanup(self):

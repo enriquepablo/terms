@@ -14,7 +14,7 @@ class StreamToLogger(object):
         self.linebuf = ''
 
     def write(self, buf):
-        self.logger.log(buf)
+        self.logger.log(self.log_level, buf)
 
     def flush(self):
         for handler in self.logger.handlers:
