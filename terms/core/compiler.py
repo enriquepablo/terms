@@ -17,18 +17,13 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-import time
-from importlib import import_module
 from urllib.request import urlopen
-from threading import Thread, Lock
 
 import ply.lex as lex
 import ply.yacc
 from ply.lex import TOKEN
 
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from terms.core import register
@@ -379,50 +374,13 @@ class AstNode(object):
             setattr(self, k, v)
 
 
-class Ticker(Thread):
-
-    def __init__(self, config, lock, *args, **kwargs):
-        super(Ticker, self).__init__(*args, **kwargs)
-        address = '%s/%s' % (config['dbms'], config['dbname'])
-        engine = create_engine(address)
-        Session = sessionmaker(bind=engine)
-        self.session = Session()
-        self.compiler = Compiler(self.session, config, first=False)
-        self.config = config
-        self.time_lock = lock
-        self.ticking = True
-
-    def run(self):
-        while self.ticking:
-            self.time_lock.acquire()
-            pred = Predicate(True, self.compiler.lexicon.vtime,
-                             subj=self.compiler.lexicon.now_term)
-            try:
-                fact = self.compiler.network.present.query_facts(pred,
-                                                                 []).one()
-            except NoResultFound:
-                pass
-            else:
-                self.session.delete(fact)
-                self.session.commit()
-            self.compiler.network.passtime()
-            pred = Predicate(True, self.compiler.lexicon.vtime,
-                             subj=self.compiler.lexicon.now_term)
-            self.compiler.network.add_fact(pred)
-            self.session.commit()
-            self.time_lock.release()
-            if self.ticking:
-                time.sleep(float(self.config['instant_duration']))
-
-
 class Compiler(object):
 
     def __init__(
             self, session, config,
             lex_optimize=False,
             yacc_optimize=True,
-            yacc_debug=False,
-            first=True):
+            yacc_debug=False):
 
         self.session = session
         self.config = config
@@ -432,12 +390,6 @@ class Compiler(object):
         self._buffer = ''  # for line input
         self.no_response = object()
         self.prompt = '>>> '
-
-        if (first and 'instant_duration' in self.config and
-                int(self.config['instant_duration'])):
-            self.time_lock = Lock()
-            self.clock = Ticker(config, self.time_lock)
-            self.clock.start()
 
         self.parser = Parser(
             lex_optimize=lex_optimize,
@@ -504,8 +456,6 @@ class Compiler(object):
             return self.compile_import(ast.url)
 
     def compile_definition(self, definition):
-        if int(self.config['instant_duration']):
-            self.time_lock.acquire()
         if definition.type == 'verb-def':
             term = self.compile_verbdef(definition)
         elif definition.type == 'noun-def':
@@ -513,8 +463,6 @@ class Compiler(object):
         elif definition.type == 'name-def':
             term = self.compile_namedef(definition)
         self.session.commit()
-        if int(self.config['instant_duration']):
-            self.time_lock.release()
         return term
 
     def compile_verbdef(self, defn):
@@ -532,8 +480,6 @@ class Compiler(object):
         return self.lexicon.add_term(defn.name.val, term_type)
 
     def compile_rule(self, rule):
-        if int(self.config['instant_duration']):
-            self.time_lock.acquire()
         condcode = None
         if rule.pycode:
             condcode = CondCode(rule.pycode)
@@ -555,8 +501,6 @@ class Compiler(object):
                 consecs.append(con)
         self.network.add_rule(prems, conds, condcode, consecs, finish)
         self.session.commit()
-        if int(self.config['instant_duration']):
-            self.time_lock.release()
         return 'OK'
 
     def compile_fact(self, fact):
@@ -607,10 +551,6 @@ class Compiler(object):
         return Finish(fact)
 
     def compile_factset(self, facts):
-        if self.config['time'] != 'none':
-            if int(self.config['instant_duration']):
-                self.time_lock.acquire()
-            self.network.passtime()
         nows = []
         for f in facts:
             pred = self.compile_fact(f)
@@ -627,8 +567,6 @@ class Compiler(object):
                     ch.factset = 'past'
                     ch.matches = []
         self.session.commit()
-        if int(self.config['instant_duration']):
-            self.time_lock.release()
         return 'OK'
 
     def compile_question(self, facts):
