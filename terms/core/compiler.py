@@ -30,7 +30,6 @@ from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
-from terms.core.exceptions import Contradiction
 
 
 class Lexer(object):
@@ -158,7 +157,7 @@ class Parser(object):
 
         self.parser = ply.yacc.yacc(
             module=self,
-            start='construct',
+            start='constructs',
             write_tables=False,
             debug=yacc_debug,
             optimize=yacc_optimize)
@@ -180,6 +179,15 @@ class Parser(object):
         return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
 
     # BNF
+
+    def p_constructs(self, p):
+        '''constructs : construct constructs
+                      | construct'''
+        if len(p) == 3:
+            p[0] = p[2]
+            p[0].append(p[1])
+        else:
+            p[0] = [p[1]]
 
     def p_construct(self, p):
         '''construct : definition
@@ -387,10 +395,6 @@ class Compiler(object):
         self.network = Network(session, config)
         self.lexicon = self.network.lexicon
 
-        self._buffer = ''  # for line input
-        self.no_response = object()
-        self.prompt = '>>> '
-
         self.parser = Parser(
             lex_optimize=lex_optimize,
             yacc_optimize=yacc_optimize,
@@ -399,8 +403,14 @@ class Compiler(object):
         register(self.count)
 
     def parse(self, s):
-        ast = self.parser.parse(s)
-        return self.compile(ast)
+        asts = self.parser.parse(s)
+        return self.compile(asts[0])
+
+    def parse_many(self, s):
+        asts = self.parser.parse(s)
+        for ast in asts:
+            self.compile(ast)
+        return 'OK'
 
     def count(self, sen):
         resp = self.parse(sen + '?')
@@ -409,37 +419,6 @@ class Compiler(object):
         elif resp == 'true':
             return 1
         return len(resp)
-
-    def _parse_buff(self):
-        return self.parse(self._buffer)
-
-    def reset_state(self):
-        self._buffer = ''
-        self.prompt = '>>> '
-
-    def format_results(self, res):
-        if isinstance(res, str):
-            return res
-        resps = [', '.join([k + ': ' + str(v) for k, v in r.items()])
-                 for r in res]
-        return '; '.join(resps)
-
-    def process_line(self, line):
-        self.prompt = '... '
-        resp = self.no_response
-        if line:
-            self._buffer = '\n'.join((self._buffer, line))
-            if self._buffer.endswith('.'):
-                try:
-                    self._parse_buff()
-                except Contradiction as e:
-                    resp = 'Contradiction: ' + e.args[0]
-                self.reset_state()
-            elif self._buffer.endswith('?'):
-                resp = self._parse_buff()
-                resp = self.format_results(resp)
-                self.reset_state()
-        return resp
 
     def compile(self, ast):
         if ast.type == 'definition':
@@ -605,9 +584,7 @@ class Compiler(object):
         elif url.startswith('http'):
             resp = urlopen(url)
             code = resp.read()
-        self._buffer = ''
-        for line in code.decode('ascii').splitlines():
-            self.process_line(line)
+        self.parse_many(code)
         new = Import(url)
         self.session.add(new)
         self.session.commit()

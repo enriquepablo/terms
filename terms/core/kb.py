@@ -61,7 +61,9 @@ class KnowledgeBase(Daemon):
         nproc = int(self.config['teller_processes'])
 
         for n in range(nproc):
-            Teller(self.config, session_factory, self.teller_queue).start()
+            teller = Teller(self.config, session_factory, self.teller_queue)
+            teller.daemon = True
+            teller.start()
         socket = Listener((host, port))
         while True:
             client = socket.accept()
