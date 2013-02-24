@@ -19,21 +19,22 @@ class Teller(Process):
     def __init__(self, config, session_factory, teller_queue, *args, **kwargs):
         super(Teller, self).__init__(*args, **kwargs)
         self.config = config
-        self.session = session_factory()
-        self.compiler = Compiler(self.session, config)
+        self.session_factory = session_factory
         self.teller_queue = teller_queue
 
     def run(self):
         for client in iter(self.teller_queue.get, 'STOP'):
-            totell = client.recv_bytes()
-            totell = totell.decode()
-            self.compiler.network.pipe = client
-            resp = self.compiler.parse(totell)
-            self.compiler.network.pipe = None
+            totell = client.recv_bytes().decode('ascii')
+            session = self.session_factory()
+            compiler = Compiler(session, self.config)
+            compiler.network.pipe = client
+            resp = compiler.parse(totell)
+            compiler.network.pipe = None
             client.send_bytes(str(resp).encode('ascii'))
             client.send_bytes(b'END')
             client.close()
-            self.session.close()
+            session.close()
+            self.teller_queue.task_done()
 
 
 class KnowledgeBase(Daemon):
@@ -51,7 +52,6 @@ class KnowledgeBase(Daemon):
         session_factory = get_sasession(self.config)
 
         if int(self.config['instant_duration']):
-            self.time_lock = Lock()
             self.clock = Ticker(self.config, session_factory(),
                                 self.time_lock, self.teller_queue)
             self.clock.start()
@@ -68,11 +68,12 @@ class KnowledgeBase(Daemon):
         while True:
             client = socket.accept()
             self.time_lock.acquire()
-            self.teller_queue.put_nowait(client)
+            self.teller_queue.put(client)
             self.time_lock.release()
 
     def cleanup(self):
         """cleanup tasks"""
+        self.teller_queue.join()
         self.tellers.close()
         self.tellers.join()
         self.clock.ticking = False
@@ -84,9 +85,9 @@ class Ticker(Thread):
 
     def __init__(self, config, session, lock, queue, *args, **kwargs):
         super(Ticker, self).__init__(*args, **kwargs)
-        self.session = session
-        self.compiler = Compiler(self.session, config, first=False)
         self.config = config
+        self.session = session
+        self.compiler = Compiler(session, config)
         self.time_lock = lock
         self.teller_queue = queue
         self.ticking = True
