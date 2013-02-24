@@ -73,9 +73,10 @@ class KnowledgeBase(Daemon):
 
     def cleanup(self):
         """cleanup tasks"""
+        nproc = int(self.config['teller_processes'])
+        for n in range(nproc):
+            self.teller_queue.put('STOP')
         self.teller_queue.join()
-        self.tellers.close()
-        self.tellers.join()
         self.clock.ticking = False
         self.clock.join()
         print('bye.')
