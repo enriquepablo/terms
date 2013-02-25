@@ -1,17 +1,27 @@
 import os
 import sys
 import time
+import json
 from multiprocessing import Process, JoinableQueue, Lock
 from multiprocessing.connection import Listener
 from threading import Thread
 
 from sqlalchemy.orm.exc import NoResultFound
 
-from terms.core.terms import Predicate
+from terms.core.terms import Term, Predicate, isa
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
+
+
+class TermsJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if type(obj) in (Term, Predicate):
+            return str(obj)
+        else:
+            return super(TermsJSONEncoder, self).default(obj)
 
 
 class Teller(Process):
@@ -21,20 +31,40 @@ class Teller(Process):
         self.config = config
         self.session_factory = session_factory
         self.teller_queue = teller_queue
+        self.compiler = None
 
     def run(self):
         for client in iter(self.teller_queue.get, 'STOP'):
             totell = client.recv_bytes().decode('ascii')
             session = self.session_factory()
-            compiler = Compiler(session, self.config)
-            compiler.network.pipe = client
-            resp = compiler.parse(totell)
-            compiler.network.pipe = None
+            self.compiler = Compiler(session, self.config)
+            if totell.startswith('_metadata'):
+                resp = self.get_metadata(totell)
+            else:
+                self.compiler.network.pipe = client
+                resp = self.compiler.parse(totell)
+                self.compiler.network.pipe = None
+                resp = json.dumps(resp, cls=TermsJSONEncoder)
             client.send_bytes(str(resp).encode('ascii'))
             client.send_bytes(b'END')
             client.close()
             session.close()
+            self.compliler = None
             self.teller_queue.task_done()
+
+    def get_metadata(self, totell):
+        q = totell.split(':')
+        ttype = self.compiler.lexicon.get_term(q[2])
+        if q[1] == 'getwords':
+            resp = self.compiler.lexicon.get_terms(ttype)
+        elif q[1] == 'getsubwords':
+            resp = self.compiler.lexicon.get_subterms(ttype)
+        elif q[1] == 'getverb':
+            resp = []
+            for ot in ttype.object_types:
+                isverb = isa(ot.obj_type, self.compiler.lexicon.verb)
+                resp.append([ot.label, ot.obj_type.name, isverb])
+        return json.dumps(resp, cls=TermsJSONEncoder)
 
 
 class KnowledgeBase(Daemon):

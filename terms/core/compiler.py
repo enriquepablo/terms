@@ -548,13 +548,24 @@ class Compiler(object):
         self.session.commit()
         return 'OK'
 
-    def compile_question(self, facts):
+    def compile_question(self, sentences):
         matches = []
-        if facts:
-            if isinstance(facts, str):
-                facts = (facts,)
+        if sentences:
+            facts, defs = [], []
+            for s in sentences:
+                if s.type == 'fact':
+                    facts.append(s)
+                else:
+                    defs.append(s)
             q = [self.compile_fact(f) for f in facts]
             matches = self.network.query(*q)
+            for defn in defs:
+                if defn.type == 'noun-def':
+                    if defn.name.type == 'var':
+                        terms = self.lexicon.get_terms
+                elif defn.type == 'name-def':
+                    term = self.compile_namedef(definition)
+
         if not matches:
             matches = 'false'
         elif not matches[0]:
