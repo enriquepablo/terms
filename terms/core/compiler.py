@@ -408,6 +408,7 @@ class Compiler(object):
 
     def parse_many(self, s):
         asts = self.parser.parse(s)
+        asts.reverse()
         for ast in asts:
             self.compile(ast)
         return 'OK'
@@ -589,7 +590,7 @@ class Compiler(object):
         code = b''
         if url.startswith('file://'):
             path = url[7:]
-            f = open(path, 'rb')
+            f = open(path, 'r')
             code = f.read()
             f.close()
         elif url.startswith('http'):
