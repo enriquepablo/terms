@@ -7,11 +7,14 @@ from multiprocessing.connection import Listener
 from threading import Thread
 
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.inspection import inspect
 
 from terms.core.terms import Term, Predicate, isa
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
+from terms.core.schemata import get_data, set_data, get_schema
 from terms.core.daemon import Daemon
+from terms.core.pluggable import init_environment
 from terms.core.logger import get_rlogger
 
 
@@ -29,6 +32,7 @@ class Teller(Process):
     def __init__(self, config, session_factory, teller_queue, *args, **kwargs):
         super(Teller, self).__init__(*args, **kwargs)
         self.config = config
+        init_environment(config)
         self.session_factory = session_factory
         self.teller_queue = teller_queue
         self.compiler = None
@@ -38,8 +42,14 @@ class Teller(Process):
             totell = client.recv_bytes().decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
-            if totell.startswith('_metadata'):
-                resp = self.get_metadata(totell)
+            if totell.startswith('_metadata:'):
+                resp = self._get_metadata(totell)
+            elif totell.startswith('_data_get:'):
+                resp = self._get_data(totell)
+            elif totell.startswith('_data_set:'):
+                resp = self._set_data(totell)
+            elif totell.startswith('_schema_get:'):
+                resp = self._get_schema(totell)
             else:
                 self.compiler.network.pipe = client
                 resp = self.compiler.parse(totell)
@@ -52,7 +62,7 @@ class Teller(Process):
             self.compliler = None
             self.teller_queue.task_done()
 
-    def get_metadata(self, totell):
+    def _get_metadata(self, totell):
         q = totell.split(':')
         ttype = self.compiler.lexicon.get_term(q[2])
         if q[1] == 'getwords':
@@ -65,6 +75,52 @@ class Teller(Process):
                 isverb = isa(ot.obj_type, self.compiler.lexicon.verb)
                 resp.append([ot.label, ot.obj_type.name, isverb])
         return json.dumps(resp, cls=TermsJSONEncoder)
+
+    def _get_data(self, totell):
+        q = totell.split(':')
+        term = self.compiler.lexicon.get_term(q[1])
+        data = get_data(term)
+        return data.jsonify()
+
+    def _set_data(self, totell):
+        q = totell.split(':')
+        term = self.compiler.lexicon.get_term(q[1])
+        data = json.loads(q[2])
+        set_data(term, data)
+        return 'OK'
+
+    def _get_schema(self, totell):
+        q = totell.split(':')
+        term = self.compiler.lexicon.get_term(q[1])
+        data = None
+        if isa(term, self.compiler.lexicon.noun):
+            schema = get_schema(term)
+        else:
+            schema = get_schema(term.term_type)
+            data = schema.get(term.name)
+        mapper = inspect(schema)
+        jschema = []
+        for field_name in mapper.attrs.keys():
+            if field_name == '_id':
+                continue
+            field = {'name': field_name,
+                     'id': field_name,
+                     'caption': field_name,
+                     'type': 'text'}
+            if data:
+                field['value'] = getattr(data, field_name)
+#            typ = mapper.attrs[field_name].type.__name__
+#            if typ == 'Text':
+#                field['type'] = 'textarea'
+#                if data:
+#                    field['html'] = getattr(data, field_name)
+#            else:
+#                field['type'] = 'text'
+#                if data:
+#                    field['value'] = getattr(data, field_name)
+            jschema.append(field)
+        jschema = {'html': jschema}
+        return json.dumps(jschema)
 
 
 class KnowledgeBase(Daemon):
@@ -117,6 +173,7 @@ class Ticker(Thread):
     def __init__(self, config, session, lock, queue, *args, **kwargs):
         super(Ticker, self).__init__(*args, **kwargs)
         self.config = config
+        init_environment(config)
         self.session = session
         self.compiler = Compiler(session, config)
         self.time_lock = lock
