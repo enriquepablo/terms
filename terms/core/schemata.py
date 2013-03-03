@@ -1,6 +1,7 @@
+import json
+
 from sqlalchemy.ext.declarative import declared_attr
-from colanderalchemy import Column
-from sqlalchemy import String
+from sqlalchemy import String, Column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -22,6 +23,11 @@ class Schema(object):
     def edit(self, **kwargs):
         for k in kwargs:
             setattr(self, k, kwargs[k])
+
+    def jsonify(self):
+        keys = self.__class__.__table__.columns.keys()
+        data = {k: getattr(self, k) for k in keys}
+        return json.dumps(data)
 
 Schema = declarative_base(cls=Schema)
 
@@ -65,6 +71,6 @@ def get_data(kb, name):
         return new
 
 
-def set_data(kb, name, **kwargs):
+def set_data(kb, name, kwargs):
     data = get_data(name)
     data.edit(**kwargs)
