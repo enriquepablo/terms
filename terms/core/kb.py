@@ -12,7 +12,7 @@ from sqlalchemy.inspection import inspect
 from terms.core.terms import Term, Predicate, isa
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
-from terms.core.schemata import get_data, set_data, get_schema
+from terms.core.schemata import get_data, set_data, get_schema, SchemaNotFound
 from terms.core.daemon import Daemon
 from terms.core.pluggable import init_environment
 from terms.core.logger import get_rlogger
@@ -49,7 +49,10 @@ class Teller(Process):
             elif totell.startswith('_data_set:'):
                 resp = self._set_data(totell)
             elif totell.startswith('_schema_get:'):
-                resp = self._get_schema(totell)
+                try:
+                    resp = self._get_schema(totell)
+                except SchemaNotFound:
+                    resp = ''
             else:
                 self.compiler.network.pipe = client
                 resp = self.compiler.parse(totell)

@@ -538,14 +538,14 @@ class Compiler(object):
             if isa(pred, self.lexicon.now):
                 nows.append(fact)
         for fact in nows:
-            descent = fact.get_descent()
-            for ch in descent:
-                if isa(ch.pred, self.lexicon.now):
-                    now_term = self.lexicon.now_term
-                    self.network.present.add_object_to_fact(ch, now_term,
-                                                            ('at_', '_term'))
-                    ch.factset = 'past'
-                    ch.matches = []
+            if isa(fact.pred, self.lexicon.now):
+                now_term = self.lexicon.now_term
+                self.network.present.add_object_to_fact(fact, now_term,
+                                                        ('at_', '_term'))
+                fact.factset = 'past'
+                for m in fact.matches:
+                    self.session.delete(m)
+                fact.matches = []
         self.session.commit()
         return 'OK'
 

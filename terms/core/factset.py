@@ -129,16 +129,6 @@ class Fact(Base):
         self.pred = pred
         self.factset = name
 
-    def get_descent(self, descent=None):
-        if descent is None:
-            descent = [self]
-        for d in self.descent:
-            for fact in d.children:
-                if fact is not self:
-                    descent.append(fact)
-                    fact.get_descent(descent)
-        return descent
-
 
 class Segment(Base):
     __tablename__ = 'segments'
@@ -280,38 +270,3 @@ class VerbSegment(Segment):
         path_str = '.'.join(path)
         qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.verb_id==salias.verb_id)
         return qfacts
-
-
-ancestor_child = Table('ancestor_child', Base.metadata,
-    Column('ancestor_id', Integer, ForeignKey('ancestors.id'), index=True),
-    Column('child_id', Integer, ForeignKey('facts.id'), index=True)
-)
-
-ancestor_parent = Table('ancestor_parent', Base.metadata,
-    Column('ancestor_id', Integer, ForeignKey('ancestors.id'), index=True),
-    Column('parent_id', Integer, ForeignKey('facts.id'), index=True)
-)
-
-class Ancestor(Base):
-    __tablename__ = 'ancestors'
-
-    id = Column(Integer, Sequence('ancestor_id_seq'), primary_key=True)
-    children = relationship('Fact', backref='ancestors',
-                         secondary=ancestor_child,
-                         primaryjoin=id==ancestor_child.c.ancestor_id,
-                         secondaryjoin=Fact.id==ancestor_child.c.child_id)
-    parents = relationship('Fact', backref=backref('descent', cascade='all'),
-                         secondary=ancestor_parent,
-                         primaryjoin=id==ancestor_parent.c.ancestor_id,
-                         secondaryjoin=Fact.id==ancestor_parent.c.parent_id)
-
-    def __init__(self, fact=None):
-        if fact:
-            self.parents.append(fact)
-
-
-    def copy(self):
-        new = Ancestor()
-        for p in self.parents:
-            new.parents.append(p)
-        return new

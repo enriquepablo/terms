@@ -29,7 +29,7 @@ from terms.core import exec_globals
 from terms.core.terms import isa, are, get_bases
 from terms.core.terms import Base, Term, term_to_base, Predicate
 from terms.core.lexicon import Lexicon
-from terms.core.factset import FactSet, Ancestor
+from terms.core.factset import FactSet
 from terms.core import exceptions
 from terms.core.utils import Match, merge_submatches
 
@@ -121,8 +121,6 @@ class Network(object):
         #    raise exceptions.Contradiction('we already have ' + str(neg))
         prev = factset.query_facts(pred, {}).all()
         fact = factset.add_fact(pred, prev)
-        ancestor = Ancestor(fact)
-        ancestor.children.append(fact)
         if isa(pred, self.lexicon.totell):
             if self.pipe is not None:
                 self.pipe.send_bytes(str(pred).encode('ascii'))
@@ -142,42 +140,19 @@ class Network(object):
             Node.dispatch(self.root, match, self)
         return fact
 
-    def unsupported_descent(self, fact, descent=None):
-        if descent is None:
-            descent = []
-        if isa(fact.pred, self.lexicon.now):
-            return descent
-        for descendant in fact.descent:
-            for ch in descendant.children:
-                if ch is fact:
-                    continue
-                if len(ch.ancestors) == 1:
-                    descent.append(ch)
-                    self.unsupported_descent(ch, descent)
-                else:
-                    ch.ancestors.remove(descendant)
-        return descent
-
     def finish(self, predicate):
-        fact = self.present.query_facts(predicate, []).one()
-        tofinish = self.unsupported_descent(fact) + [fact]
-        for f in tofinish:
-            pred = f.pred
-            if isa(pred, self.lexicon.onwards):
-                self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
-                f.factset = 'past'
-                f.matches = []
+        f = self.present.query_facts(predicate, []).one()
+        pred = f.pred
+        if isa(pred, self.lexicon.onwards):
+            self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
+            f.factset = 'past'
+            for m in f.matches:
+                self.session.delete(m)
+            f.matches = []
 
     def del_fact(self, pred):
         fact = self.present.query_facts(pred, []).one()
-        if not isa(pred, self.lexicon.onwards):
-            for a in fact.ancestors:
-                if not (len(a.parents) == 1 and a.parents[0].id == fact.id):
-                    raise exceptions.Contradiction('Cannot retract ' + str(fact.pred))
-        descent = self.unsupported_descent(fact)
         self.session.delete(fact)
-        for ch in descent:
-            self.session.delete(ch)
 
     def add_rule(self, prems, conds, condcode, cons, finishes):
         rule = Rule()
@@ -208,7 +183,7 @@ class Network(object):
         for prem in rule.prems:
             matches = self.present.query(prem.pred)
             for match in matches:
-                prem.dispatch(match, self, _numvars=False)
+                prem.dispatch(match, self)
 
 
     def query(self, *q):
@@ -456,16 +431,15 @@ class PremNode(Base):
     def __init__(self, parent):
         self.parent = parent  # node
 
-    def dispatch(self, match, network, _numvars=True):
+    def dispatch(self, match, network):
         if not self.prems[0].check_match(match, network):
             return
         m = PMatch(self, match.fact)
         for var, val in match.items():
             m.pairs.append(MPair.make_pair(var, val))
-        self.matches.append(m)
-        match.ancestor = Ancestor(match.fact)
         for premise in self.prems:
-            premise.dispatch(match, network, _numvars=_numvars)
+            nmatch = premise.num_to_names(match)
+            premise.dispatch(nmatch, network)
 
 
 class Premise(Base):
@@ -479,8 +453,8 @@ class Premise(Base):
     node = relationship('PremNode', backref='prems',
                          primaryjoin="PremNode.id==Premise.prem_id")
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('prems', lazy='dynamic'),
-                         primaryjoin="Rule.id==Premise.rule_id")
+    rule = relationship('Rule', backref='prems')
+                         # primaryjoin="Rule.id==Premise.rule_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate',
                          primaryjoin="Predicate.id==Premise.pred_id")
@@ -499,54 +473,50 @@ class Premise(Base):
                 return False
         return True
 
-    def dispatch(self, match, network, _numvars=True):
+    def filter_pmatches(self, pmatches, prem, match):
+        pvar_map = prem.rule.get_pvar_map(match, prem)
+        print(pvar_map)
+        for var, val in pvar_map:
+            apair = aliased(MPair)
+            if isinstance(val, Predicate):
+                cpair = aliased(PPair)
+            else:
+                cpair = aliased(TPair)
+            pmatches = pmatches.join(apair, cpair).filter(apair.var==var).filter(cpair.val==val)
+        pmatches = pmatches.distinct(PMatch.id)
+        return pmatches
+
+    def num_to_names(self, match):
+        nmatch = match.copy()
+        for num, o in match.items():
+            pvar = tuple(filter(lambda x: x.rule==self.rule and x.num==num, self.pvars))[0]
+            name = pvar.varname.name
+            nmatch[name] = o
+            del nmatch[num]
+        return nmatch
+
+    def dispatch(self, match, network):
+        print('dispatch ' + repr(match.pred))
         rule = self.rule
-        if _numvars:
-            nmatch = match.copy()
-            for num, o in match.items():
-                pvar = tuple(filter(lambda x: x.rule==rule and x.num==num, self.pvars))[0]
-                name = pvar.varname.name
-                nmatch[name] = o
-                del nmatch[num]
-            matches = [nmatch]
-        else:
-            matches = [match]
-        prems = [p for p in rule.prems if p.order != self.order]
-        pvars = set([v.num for v in self.pvars])
-        oprems = []
+        prems = [p for p in rule.prems if p != self]
+        matches = [match]
         while prems:
-            next = sorted(prems, key=lambda p: len(set([v.num for v in p.pvars]).intersection(pvars)), reverse=True)[0]
-            prems.remove(next)
-            pvars = pvars.union([v.num for v in next.pvars])
-            oprems.append(next)
-        for prem in oprems:
+            prem = sorted(prems, key=lambda p: self.filter_pmatches(p.node.matches, p, match).count())[0]
+            prems.remove(prem)
+            print('  prem ' + repr(prem.pred))
             if not matches:
                 break
             premnode = prem.node
             new_matches = []
             for m in matches:
-                pvar_map = rule.get_pvar_map(m, prem)
-                pmatches = premnode.matches
-                for var, val in pvar_map:
-                    apair = aliased(MPair)
-                    if isinstance(val, Predicate):
-                        cpair = aliased(PPair)
-                    else:
-                        cpair = aliased(TPair)
-                    pmatches = pmatches.join(apair, PMatch.id==apair.parent_id).filter(apair.var==var)
-                    pmatches = pmatches.join(cpair, apair.id==cpair.mid).filter(cpair.val==val)
+                print('    match ' + repr(m))
+                pmatches = self.filter_pmatches(premnode.matches, prem, m)
                 for pm in pmatches:
+                    print('      pmatch ' + repr([(p.var, p.val) for p in pm.pairs]))
                     new_match = m.copy()
-                    if not isa(pm.fact.pred, network.lexicon.now):
-                        try:
-                            new_match.ancestor.parents.append(pm.fact)
-                        except AttributeError:
-                            new_match.ancestor = Ancestor(pm.fact)
                     for mpair in pm.pairs:
                         vname = rule.get_varname(prem, mpair.var)
-                        if vname in m:
-                            assert m[vname] == mpair.val
-                        else:
+                        if vname not in m:
                             new_match[vname] = mpair.val
                     new_matches.append(new_match)
             matches = new_matches
@@ -715,11 +685,6 @@ class Rule(Base):
             #    raise exceptions.Contradiction('we already have ' + str(neg))
             prev = factset.query_facts(con, {}).all()
             fact = factset.add_fact(con, prev)
-            if match.ancestor:
-                try:
-                    fact.ancestors.append(match.ancestor)
-                except InvalidRequestError:
-                    pass
             if isa(con, network.lexicon.totell):
                 if network.pipe is not None:
                     network.pipe.send_bytes(str(con).encode('ascii'))
