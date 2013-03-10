@@ -46,6 +46,7 @@ class Network(object):
         self.present = FactSet('present', self.lexicon, config)
         self.past = FactSet('past', self.lexicon, config)
         self.pipe = None
+        self.passing = []
 
     @classmethod
     def initialize(self, session):
@@ -133,6 +134,8 @@ class Network(object):
                 self.pipe.send_bytes(str(pred).encode('ascii'))
         if prev:
             return fact
+        if isa(pred, self.lexicon.now):
+            self.passing.append(fact)
         if self.root.child_path:
             m = Match(pred)
             m.paths = self.get_paths(pred)
@@ -145,6 +148,14 @@ class Network(object):
                 self.session.commit()
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
+        for f in self.passing:
+            now_term = self.lexicon.now_term
+            self.present.add_object_to_fact(f, now_term,
+                                                    ('at_', '_term'))
+            f.factset = 'past'
+            for m in f.matches:
+                self.session.delete(m)
+            f.matches = []
         return fact
 
     def finish(self, predicate):
@@ -182,6 +193,8 @@ class Network(object):
         rule.condcode = condcode
         for con in cons:
             if isinstance(con, Predicate):
+                #convars = con.get_vars()
+                #rule.add_convars(convars)
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
@@ -531,7 +544,10 @@ class Premise(Base):
         else:
             new_matches = []
             for m in matches:
-                new_matches += self.recurse_premises(m, remaining_prems[:], network)
+                try:
+                    new_matches += self.recurse_premises(m, remaining_prems[:], network)
+                except NoMatches:
+                    pass
             return new_matches
 
     def pick_prem(self, prems, match, network):
@@ -542,6 +558,8 @@ class Premise(Base):
             print('    count:' + str(newcount) + '  id: ' + str(prem.id))
             if newcount == 0:
                 raise NoMatches
+            elif newcount == 1:
+                return prem, pms
             if newcount < count:
                 count, pmatches, picked = newcount, pms, prem
         print('   Picked: ' + str(picked.id))
@@ -750,6 +768,8 @@ class Rule(Base):
                     network.pipe.send_bytes(str(con).encode('ascii'))
             if prev:
                 continue
+            if isa(con, network.lexicon.now):
+                network.passing.append(fact)
             if network.root.child_path:
                 m = Match(con)
                 m.paths = network.get_paths(con)

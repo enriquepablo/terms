@@ -531,21 +531,9 @@ class Compiler(object):
         return Finish(fact)
 
     def compile_factset(self, facts):
-        nows = []
         for f in facts:
             pred = self.compile_fact(f)
-            fact = self.network.add_fact(pred)
-            if isa(pred, self.lexicon.now):
-                nows.append(fact)
-        for fact in nows:
-            if isa(fact.pred, self.lexicon.now):
-                now_term = self.lexicon.now_term
-                self.network.present.add_object_to_fact(fact, now_term,
-                                                        ('at_', '_term'))
-                fact.factset = 'past'
-                for m in fact.matches:
-                    self.session.delete(m)
-                fact.matches = []
+            self.network.add_fact(pred)
         self.session.commit()
         return 'OK'
 
