@@ -18,6 +18,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 import time
+import functools
 
 from sqlalchemy import Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
@@ -119,13 +120,19 @@ class Network(object):
         #contradiction = factset.query(neg)
         #if contradiction:
         #    raise exceptions.Contradiction('we already have ' + str(neg))
-        prev = factset.query_facts(pred, {}).all()
-        fact = factset.add_fact(pred, prev)
+
+        prev = False
+        try:
+            fact = factset.query_facts(pred, {}).one()
+            prev = True
+            print('     PREV ____----____ ' + str(fact.pred))
+        except NoResultFound:
+            fact = factset.add_fact(pred)
         if isa(pred, self.lexicon.totell):
             if self.pipe is not None:
                 self.pipe.send_bytes(str(pred).encode('ascii'))
         if prev:
-            return prev[0]
+            return fact
         if self.root.child_path:
             m = Match(pred)
             m.paths = self.get_paths(pred)
@@ -441,6 +448,11 @@ class PremNode(Base):
             nmatch = premise.num_to_names(match)
             premise.dispatch(nmatch, network)
 
+from sqlalchemy.sql import select
+from sqlalchemy.sql.expression import Select
+
+class NoMatches(Exception):
+    pass
 
 class Premise(Base):
     '''
@@ -473,19 +485,6 @@ class Premise(Base):
                 return False
         return True
 
-    def filter_pmatches(self, pmatches, prem, match):
-        pvar_map = prem.rule.get_pvar_map(match, prem)
-        print(pvar_map)
-        for var, val in pvar_map:
-            apair = aliased(MPair)
-            if isinstance(val, Predicate):
-                cpair = aliased(PPair)
-            else:
-                cpair = aliased(TPair)
-            pmatches = pmatches.join(apair, cpair).filter(apair.var==var).filter(cpair.val==val)
-        pmatches = pmatches.distinct(PMatch.id)
-        return pmatches
-
     def num_to_names(self, match):
         nmatch = match.copy()
         for num, o in match.items():
@@ -497,31 +496,83 @@ class Premise(Base):
 
     def dispatch(self, match, network):
         print('dispatch ' + repr(match.pred))
-        rule = self.rule
-        prems = [p for p in rule.prems if p != self]
-        matches = [match]
-        while prems:
-            prem = sorted(prems, key=lambda p: self.filter_pmatches(p.node.matches, p, match).count())[0]
-            prems.remove(prem)
-            print('  prem ' + repr(prem.pred))
-            if not matches:
-                break
-            premnode = prem.node
+        prems = [p for p in self.rule.prems if p != self]
+        try:
+            if prems:
+                matches = self.recurse_premises(match, prems, network)
+            else:
+                matches = [match]
+        except NoMatches:
+            return
+        for m in matches:
+            self.rule.dispatch(m, network)
+
+    def recurse_premises(self, match, remaining_prems, network):
+        prem, pmatches = self.pick_prem(remaining_prems, match, network)
+        remaining_prems.remove(prem)
+        print('  prem ' + repr(prem.pred))
+        print('  match ' + repr(match))
+        matches = []
+        for pm in pmatches:
+            print('      pmatch ' + repr([(p.var, p.val) for p in pm.pairs]) + '  ' + str(pm.fact_id))
+            new_match = match.copy()
+            for mpair in pm.pairs:
+                vname = self.rule.get_varname(prem, mpair.var)
+                if vname not in new_match:
+                    new_match[vname] = mpair.val
+            try:
+                passes = self.rule.test_conditions(new_match, network)
+            except KeyError:
+                passes = True
+            if passes:
+                matches.append(new_match)
+        if not remaining_prems:
+            return matches
+        else:
             new_matches = []
             for m in matches:
-                print('    match ' + repr(m))
-                pmatches = self.filter_pmatches(premnode.matches, prem, m)
-                for pm in pmatches:
-                    print('      pmatch ' + repr([(p.var, p.val) for p in pm.pairs]))
-                    new_match = m.copy()
-                    for mpair in pm.pairs:
-                        vname = rule.get_varname(prem, mpair.var)
-                        if vname not in m:
-                            new_match[vname] = mpair.val
-                    new_matches.append(new_match)
-            matches = new_matches
-        for m in matches:
-            rule.dispatch(m, network)
+                new_matches += self.recurse_premises(m, remaining_prems[:], network)
+            return new_matches
+
+    def pick_prem(self, prems, match, network):
+        count, pmatches, picked = float('inf'), None, None
+        for prem in prems:
+            pms = prem.filter_pmatches(match, network)
+            newcount = pms.count() if pms else 0
+            print('    count:' + str(newcount) + '  id: ' + str(prem.id))
+            if newcount == 0:
+                raise NoMatches
+            if newcount < count:
+                count, pmatches, picked = newcount, pms, prem
+        print('   Picked: ' + str(picked.id))
+        return picked, pmatches
+
+    def filter_pmatches(self, match, network):
+        pmatches = self.node.matches
+        pvar_map = self.rule.get_pvar_map(match, self)
+        print(pvar_map)
+        subqueries = []
+        for var, val in pvar_map:
+            apair = aliased(MPair)
+            if isinstance(val, Predicate):
+                cpair = aliased(PPair.__table__)
+                ccol = cpair.c.pred_id
+            else:
+                cpair = aliased(TPair.__table__)
+                ccol = cpair.c.term_id
+            subquery = select([apair.parent_id], from_obj=[apair, cpair], whereclause=(apair.var==var)&(ccol==val.id)&(apair.id==cpair.c.mid), distinct=True)
+            subqueries.append(subquery)
+        if subqueries:
+            def count_subquery(q):
+                n = network.session.execute(aliased(q).count()).scalar()
+                if n == 0:
+                    raise NoMatches
+                return n
+            subqueries.sort(key=count_subquery)
+            subquery = functools.reduce(Select.intersect, subqueries)
+            pmatches = pmatches.filter(PMatch.id.in_(subquery)).distinct(PMatch.id)
+        print(pmatches, '', '')
+        return pmatches
 
 
 class PMatch(Base):
@@ -646,11 +697,16 @@ class Rule(Base):
 
     id = Column(Integer, Sequence('rule_id_seq'), primary_key=True)
 
-    def dispatch(self, match, network):
-
+    def test_conditions(self, match, network):
         for cond in self.conditions:
             if not cond.test(match, network):
-                return
+                return False
+        return True
+
+    def dispatch(self, match, network):
+
+        if not self.test_conditions(match, network):
+            return
 
         if self.condcode:
             if not self.condcode.test(match, network):
@@ -683,8 +739,12 @@ class Rule(Base):
             #contradiction = factset.query(neg)
             #if contradiction:
             #    raise exceptions.Contradiction('we already have ' + str(neg))
-            prev = factset.query_facts(con, {}).all()
-            fact = factset.add_fact(con, prev)
+            prev = False
+            try:
+                fact = factset.query_facts(con, {}).one()
+                prev = True
+            except NoResultFound:
+                fact = factset.add_fact(con)
             if isa(con, network.lexicon.totell):
                 if network.pipe is not None:
                     network.pipe.send_bytes(str(con).encode('ascii'))

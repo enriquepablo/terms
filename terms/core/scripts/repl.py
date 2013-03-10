@@ -9,6 +9,16 @@ from code import InteractiveConsole
 
 from terms.core.utils import get_config
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from terms.core.utils import get_config
+from terms.core.network import Network
+from terms.core.compiler import Compiler
+from terms.core.terms import Base
+from terms.core.schemata import Schema
+from terms.core.pluggable import init_environment, get_plugins
+
 
 class TermsRepl(object):
 
@@ -18,16 +28,24 @@ class TermsRepl(object):
         self.no_response = object()
         self.prompt = '>> '
 
+        address = '%s/%s' % (config['dbms'], config['dbname'])
+        init_environment(config)
+        engine = create_engine(address)
+        Session = sessionmaker(bind=engine)
+        self.compiler = Compiler(Session(), config)
+
+
     def _parse_buff(self):
-        conn = Client((self.config['kb_host'], int(self.config['kb_port'])))
-        conn.send_bytes(self._buffer.encode('ascii'))
-        while True:
-            resp = conn.recv_bytes().decode('ascii')
-            if resp == 'END':
-                conn.close()
-                break
-            resp = self.format_results(resp)
-            print(resp)
+        return self.compiler.parse(self._buffer)
+#        conn = Client((self.config['kb_host'], int(self.config['kb_port'])))
+#        conn.send_bytes(self._buffer.encode('ascii'))
+#        while True:
+#            resp = conn.recv_bytes().decode('ascii')
+#            if resp == 'END':
+#                conn.close()
+#                break
+#            resp = self.format_results(resp)
+#            print(resp)
 
     def reset_state(self):
         self._buffer = ''
@@ -46,7 +64,7 @@ class TermsRepl(object):
         if line:
             self._buffer = '\n'.join((self._buffer, line))
             if self._buffer.endswith(('.', '?')):
-                self._parse_buff()
+                resp = self._parse_buff()
                 self.reset_state()
         return resp
 
