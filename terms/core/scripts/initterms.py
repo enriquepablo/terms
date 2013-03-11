@@ -4,18 +4,19 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from terms.core import register_exec_global
 from terms.core.utils import get_config
 from terms.core.network import Network
 from terms.core.compiler import Compiler
 from terms.core.terms import Base
 from terms.core.schemata import Schema
-from terms.core.pluggable import init_environment, get_plugins
+from terms.core.pluggable import load_plugins, get_plugins
 
 
 def init_terms():
     config = get_config()
     address = '%s/%s' % (config['dbms'], config['dbname'])
-    init_environment(config)
+    load_plugins(config)
     engine = create_engine(address)
     Base.metadata.create_all(engine)
     Schema.metadata.create_all(engine)
@@ -26,9 +27,11 @@ def init_terms():
     session.close()
     if config['plugins']:
         compiler = Compiler(Session(), config)
+        register_exec_global(compiler, name='compiler')
         for m in get_plugins(config):
-            dirname = os.path.dirname(m.__file__)
-            ontology = os.path.join(dirname, 'ontology.trm')
-            compiler.compile_import('file://' + ontology)
+            dirname = os.path.join(os.path.dirname(m.__file__), 'ontology')
+            for f in sorted(os.listdir(dirname)):
+                part = os.path.join(dirname, f)
+                compiler.compile_import('file://' + part)
         compiler.session.close()
     sys.exit('Created knowledge store %s' % config['dbname'])

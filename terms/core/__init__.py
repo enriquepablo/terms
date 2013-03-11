@@ -19,5 +19,18 @@
 
 exec_globals = {'__builtins__': __builtins__}
 
-def register(fun):
+def register_exec_global(fun, name=''):
+    if name:
+        exec_globals[name] = fun
     exec_globals[fun.__func__.__name__] = fun
+
+
+def count(compiler, sen):
+    resp = compiler.parse(sen + '?')
+    if resp == 'false':
+        return 0
+    elif resp == 'true':
+        return 1
+    return len(resp)
+
+register_exec_global(count)

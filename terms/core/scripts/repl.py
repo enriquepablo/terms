@@ -12,12 +12,13 @@ from terms.core.utils import get_config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from terms.core import register_exec_global
 from terms.core.utils import get_config
 from terms.core.network import Network
 from terms.core.compiler import Compiler
 from terms.core.terms import Base
 from terms.core.schemata import Schema
-from terms.core.pluggable import init_environment, get_plugins
+from terms.core.pluggable import load_plugins, get_plugins
 
 
 class TermsRepl(object):
@@ -29,10 +30,11 @@ class TermsRepl(object):
         self.prompt = '>> '
 
         address = '%s/%s' % (config['dbms'], config['dbname'])
-        init_environment(config)
+        load_plugins(config)
         engine = create_engine(address)
         Session = sessionmaker(bind=engine)
         self.compiler = Compiler(Session(), config)
+        register_exec_global(self.compiler, name='compiler')
 
 
     def _parse_buff(self):

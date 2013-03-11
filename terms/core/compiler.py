@@ -400,8 +400,6 @@ class Compiler(object):
             yacc_optimize=yacc_optimize,
             yacc_debug=yacc_debug)
 
-        register(self.count)
-
     def parse(self, s):
         asts = self.parser.parse(s)
         return self.compile(asts[0])
@@ -412,14 +410,6 @@ class Compiler(object):
         for ast in asts:
             self.compile(ast)
         return 'OK'
-
-    def count(self, sen):
-        resp = self.parse(sen + '?')
-        if resp == 'false':
-            return 0
-        elif resp == 'true':
-            return 1
-        return len(resp)
 
     def compile(self, ast):
         if ast.type == 'definition':
@@ -569,23 +559,29 @@ class Compiler(object):
         return 'OK'
 
     def compile_import(self, url):
-        try:
-            self.session.query(Import).filter_by(url=url).one()
-        except NoResultFound:
-            pass
-        else:
-            return 'OK'
-        code = b''
+        code, uri = b'', ''
         if url.startswith('file://'):
             path = url[7:]
-            f = open(path, 'r')
+            try:
+                f = open(path, 'r')
+            except:
+                return 'Problems opening the file'
+            uri = f.readline().strip()
             code = f.read()
             f.close()
         elif url.startswith('http'):
-            resp = urlopen(url)
+            try:
+                resp = urlopen(url)
+            except:
+                return 'Problems loading the file'
+            uri = resp.readline().strip()
             code = resp.read()
-        self.parse_many(code)
-        new = Import(url)
-        self.session.add(new)
-        self.session.commit()
+            resp.close()
+        try:
+            self.session.query(Import).filter_by(url=uri).one()
+        except NoResultFound:
+            self.parse_many(code)
+            new = Import(uri)
+            self.session.add(new)
+            self.session.commit()
         return 'OK'

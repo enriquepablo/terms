@@ -10,12 +10,13 @@ from threading import Thread
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.inspection import inspect
 
+from terms.core import register_exec_global
 from terms.core.terms import Term, Predicate, isa
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
 from terms.core.schemata import get_data, set_data, get_schema, SchemaNotFound
 from terms.core.daemon import Daemon
-from terms.core.pluggable import init_environment
+from terms.core.pluggable import load_plugins
 from terms.core.logger import get_rlogger
 
 
@@ -33,7 +34,7 @@ class Teller(Process):
     def __init__(self, config, session_factory, teller_queue, *args, **kwargs):
         super(Teller, self).__init__(*args, **kwargs)
         self.config = config
-        init_environment(config)
+        load_plugins(config)
         self.session_factory = session_factory
         self.teller_queue = teller_queue
         self.compiler = None
@@ -43,6 +44,7 @@ class Teller(Process):
             totell = client.recv_bytes().decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
+            register_exec_global(self.compiler, name='compiler')
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
             elif totell.startswith('_data_get:'):
@@ -182,9 +184,10 @@ class Ticker(Thread):
     def __init__(self, config, session, lock, queue, *args, **kwargs):
         super(Ticker, self).__init__(*args, **kwargs)
         self.config = config
-        init_environment(config)
+        load_plugins(config)
         self.session = session
         self.compiler = Compiler(session, config)
+        register_exec_global(self.compiler, name='compiler')
         self.time_lock = lock
         self.teller_queue = queue
         self.ticking = True

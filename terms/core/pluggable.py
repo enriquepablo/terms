@@ -17,7 +17,7 @@ def get_plugins(config):
     return [import_module(p) for p in names]
 
 
-def init_environment(config):
+def load_plugins(config):
     plugins = get_plugin_names(config)
     for plugin in plugins:
         schemata = import_module(plugin + '.schemata')
