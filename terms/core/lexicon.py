@@ -40,6 +40,7 @@ class Lexicon(object):
         self.totell = self.get_term('totell')
         self.vtime = self.get_term('time')
         self.thing = self.get_term('thing')
+        self.finish = self.get_term('finish')
         self.time = self.session.query(Time).one()
         self.now_term = self.make_term(str(0 + self.time.now), self.number)
         self._term_cache = {}
@@ -78,6 +79,9 @@ class Lexicon(object):
         session.add(time)
         thing = Term('thing', ttype=noun, bases=(word,))
         session.add(thing)
+        finish = Term('finish', ttype=verb, bases=(now,),
+                      objs={'subj': exists})
+        session.add(finish)
         time = Time()
         session.add(time)
         session.commit()

@@ -110,12 +110,13 @@ class Network(object):
         factset = self.present
         if isa(pred, self.lexicon.onwards):
             pred.add_object('since_', self.lexicon.now_term)
-        if isa(pred, self.lexicon.unique):
-            old_pred = Predicate(pred.true, pred.term_type)
-            old_pred.add_object('subj', pred.get_object('subj'))
-            olds = self.present.query_facts(old_pred, {})
-            for old in olds:
-                self.finish(old.pred)
+            if isa(pred, self.lexicon.unique):
+                old_pred = Predicate(pred.true, pred.term_type)
+                old_pred.add_object('subj', pred.get_object('subj'))
+                self.finish(old_pred)
+        elif isa(pred, self.lexicon.finish):
+            tofinish = pred.get_object('subj')
+            self.finish(tofinish)
         #neg = pred.copy()
         #neg.true = not neg.true
         #contradiction = factset.query(neg)
@@ -159,14 +160,15 @@ class Network(object):
         return fact
 
     def finish(self, predicate):
-        f = self.present.query_facts(predicate, []).one()
-        pred = f.pred
-        if isa(pred, self.lexicon.onwards):
-            self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
-            f.factset = 'past'
-            for m in f.matches:
-                self.session.delete(m)
-            f.matches = []
+        fs = self.present.query_facts(predicate, [])
+        for f in fs:
+            pred = f.pred
+            if isa(pred, self.lexicon.onwards):
+                self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
+                f.factset = 'past'
+                for m in f.matches:
+                    self.session.delete(m)
+                f.matches = []
 
     def del_fact(self, pred):
         fact = self.present.query_facts(pred, []).one()
@@ -746,12 +748,13 @@ class Rule(Base):
             factset = network.present
             if isa(con, network.lexicon.onwards):
                 con.add_object('since_', network.lexicon.now_term)
-            if isa(con, network.lexicon.unique):
-                old_pred = Predicate(con.true, con.term_type)
-                old_pred.add_object('subj', con.get_object('subj'))
-                olds = network.present.query_facts(old_pred, {})
-                for old in olds:
-                    network.finish(old.pred)
+                if isa(con, network.lexicon.unique):
+                    old_pred = Predicate(con.true, con.term_type)
+                    old_pred.add_object('subj', con.get_object('subj'))
+                    network.finish(old_pred)
+            elif isa(con, network.lexicon.finish):
+                tofinish = con.get_object('subj')
+                network.finish(tofinish)
             # XXX make contradiction configurabe
             #neg = con.copy()
             #neg.true = not neg.true

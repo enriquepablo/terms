@@ -63,7 +63,7 @@ class Lexer(object):
     reserved = {
         'is': 'IS',
         'a': 'A',
-        'finish': 'FINISH',
+        'FINISH': 'FINISH',
         'import': 'IMPORT',
         'pdb': 'PDB',
     }
