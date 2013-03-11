@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import multiprocessing as mp
 from multiprocessing import Process, JoinableQueue, Lock
 from multiprocessing.connection import Listener
 from threading import Thread
@@ -38,7 +39,7 @@ class Teller(Process):
         self.compiler = None
 
     def run(self):
-        for client in iter(self.teller_queue.get, 'STOP'):
+        for client in iter(self.teller_queue.get, None):
             totell = client.recv_bytes().decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
@@ -64,6 +65,8 @@ class Teller(Process):
             session.close()
             self.compliler = None
             self.teller_queue.task_done()
+        self.teller_queue.task_done()
+        self.teller_queue.close()
 
     def _get_metadata(self, totell):
         q = totell.split(':')
@@ -148,27 +151,30 @@ class KnowledgeBase(Daemon):
         host = self.config['kb_host']
         port = int(self.config['kb_port'])
         nproc = int(self.config['teller_processes'])
-
         for n in range(nproc):
             teller = Teller(self.config, session_factory, self.teller_queue)
             teller.daemon = True
             teller.start()
-        socket = Listener((host, port))
+        self.socket = Listener((host, port))
         while True:
-            client = socket.accept()
+            try:
+                client = self.socket.accept()
+            except InterruptedError:
+                return
             self.time_lock.acquire()
             self.teller_queue.put(client)
             self.time_lock.release()
 
-    def cleanup(self):
+    def cleanup(self, signum, frame):
         """cleanup tasks"""
         nproc = int(self.config['teller_processes'])
         for n in range(nproc):
-            self.teller_queue.put('STOP')
-        self.teller_queue.join()
+            self.teller_queue.put(None)
+        self.teller_queue.close()
         self.clock.ticking = False
+        self.teller_queue.join()
         self.clock.join()
-        print('bye.')
+        print('bye from {n}, received signal {p}'.format(n=mp.current_process().name, p=str(signum)))
 
 
 class Ticker(Thread):

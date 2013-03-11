@@ -30,17 +30,15 @@ def stop(config):
 
     # Try killing the daemon process
     try:
-        while 1:
-            os.kill(pid, signal.SIGTERM)
-            time.sleep(0.1)
+        os.kill(pid, signal.SIGTERM)
     except OSError as err:
         e = str(err.args)
         if e.find("No such process") > 0:
             if os.path.exists(pidfile):
                 os.remove(pidfile)
-        else:
-            print (str(err.args))
-            sys.exit(1)
+            else:
+                print (str(err.args))
+    sys.exit(1)
 
 
 def main():

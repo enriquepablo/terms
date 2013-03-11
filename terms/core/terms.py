@@ -219,6 +219,16 @@ class Predicate(Base):
                 new.objects[o.label] = o.copy()
         return new
 
+    def get_vars(self, vars=None):
+        if vars is None:
+            vars = []
+        for o in self.objects:
+            if o.value.var:
+                vars.append(o.value)
+            elif isinstance(o.value, Predicate):
+                o.value.get_vars(vars)
+        return vars
+
 
 class Object(Base):
     '''

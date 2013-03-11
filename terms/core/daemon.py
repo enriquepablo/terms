@@ -89,10 +89,10 @@ class Daemon:
         self.daemonize()
         self.run()
 
-    def cleanup(self):
+    def cleanup(self, signum, frame):
         """cleanup tasks"""
 
-    def reload_config(self):
+    def reload_config(self, signum, frame):
         """ reload configuration"""
 
     def run(self):

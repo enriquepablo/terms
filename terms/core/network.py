@@ -552,6 +552,7 @@ class Premise(Base):
 
     def pick_prem(self, prems, match, network):
         count, pmatches, picked = float('inf'), None, None
+        prems.sort(key=lambda p: p.node.matches.count())
         for prem in prems:
             pms = prem.filter_pmatches(match, network)
             newcount = pms.count() if pms else 0
