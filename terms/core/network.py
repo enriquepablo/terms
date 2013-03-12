@@ -206,6 +206,7 @@ class Network(object):
             matches = self.present.query(prem.pred)
             for match in matches:
                 prem.dispatch(match, self)
+        return rule
 
 
     def query(self, *q):
@@ -267,7 +268,7 @@ class Node(Base):
                                          uselist=False,
                                          remote_side=[id]),
                          primaryjoin="Node.id==Node.parent_id",
-                         cascade='all',
+                         cascade='all,delete-orphan',
                          lazy='dynamic')
 
     ntype = Column(String)
@@ -447,7 +448,8 @@ class PremNode(Base):
 
     id = Column(Integer, Sequence('premnode_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('nodes.id'), index=True)
-    parent = relationship('Node', backref=backref('terminal', uselist=False),
+    parent = relationship('Node', backref=backref('terminal', uselist=False,
+                                                  cascade='all,delete-orphan'),
                          primaryjoin="Node.id==PremNode.parent_id")
 
     def __init__(self, parent):
@@ -480,7 +482,8 @@ class Premise(Base):
     node = relationship('PremNode', backref='prems',
                          primaryjoin="PremNode.id==Premise.prem_id")
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref='prems')
+    rule = relationship('Rule', backref=backeref('prems',
+                                                 cascade='all,delete-orphan'))
                          # primaryjoin="Rule.id==Premise.rule_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate',
@@ -601,7 +604,8 @@ class PMatch(Base):
 
     id = Column(Integer, Sequence('pmatch_id_seq'), primary_key=True)
     prem_id = Column(Integer, ForeignKey('premnodes.id'), index=True)
-    prem = relationship('PremNode', backref=backref('matches', lazy='dynamic'),
+    prem = relationship('PremNode', backref=backref('matches', lazy='dynamic',
+                                                    cascade='all,delete-orphan'),
                          primaryjoin="PremNode.id==PMatch.prem_id")
     fact_id = Column(Integer, ForeignKey('facts.id'), index=True)
     fact = relationship('Fact', backref=backref('matches', cascade='all,delete-orphan'),
@@ -617,7 +621,8 @@ class MPair(Base):
 
     id = Column(Integer, Sequence('mpair_id_seq'), primary_key=True)
     parent_id = Column(Integer, ForeignKey('pmatchs.id'), index=True)
-    parent = relationship('PMatch', backref=backref('pairs', cascade='all'),
+    parent = relationship('PMatch', backref=backref('pairs',
+                                                    cascade='all,delete-orphan'),
                          primaryjoin="PMatch.id==MPair.parent_id")
     var = Column(Integer, index=True)
     mindex = Index('mindex', 'id', 'parent_id')
@@ -668,7 +673,8 @@ class PVarname(Base):
 
     id = Column(Integer, Sequence('pvarname_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('pvars', lazy='joined'),
+    rule = relationship('Rule', backref=backref('pvars', lazy='joined',
+                                                cascade='all,delete-orphan'),
                          primaryjoin="Rule.id==PVarname.rule_id")
     prem_id = Column(Integer, ForeignKey('premises.id'), index=True)
     prem = relationship('Premise', backref=backref('pvars', lazy='joined'),
@@ -694,7 +700,8 @@ class Varname(Base):
 
     id = Column(Integer, Sequence('varname_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('varnames', lazy='joined'),
+    rule = relationship('Rule', backref=backref('varnames', lazy='joined',
+                                                cascade='all,delete-orphan'),
                          primaryjoin="Rule.id==Varname.rule_id")
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     var = relationship('Term', backref='varnames',
@@ -802,7 +809,8 @@ class CondArg(Base):
 
     id = Column(Integer, Sequence('condarg_id_seq'), primary_key=True)
     cond_id = Column(Integer, ForeignKey('conditions.id'), index=True)
-    cond = relationship('Condition', backref='args',
+    cond = relationship('Condition', backref=backref('args',
+                                                     cascade='all,delete-orphan'),
                          primaryjoin="Condition.id==CondArg.cond_id")
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     term = relationship('Term',
@@ -824,7 +832,8 @@ class Condition(Base):
 
     id = Column(Integer, Sequence('condition_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref='conditions',
+    rule = relationship('Rule', backref=backref('conditions',
+                                                 cascade='all,delete-orphan'),
                          primaryjoin="Rule.id==Condition.rule_id")
 
     ctype = Column(Integer)
@@ -854,7 +863,8 @@ class CondCode(Base):
 
     id = Column(Integer, Sequence('condcode_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('condcode', uselist=False),
+    rule = relationship('Rule', backref=backref('condcode', uselist=False,
+                                                 cascade='all,delete-orphan'),
                          primaryjoin="Rule.id==CondCode.rule_id")
     code = Column(String)
 
@@ -890,7 +900,8 @@ class Finish(Base):
 
     id = Column(Integer, Sequence('finish_id_seq'), primary_key=True)
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref='finishes',
+    rule = relationship('Rule', backref=backref('finishes',
+                                        cascade='all,delete-orphan'),
                          primaryjoin="Rule.id==Finish.rule_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
     pred = relationship('Predicate', primaryjoin="Predicate.id==Finish.pred_id")

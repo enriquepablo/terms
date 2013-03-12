@@ -52,6 +52,7 @@ class Lexer(object):
         'SEMICOLON',
         'VAR',
         'IMPLIES',
+        'INSTANT_IMPLIES',
         'RM',
         'PYCODE',
         'FINISH',
@@ -77,6 +78,7 @@ class Lexer(object):
     t_NOT = r'!'
     t_SEMICOLON = r';'
     t_VAR = VAR_PAT
+    t_INSTANT_IMPLIES = r'-->'
     t_IMPLIES = r'->'
     t_RM = r'_RM_'
     t_URL = r'<[^>]+>'
@@ -192,6 +194,7 @@ class Parser(object):
     def p_construct(self, p):
         '''construct : definition
                      | rule
+                     | instant_rule
                      | fact-set
                      | question
                      | removal
@@ -223,6 +226,15 @@ class Parser(object):
     def p_import(self, p):
         '''import : IMPORT URL DOT'''
         p[0] = AstNode('import', url=p[2][1:-1])
+
+    def p_instant_rule(self, p):
+        '''instant-rule : sentence-list INSTANT_IMPLIES sentence-list DOT
+                        | sentence-list pylines INSTANT_IMPLIES sentence-list DOT'''
+        if len(p) == 6:
+            pycode = '\n'.join(p[2]).strip()
+            p[0] = AstNode('instant-rule', prems=p[1], pycode=pycode, cons=p[4])
+        else:
+            p[0] = AstNode('instant-rule', prems=p[1], pycode='', cons=p[3])
 
     def p_rule(self, p):
         '''rule : sentence-list IMPLIES sentence-list DOT
@@ -416,6 +428,8 @@ class Compiler(object):
             return self.compile_definition(ast.definition)
         elif ast.type == 'rule':
             return self.compile_rule(ast)
+        elif ast.type == 'instant-rule':
+            return self.compile_instant_rule(ast)
         elif ast.type == 'fact-set':
             return self.compile_factset(ast.facts)
         elif ast.type == 'question':
@@ -449,7 +463,7 @@ class Compiler(object):
         term_type = self.lexicon.get_term(defn.term_type.val)
         return self.lexicon.add_term(defn.name.val, term_type)
 
-    def compile_rule(self, rule):
+    def _prepare_rule(self, rule):
         condcode = None
         if rule.pycode:
             condcode = CondCode(rule.pycode)
@@ -469,8 +483,25 @@ class Compiler(object):
             else:
                 con = self.compile_fact(sen)
                 consecs.append(con)
-        self.network.add_rule(prems, conds, condcode, consecs, finish)
+        return prems, conds, condcode, consecs, finish
+
+    def compile_rule(self, rule):
+        args = self._prepare_rule(rule)
+        self.network.add_rule(*args)
         self.session.commit()
+        return 'OK'
+
+    def compile_instant_rule(self, rule_ast):
+        args = self._prepare_rule(rule_ast)
+        rule = self.network.add_rule(*args)
+        # remove premnodes & nodes that have no other rules
+        for prem in rule.prems:
+            if len(prem.node.prems) == 1:
+                node = prem.node
+                while len(node.parent.children) == 1:
+                    node = node.parent
+                self.session.delete(node)
+        self.session.delete(rule)
         return 'OK'
 
     def compile_fact(self, fact):
