@@ -26,7 +26,6 @@ from ply.lex import TOKEN
 
 from sqlalchemy.orm.exc import NoResultFound
 
-from terms.core import register
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
@@ -194,7 +193,7 @@ class Parser(object):
     def p_construct(self, p):
         '''construct : definition
                      | rule
-                     | instant_rule
+                     | instant-rule
                      | fact-set
                      | question
                      | removal

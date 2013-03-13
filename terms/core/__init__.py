@@ -19,10 +19,15 @@
 
 exec_globals = {'__builtins__': __builtins__}
 
+
 def register_exec_global(fun, name=''):
     if name:
         exec_globals[name] = fun
-    exec_globals[fun.__func__.__name__] = fun
+    else:
+        try:
+            exec_globals[fun.__name__] = fun
+        except AttributeError:  # method?
+            exec_globals[fun.__func__.__name__] = fun
 
 
 def count(compiler, sen):

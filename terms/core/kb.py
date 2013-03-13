@@ -64,6 +64,7 @@ class Teller(Process):
             client.send_bytes(str(resp).encode('ascii'))
             client.send_bytes(b'END')
             client.close()
+            session.commit()
             session.close()
             self.compliler = None
             self.teller_queue.task_done()
@@ -87,14 +88,14 @@ class Teller(Process):
     def _get_data(self, totell):
         q = totell.split(':')
         term = self.compiler.lexicon.get_term(q[1])
-        data = get_data(term)
+        data = get_data(self.compiler, term)
         return data.jsonify()
 
     def _set_data(self, totell):
         q = totell.split(':')
         term = self.compiler.lexicon.get_term(q[1])
-        data = json.loads(q[2])
-        set_data(term, data)
+        data = json.loads(':'.join(q[2:]))
+        set_data(self.compiler, term, data)
         return 'OK'
 
     def _get_schema(self, totell):
@@ -127,7 +128,7 @@ class Teller(Process):
 #                if data:
 #                    field['value'] = getattr(data, field_name)
             jschema.append(field)
-        jschema = {'html': jschema}
+        #jschema = {'html': jschema}
         return json.dumps(jschema)
 
 

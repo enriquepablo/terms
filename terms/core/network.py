@@ -482,7 +482,7 @@ class Premise(Base):
     node = relationship('PremNode', backref='prems',
                          primaryjoin="PremNode.id==Premise.prem_id")
     rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backeref('prems',
+    rule = relationship('Rule', backref=backref('prems',
                                                  cascade='all,delete-orphan'))
                          # primaryjoin="Rule.id==Premise.rule_id")
     pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)

@@ -64,13 +64,17 @@ def _get_schema(noun, sa=True):
 def get_data(kb, name):
     schema = get_schema(name.term_type)
     try:
-        return kb.session.query(schema).filter_by(_id=name).one()
+        return kb.session.query(schema).filter_by(_id=name.name).one()
     except NoResultFound:
-        new = schema(name)
+        print(schema.__name__)
+        print(name)
+        new = schema()
+        new._id = name.name
         kb.session.add(new)
         return new
 
 
 def set_data(kb, name, kwargs):
-    data = get_data(name)
+    print(kwargs)
+    data = get_data(kb, name)
     data.edit(**kwargs)
