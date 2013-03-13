@@ -110,25 +110,16 @@ class Teller(Process):
         mapper = inspect(schema)
         jschema = []
         for field_name in mapper.attrs.keys():
+            sfield = mapper.attrs[field_name]
             if field_name == '_id':
                 continue
             field = {'name': field_name,
                      'id': field_name,
-                     'caption': field_name,
-                     'type': 'text'}
+                     'type': sfield.terms_schema_type,
+                     'caption': sfield.terms_schema_caption}
             if data:
                 field['value'] = getattr(data, field_name)
-#            typ = mapper.attrs[field_name].type.__name__
-#            if typ == 'Text':
-#                field['type'] = 'textarea'
-#                if data:
-#                    field['html'] = getattr(data, field_name)
-#            else:
-#                field['type'] = 'text'
-#                if data:
-#                    field['value'] = getattr(data, field_name)
             jschema.append(field)
-        #jschema = {'html': jschema}
         return json.dumps(jschema)
 
 

@@ -1,11 +1,24 @@
 import json
 
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy import String, Column
+from sqlalchemy import String
+from sqlalchemy import Column as SAColumn
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
 
 from terms.core.terms import get_bases
+
+
+class Column(SAColumn):
+
+    def __init__(self,
+                 *args,
+                 terms_schema_type='text',
+                 terms_schema_caption='text',
+                 terms_schema_help='text',
+                 **kwargs):
+        super(Column, self).__init__(*args, **kwargs)
+        self.terms_schema_type = terms_schema_type
 
 
 class Schema(object):
