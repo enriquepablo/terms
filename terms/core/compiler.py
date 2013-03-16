@@ -596,7 +596,7 @@ class Compiler(object):
                 f = open(path, 'r')
             except:
                 return 'Problems opening the file'
-            uri = f.readline().strip()
+            uri = f.readline()[1:].strip()
             code = f.read()
             f.close()
         elif url.startswith('http'):
@@ -604,7 +604,7 @@ class Compiler(object):
                 resp = urlopen(url)
             except:
                 return 'Problems loading the file'
-            uri = resp.readline().strip()
+            uri = resp.readline()[1:].strip()
             code = resp.read()
             resp.close()
         try:

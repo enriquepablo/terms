@@ -31,7 +31,8 @@ def init_terms():
         for m in get_plugins(config):
             dirname = os.path.join(os.path.dirname(m.__file__), 'ontology')
             for f in sorted(os.listdir(dirname)):
-                part = os.path.join(dirname, f)
-                compiler.compile_import('file://' + part)
+                if f.endswith('.trm'):
+                    part = os.path.join(dirname, f)
+                    compiler.compile_import('file://' + part)
         compiler.session.close()
     sys.exit('Created knowledge store %s' % config['dbname'])

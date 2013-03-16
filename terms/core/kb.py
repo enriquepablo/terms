@@ -110,7 +110,7 @@ class Teller(Process):
         mapper = inspect(schema)
         jschema = []
         for field_name in mapper.attrs.keys():
-            sfield = mapper.attrs[field_name]
+            sfield = getattr(schema, field_name)
             if field_name == '_id':
                 continue
             field = {'name': field_name,

@@ -19,6 +19,8 @@ class Column(SAColumn):
                  **kwargs):
         super(Column, self).__init__(*args, **kwargs)
         self.terms_schema_type = terms_schema_type
+        self.terms_schema_caption = terms_schema_caption
+        self.terms_schema_help = terms_schema_help
 
 
 class Schema(object):
