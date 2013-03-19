@@ -14,11 +14,13 @@ class Column(SAColumn):
     def __init__(self,
                  *args,
                  terms_schema_type='text',
+                 terms_schema_order='1000',
                  terms_schema_caption='text',
                  terms_schema_help='text',
                  **kwargs):
         super(Column, self).__init__(*args, **kwargs)
         self.terms_schema_type = terms_schema_type
+        self.terms_schema_order = terms_schema_order
         self.terms_schema_caption = terms_schema_caption
         self.terms_schema_help = terms_schema_help
 
@@ -81,8 +83,6 @@ def get_data(kb, name):
     try:
         return kb.session.query(schema).filter_by(_id=name.name).one()
     except NoResultFound:
-        print(schema.__name__)
-        print(name)
         new = schema()
         new._id = name.name
         kb.session.add(new)
@@ -90,6 +90,5 @@ def get_data(kb, name):
 
 
 def set_data(kb, name, kwargs):
-    print(kwargs)
     data = get_data(kb, name)
     data.edit(**kwargs)
