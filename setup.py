@@ -57,7 +57,6 @@ setup(
         },
     install_requires = [
         'distribute',
-        #'python-daemon == 1.5.5',
         'sqlalchemy >= 0.8.0b2',
         'ply == 3.4',
     ],

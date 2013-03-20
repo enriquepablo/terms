@@ -14,7 +14,6 @@ from terms.core import register_exec_global
 from terms.core.terms import Term, Predicate, isa
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
-from terms.core.schemata import get_data, set_data, get_schema, SchemaNotFound
 from terms.core.daemon import Daemon
 from terms.core.pluggable import load_plugins
 from terms.core.logger import get_rlogger
@@ -47,15 +46,6 @@ class Teller(Process):
             register_exec_global(self.compiler, name='compiler')
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
-            elif totell.startswith('_data_get:'):
-                resp = self._get_data(totell)
-            elif totell.startswith('_data_set:'):
-                resp = self._set_data(totell)
-            elif totell.startswith('_schema_get:'):
-                try:
-                    resp = self._get_schema(totell)
-                except SchemaNotFound:
-                    resp = ''
             else:
                 self.compiler.network.pipe = client
                 resp = self.compiler.parse(totell)
@@ -84,43 +74,6 @@ class Teller(Process):
                 isverb = isa(ot.obj_type, self.compiler.lexicon.verb)
                 resp.append([ot.label, ot.obj_type.name, isverb])
         return json.dumps(resp, cls=TermsJSONEncoder)
-
-    def _get_data(self, totell):
-        q = totell.split(':')
-        term = self.compiler.lexicon.get_term(q[1])
-        data = get_data(self.compiler, term)
-        return data.jsonify()
-
-    def _set_data(self, totell):
-        q = totell.split(':')
-        term = self.compiler.lexicon.get_term(q[1])
-        data = json.loads(':'.join(q[2:]))
-        set_data(self.compiler, term, data)
-        return 'OK'
-
-    def _get_schema(self, totell):
-        q = totell.split(':')
-        term = self.compiler.lexicon.get_term(q[1])
-        data = None
-        if isa(term, self.compiler.lexicon.noun):
-            schema = get_schema(term)
-        else:
-            schema = get_schema(term.term_type)
-            data = schema.get(term.name)
-        mapper = inspect(schema)
-        jschema = []
-        for field_name in mapper.attrs.keys():
-            sfield = getattr(schema, field_name)
-            if field_name == '_id':
-                continue
-            field = {'name': field_name,
-                     'id': field_name,
-                     'type': sfield.terms_schema_type,
-                     'caption': sfield.terms_schema_caption}
-            if data:
-                field['value'] = getattr(data, field_name)
-            jschema.append(field)
-        return json.dumps(jschema)
 
 
 class KnowledgeBase(Daemon):

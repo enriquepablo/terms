@@ -9,7 +9,6 @@ from terms.core.utils import get_config
 from terms.core.network import Network
 from terms.core.compiler import Compiler
 from terms.core.terms import Base
-from terms.core.schemata import Schema
 from terms.core.pluggable import load_plugins, get_plugins
 
 
@@ -19,7 +18,6 @@ def init_terms():
     load_plugins(config)
     engine = create_engine(address)
     Base.metadata.create_all(engine)
-    Schema.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
     Network.initialize(session)

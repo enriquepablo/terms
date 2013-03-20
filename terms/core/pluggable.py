@@ -1,7 +1,6 @@
 
 from importlib import import_module
 
-import terms.core.schemata
 import terms.core
 
 
@@ -20,7 +19,5 @@ def get_plugins(config):
 def load_plugins(config):
     plugins = get_plugin_names(config)
     for plugin in plugins:
-        schemata = import_module(plugin + '.schemata')
-        terms.core.schemata.__dict__.update(schemata.__dict__)
         exec_globals = import_module(plugin + '.exec_globals')
         terms.core.exec_globals.update(exec_globals.__dict__)
