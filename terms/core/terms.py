@@ -18,7 +18,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 from sqlalchemy import Table, Column, Sequence, Index
-from sqlalchemy import ForeignKey, Integer, String, Boolean
+from sqlalchemy import ForeignKey, Integer, String, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.collections import attribute_mapped_collection
@@ -353,3 +353,21 @@ class Import(Base):
 
     def __init__(self, url):
         self.url = url
+
+
+class ExecGlobal(Base):
+    '''
+    '''
+    __tablename__ = 'execglobals'
+    id = Column(Integer, Sequence('execglobal_id_seq'), primary_key=True)
+    code = Column(Text())
+
+    def __init__(self, code):
+        self.code = code
+
+
+def load_exec_globals(session):
+    egs = session.query(ExecGlobal).all()
+    from terms.core import exec_globals
+    for eg in egs:
+        exec(eg.code, exec_globals)

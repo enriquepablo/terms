@@ -8,14 +8,12 @@ from multiprocessing.connection import Listener
 from threading import Thread
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.inspection import inspect
 
 from terms.core import register_exec_global
-from terms.core.terms import Term, Predicate, isa
+from terms.core.terms import Term, Predicate, isa, ExecGlobal
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
-from terms.core.pluggable import load_plugins
 from terms.core.logger import get_rlogger
 
 
@@ -33,7 +31,6 @@ class Teller(Process):
     def __init__(self, config, session_factory, teller_queue, *args, **kwargs):
         super(Teller, self).__init__(*args, **kwargs)
         self.config = config
-        load_plugins(config)
         self.session_factory = session_factory
         self.teller_queue = teller_queue
         self.compiler = None
@@ -46,6 +43,8 @@ class Teller(Process):
             register_exec_global(self.compiler, name='compiler')
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
+            elif totell.startswith('_exec_global:'):
+                resp = self._add_execglobal(totell)
             else:
                 self.compiler.network.pipe = client
                 resp = self.compiler.parse(totell)
@@ -55,7 +54,7 @@ class Teller(Process):
             client.send_bytes(b'END')
             client.close()
             session.commit()
-            session.close()
+            session.close()  # XXX needed?
             self.compliler = None
             self.teller_queue.task_done()
         self.teller_queue.task_done()
@@ -74,6 +73,15 @@ class Teller(Process):
                 isverb = isa(ot.obj_type, self.compiler.lexicon.verb)
                 resp.append([ot.label, ot.obj_type.name, isverb])
         return json.dumps(resp, cls=TermsJSONEncoder)
+
+    def _add_execglobal(self, totell):
+# XXX put it in terms.core.exec_globals, in all processes
+        egs = totell[13:]
+        eg = ExecGlobal(egs)
+        session = self.session_factory()
+        session.add(eg)
+        session.commit()
+        session.close()
 
 
 class KnowledgeBase(Daemon):
@@ -129,7 +137,6 @@ class Ticker(Thread):
     def __init__(self, config, session, lock, queue, *args, **kwargs):
         super(Ticker, self).__init__(*args, **kwargs)
         self.config = config
-        load_plugins(config)
         self.session = session
         self.compiler = Compiler(session, config)
         register_exec_global(self.compiler, name='compiler')
