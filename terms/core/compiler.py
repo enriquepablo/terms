@@ -590,26 +590,26 @@ class Compiler(object):
 
     def compile_import(self, url):
         code, uri = b'', ''
-        if url.startswith('file://'):
-            path = url[7:]
-            try:
-                f = open(path, 'r')
-            except:
-                return 'Problems opening the file'
-            uri = f.readline()[1:].strip()
-            code = f.read()
-            f.close()
-        elif url.startswith('http'):
-            try:
-                resp = urlopen(url)
-            except:
-                return 'Problems loading the file'
-            uri = resp.readline()[1:].strip()
-            code = resp.read()
-            resp.close()
         try:
             self.session.query(Import).filter_by(url=uri).one()
         except NoResultFound:
+            if url.startswith('file://'):
+                path = url[7:]
+                try:
+                    f = open(path, 'r')
+                except:
+                    return 'Problems opening the file'
+                uri = f.readline()[1:].strip()
+                code = f.read()
+                f.close()
+            elif url.startswith('http'):
+                try:
+                    resp = urlopen(url)
+                except:
+                    return 'Problems loading the file'
+                uri = resp.readline()[1:].strip()
+                code = resp.read()
+                resp.close()
             self.parse_many(code)
             new = Import(uri)
             self.session.add(new)

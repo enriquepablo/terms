@@ -10,7 +10,8 @@ from threading import Thread
 from sqlalchemy.orm.exc import NoResultFound
 
 from terms.core import register_exec_global
-from terms.core.terms import Term, Predicate, isa, ExecGlobal
+from terms.core.terms import Term, Predicate, isa
+from terms.core.terms import ExecGlobal, load_exec_globals
 from terms.core.compiler import Compiler
 from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
@@ -40,7 +41,7 @@ class Teller(Process):
             totell = client.recv_bytes().decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
-            register_exec_global(self.compiler, name='compiler')
+            # XXX register_exec_global(self.compiler, name='compiler')
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
             elif totell.startswith('_exec_global:'):
@@ -91,15 +92,17 @@ class KnowledgeBase(Daemon):
         self.pidfile = os.path.abspath(config['pidfile'])
         self.time_lock = Lock()
         self.teller_queue = JoinableQueue()
+        self.session_factory = get_sasession(self.config)
+        session = self.session_factory()
+        load_exec_globals(session)
 
     def run(self):
         reader_logger = get_rlogger(self.config)
         sys.stdout = reader_logger
         sys.stderr = reader_logger
-        session_factory = get_sasession(self.config)
 
         if int(self.config['instant_duration']):
-            self.clock = Ticker(self.config, session_factory(),
+            self.clock = Ticker(self.config, self.session_factory(),
                                 self.time_lock, self.teller_queue)
             self.clock.start()
 
@@ -107,7 +110,7 @@ class KnowledgeBase(Daemon):
         port = int(self.config['kb_port'])
         nproc = int(self.config['teller_processes'])
         for n in range(nproc):
-            teller = Teller(self.config, session_factory, self.teller_queue)
+            teller = Teller(self.config, self.session_factory, self.teller_queue)
             teller.daemon = True
             teller.start()
         self.socket = Listener((host, port))
@@ -139,7 +142,7 @@ class Ticker(Thread):
         self.config = config
         self.session = session
         self.compiler = Compiler(session, config)
-        register_exec_global(self.compiler, name='compiler')
+        #register_exec_global(self.compiler, name='compiler')
         self.time_lock = lock
         self.teller_queue = queue
         self.ticking = True
