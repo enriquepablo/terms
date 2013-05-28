@@ -129,9 +129,15 @@ class KnowledgeBase(Daemon):
         for n in range(nproc):
             self.teller_queue.put(None)
         self.teller_queue.close()
-        self.clock.ticking = False
+        try:
+            self.clock.ticking = False
+        except AttributeError:
+            pass
         self.teller_queue.join()
-        self.clock.join()
+        try:
+            self.clock.join()
+        except AttributeError:
+            pass
         print('bye from {n}, received signal {p}'.format(n=mp.current_process().name, p=str(signum)))
 
 
