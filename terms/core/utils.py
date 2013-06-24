@@ -59,10 +59,12 @@ class Match(dict):
 
     def merge(self, m):
         new_match = Match(self.pred)
-        for k, v in self.items() + m.items():
-            if k in m:
-                if self[k] != v:
-                    return False
+        tot = {}
+        tot.update(self)
+        tot.update(m)
+        for k, v in tot.items():
+            if k in self and k in m and self[k] != m[k]:
+                return False
             new_match[k] = v
         return new_match
 
