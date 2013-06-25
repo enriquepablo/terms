@@ -25,6 +25,11 @@ class TermsRepl(object):
         address = '%s/%s' % (config['dbms'], config['dbname'])
         engine = create_engine(address)
         Session = sessionmaker(bind=engine)
+        if config['dbname'] == ':memory:':
+            from terms.core.terms import Base
+            Base.metadata.create_all(engine)
+            from terms.core.network import Network
+            Network.initialize(Session())
         self.compiler = Compiler(Session(), config)
         register_exec_global(self.compiler, name='compiler')
 

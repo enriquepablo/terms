@@ -49,6 +49,7 @@ class Lexer(object):
         'IS',
         'A',
         'SEMICOLON',
+        'COLON',
         'VAR',
         'IMPLIES',
         'INSTANT_IMPLIES',
@@ -76,6 +77,7 @@ class Lexer(object):
     t_QMARK = r'\?'
     t_NOT = r'!'
     t_SEMICOLON = r';'
+    t_COLON = r':'
     t_VAR = VAR_PAT
     t_INSTANT_IMPLIES = r'-->'
     t_IMPLIES = r'->'
@@ -305,6 +307,14 @@ class Parser(object):
                  | var'''
         p[0] = p[1]
 
+    def p_vterms(self, p):
+        '''vterms : vterm COLON vterms
+                  | vterm'''
+        if len(p) == 4:
+            p[0] = p[3] + (p[1],)
+        else:
+            p[0] = (p[1],)
+
     def p_term(self, p):
         '''term : SYMBOL'''
         p[0] = AstNode('term', val=p[1])
@@ -342,8 +352,8 @@ class Parser(object):
         p[0] = p[1]
 
     def p_noun_def(self, p):
-        '''noun-def : A vterm IS A vterm'''
-        p[0] = AstNode('noun-def', name=p[2], bases=[p[5]])
+        '''noun-def : A vterm IS A vterms'''
+        p[0] = AstNode('noun-def', name=p[2], bases=p[5])
 
     def p_terms(self, p):
         '''terms : term COMMA terms
