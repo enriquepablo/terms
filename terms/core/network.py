@@ -145,7 +145,8 @@ class Network(object):
         n = 0
         while self.activations:
             n += 1
-            if n % 25 == 0:
+            cmc = int(self.config['commit_many_consecuences'])
+            if cmc and n % cmc == 0:
                 self.session.commit()
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
@@ -205,6 +206,13 @@ class Network(object):
         for prem in rule.prems:
             matches = self.present.query(prem.pred)
             for match in matches:
+                try:
+                    prem.node.matches.filter(PMatch.fact==match.fact).one()
+                except NoResultFound:
+                    m = PMatch(prem.node, match.fact)
+                    for var, val in match.items():
+                        numvar = prem.name_to_num(var)
+                        m.pairs.append(MPair.make_pair(numvar, val))
                 prem.dispatch(match, self)
         return rule
 
@@ -430,6 +438,7 @@ class VerbNode(Node):
     @classmethod
     def get_children(cls, parent, value, network):
         children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
+        print('      verb get child - ', value, children.count())
         pchildren = []
         types = (value,) + get_bases(value)
         type_ids = [t.id for t in types]
@@ -512,6 +521,10 @@ class Premise(Base):
             del nmatch[num]
         return nmatch
 
+    def name_to_num(self, name):
+        pvar = tuple(filter(lambda x: x.varname.name==name, self.pvars))[0]
+        return pvar.num
+
     def dispatch(self, match, network):
         print('dispatch ' + repr(match.pred))
         prems = [p for p in self.rule.prems if p != self]
@@ -561,7 +574,7 @@ class Premise(Base):
         for prem in prems:
             pms = prem.filter_pmatches(match, network)
             newcount = pms.count() if pms else 0
-            print('    count:' + str(newcount) + '  id: ' + str(prem.id))
+            print('    count:' + str(newcount) + '  id: ' + str(prem.pred), match, pms)
             if newcount == 0:
                 raise NoMatches
             elif newcount == 1:

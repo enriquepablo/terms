@@ -40,5 +40,17 @@ class IllegalLabel(TermsException):
     pass
 
 
+class WrongLabel(TermsException):
+    pass
+
+
 class Corruption(TermsException):
+    pass
+
+
+class TermsSyntaxError(TermsException):
+    pass
+
+
+class WrongObjectType(TermsException):
     pass

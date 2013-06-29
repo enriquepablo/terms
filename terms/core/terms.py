@@ -23,6 +23,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
+from terms.core.exceptions import WrongLabel
+
 
 class Base(object):
     pass
@@ -169,7 +171,10 @@ class Predicate(Base):
         '''
         self.true = true
         self.term_type = verb_
+        labels = [ot.label for ot in verb_.object_types]
         for label, o in objs.items():
+            if label not in labels:
+                raise WrongLabel('Error: label "%s" is wrong for verb "%s"' % (label, verb_.name))
             self.add_object(label, o)
 
     def __str__(self):

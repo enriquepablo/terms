@@ -210,13 +210,13 @@ class TermSegment(Segment):
             return qfacts
         else:
             taken_vars[value.name] = (path, salias)
-        if value.bases:
-            sbases = factset.lexicon.get_subterms(get_bases(value)[0])
-        else:
-            sbases = factset.lexicon.get_subterms(value.term_type)
-        sbases = [b.id for b in sbases]
         path_str = '.'.join(path)
-        qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.term_id==talias.id).filter(talias.type_id.in_(sbases))
+        if value.bases:
+            sbases = [b.id for b in factset.lexicon.get_subterms(value.bases[0])]
+            qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.term_id==talias.id).filter(talias.id.in_(sbases))
+        else:
+            sbases = [b.id for b in factset.lexicon.get_subterms(value.term_type)]
+            qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.term_id==talias.id).filter(talias.type_id.in_(sbases))
         return qfacts
 
     @classmethod

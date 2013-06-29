@@ -29,6 +29,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
+from terms.core.exceptions import TermsSyntaxError, WrongObjectType
+
 
 
 class Lexer(object):
@@ -392,7 +394,7 @@ class Parser(object):
         p[0] = AstNode('mod-def', label=p[1], obj_type=p[3])
 
     def p_error(self, p):
-        raise Exception('syntax error: ' + str(p) +
+        raise TermsSyntaxError('syntax error: ' + str(p) +
                         ' parsing ' + self.lex.lexer.lexdata)
 
 
@@ -423,10 +425,8 @@ class Compiler(object):
 
     def parse(self, s):
         asts = self.parser.parse(s)
-        return self.compile(asts[0])
-
-    def parse_many(self, s):
-        asts = self.parser.parse(s)
+        if len(asts) == 1:
+            return self.compile(asts[0])
         asts.reverse()
         for ast in asts:
             self.compile(ast)
@@ -519,7 +519,7 @@ class Compiler(object):
         if fact.predicate.subj is None:
             return verb
         subj = self.compile_obj(fact.predicate.subj)
-        mods = self.compile_mods(fact.predicate.mods)
+        mods = self.compile_mods(verb, fact.predicate.mods)
         mods['subj'] = subj
         return Predicate(true, verb, **mods)
 
@@ -538,11 +538,16 @@ class Compiler(object):
         elif obj.type == 'number':
             return self.lexicon.make_term(obj.val, self.lexicon.number)
 
-    def compile_mods(self, ast):
+    def compile_mods(self, verb, ast):
         mods = {}
         for mod in ast:
             label = mod.label
+            otype = tuple(filter(lambda x: x.label == label, verb.object_types))[0]
             obj = self.compile_obj(mod.obj)
+            if not isa(obj, otype.obj_type):
+                raise WrongObjectType('Error: word %s for label %s is not the correct type: '
+                                       'is is a %s and should be a %s' %
+                                      (obj.name, label, obj.term_type.name, otype.obj_type.name))
             mods[label] = obj
         return mods
 
@@ -607,20 +612,20 @@ class Compiler(object):
                 path = url[7:]
                 try:
                     f = open(path, 'r')
-                except:
-                    return 'Problems opening the file'
+                except Exception as e:
+                    return 'Problems opening the file: ' + str(e)
                 uri = f.readline()[1:].strip()
                 code = f.read()
                 f.close()
             elif url.startswith('http'):
                 try:
                     resp = urlopen(url)
-                except:
-                    return 'Problems loading the file'
+                except Exception as e:
+                    return 'Problems loading the file: ' + str(e)
                 uri = resp.readline()[1:].strip()
                 code = resp.read()
                 resp.close()
-            self.parse_many(code)
+            self.parse(code)
             new = Import(uri)
             self.session.add(new)
             self.session.commit()

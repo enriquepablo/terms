@@ -34,7 +34,9 @@ class TermsRepl(object):
         register_exec_global(self.compiler, name='compiler')
 
     def _parse_buff(self):
-        return self.compiler.parse(self._buffer)
+        resp = self.compiler.parse(self._buffer)
+        self.compiler.session.commit()
+        return resp
 #        conn = Client((self.config['kb_host'], int(self.config['kb_port'])))
 #        conn.send_bytes(self._buffer.encode('ascii'))
 #        while True:

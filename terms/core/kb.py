@@ -17,6 +17,8 @@ from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
 
+from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel, IllegalLabel, WrongObjectType
+
 
 class TermsJSONEncoder(json.JSONEncoder):
 
@@ -38,7 +40,9 @@ class Teller(Process):
 
     def run(self):
         for client in iter(self.teller_queue.get, None):
-            totell = client.recv_bytes().decode('ascii')
+            totell = ''
+            for msg in iter(client.recv_bytes, b'FINISH-TERMS'):
+                totell += msg.decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
             # XXX register_exec_global(self.compiler, name='compiler')
@@ -48,16 +52,35 @@ class Teller(Process):
                 resp = self._add_execglobal(totell)
             else:
                 self.compiler.network.pipe = client
-                resp = self.compiler.parse(totell)
+                try:
+                    resp = self.compiler.parse(totell)
+                except TermNotFound as e:
+                    session.rollback()
+                    resp = 'Unknown word: ' + e.args[0]
+                except TermsSyntaxError as e:
+                    session.rollback()
+                    resp = 'Terms syntax error: ' + e.args[0]
+                except WrongLabel as e:
+                    session.rollback()
+                    resp = e.args[0]
+                except IllegalLabel as e:
+                    session.rollback()
+                    resp = 'Error: labels cannot contain underscores: %s' % e.args[0]
+                except WrongObjectType as e:
+                    session.rollback()
+                    resp = e.args[0]
                 self.compiler.network.pipe = None
                 resp = json.dumps(resp, cls=TermsJSONEncoder)
-            client.send_bytes(str(resp).encode('ascii'))
-            client.send_bytes(b'END')
+            try:
+                client.send_bytes(str(resp).encode('ascii'))
+            except BrokenPipeError:
+                pass
+            else:
+                client.send_bytes(b'END')
             client.close()
-            session.commit()
             session.close()  # XXX needed?
             self.compliler = None
-            self.teller_queue.task_done()
+            self.teller_queue.task_done()  # abyss
         self.teller_queue.task_done()
         self.teller_queue.close()
 
