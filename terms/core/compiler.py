@@ -569,7 +569,7 @@ class Compiler(object):
         for f in facts:
             pred = self.compile_fact(f)
             self.network.add_fact(pred)
-        self.session.commit()
+            self.session.commit()
         return 'OK'
 
     def compile_question(self, sentences):

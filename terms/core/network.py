@@ -46,7 +46,6 @@ class Network(object):
         self.present = FactSet('present', self.lexicon, config)
         self.past = FactSet('past', self.lexicon, config)
         self.pipe = None
-        self.passing = []
 
     @classmethod
     def initialize(self, session):
@@ -64,6 +63,18 @@ class Network(object):
             now = past + 1
         elif self.config['time'] == 'real':
             now = int(time.time())
+
+        q = self.lexicon.make_var('Now1')
+        topast = self.present.query_facts(q, {})
+        for f in topast:
+            for m in f.matches:
+                self.session.delete(m)
+            f.matches = []
+            f.factset = 'past'
+            self.present.add_object_to_fact(f, self.lexicon.now_term,
+                                                    ('at_', '_term'))
+            f.factset = 'past'
+
         self.now = now
 
     def _get_now(self):
@@ -89,9 +100,9 @@ class Network(object):
 
     def _recurse_paths(self, verb_, pred, paths, path, first=False):
         paths.append(path + ('_verb',))
-        paths.append(path + ('_neg',))
+        if not isa(pred, self.lexicon.verb):  # not a verb var
+            paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
-            # XXX this would serve only for the present
             if obt.label in ('till_', 'since_', 'at_'):
                 continue
             t = obt.obj_type
@@ -115,7 +126,7 @@ class Network(object):
                 old_pred.add_object('subj', pred.get_object('subj'))
                 self.finish(old_pred)
         elif isa(pred, self.lexicon.finish):
-            tofinish = pred.get_object('subj')
+            tofinish = pred.get_object('what')
             self.finish(tofinish)
         #neg = pred.copy()
         #neg.true = not neg.true
@@ -127,41 +138,33 @@ class Network(object):
         try:
             fact = factset.query_facts(pred, {}).one()
             prev = True
-            print('     PREV ____----____ ' + str(fact.pred))
         except NoResultFound:
             fact = factset.add_fact(pred)
+        if prev:
+            return fact
         if isa(pred, self.lexicon.totell):
             if self.pipe is not None:
                 self.pipe.send_bytes(str(pred).encode('ascii'))
-        if prev:
-            return fact
-        if isa(pred, self.lexicon.now):
-            self.passing.append(fact)
         if self.root.child_path:
             m = Match(pred)
             m.paths = self.get_paths(pred)
             m.fact = fact
             Node.dispatch(self.root, m, self)
+            self.session.flush()
         n = 0
         while self.activations:
             n += 1
             cmc = int(self.config['commit_many_consecuences'])
             if cmc and n % cmc == 0:
                 self.session.commit()
+            else:
+                self.session.flush()
             match = self.activations.pop()
             Node.dispatch(self.root, match, self)
-        for f in self.passing:
-            now_term = self.lexicon.now_term
-            self.present.add_object_to_fact(f, now_term,
-                                                    ('at_', '_term'))
-            f.factset = 'past'
-            for m in f.matches:
-                self.session.delete(m)
-            f.matches = []
         return fact
 
     def finish(self, predicate):
-        fs = self.present.query_facts(predicate, [])
+        fs = self.present.query_facts(predicate, {})
         for f in fs:
             pred = f.pred
             if isa(pred, self.lexicon.onwards):
@@ -172,7 +175,7 @@ class Network(object):
                 f.matches = []
 
     def del_fact(self, pred):
-        fact = self.present.query_facts(pred, []).one()
+        fact = self.present.query_facts(pred, {}).one()
         self.session.delete(fact)
 
     def add_rule(self, prems, conds, condcode, cons, finishes):
@@ -407,10 +410,11 @@ class TermNode(Node):
             return network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids)),
         children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
         vchildren = ()
-        types = (value.term_type,) + get_bases(value.term_type)
-        type_ids = [t.id for t in types]
-        if type_ids:
-            vchildren = network.session.query(cls).filter(cls.parent_id==parent.id).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
+        if value is not None:
+            types = (value.term_type,) + get_bases(value.term_type)
+            type_ids = [t.id for t in types]
+            if type_ids:
+                vchildren = network.session.query(cls).filter(cls.parent_id==parent.id).join(Term, cls.term_id==Term.id).filter(Term.var==True).filter(Term.type_id.in_(type_ids))
 #         if not isa(value, network.lexicon.thing) and not isa(value, network.lexicon.number):
 #             bases = (value,) + get_bases(value)
 #             tbases = aliased(Term)
@@ -429,23 +433,26 @@ class VerbNode(Node):
 
     @classmethod
     def resolve(cls, term, path):
-        for segment in path[:-1]:
-            term = term.get_object(segment)
-        if term.var:
-            return term
-        return term.term_type
+        try:
+            for segment in path[:-1]:
+                term = term.get_object(segment)
+            if term.var:
+                return term
+            return term.term_type
+        except (AttributeError, KeyError):
+            return None
 
     @classmethod
     def get_children(cls, parent, value, network):
         children = network.session.query(cls).filter(cls.parent_id==parent.id, (cls.value==value) | (cls.value==None))
-        print('      verb get child - ', value, children.count())
-        pchildren = []
-        types = (value,) + get_bases(value)
-        type_ids = [t.id for t in types]
-        chvars = network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0)
-        pchildren = chvars.join(Term, cls.verb_id==Term.id).filter(Term.type_id.in_(type_ids))
-        tbases = aliased(Term)
-        vchildren = chvars.join(Term, cls.verb_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
+        pchildren, vchildren = [], []
+        if value is not None:
+            types = (value,) + get_bases(value)
+            type_ids = [t.id for t in types]
+            chvars = network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0)
+            pchildren = chvars.join(Term, cls.verb_id==Term.id).filter(Term.type_id.in_(type_ids))
+            tbases = aliased(Term)
+            vchildren = chvars.join(Term, cls.verb_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
 
@@ -526,7 +533,6 @@ class Premise(Base):
         return pvar.num
 
     def dispatch(self, match, network):
-        print('dispatch ' + repr(match.pred))
         prems = [p for p in self.rule.prems if p != self]
         try:
             if prems:
@@ -541,11 +547,8 @@ class Premise(Base):
     def recurse_premises(self, match, remaining_prems, network):
         prem, pmatches = self.pick_prem(remaining_prems, match, network)
         remaining_prems.remove(prem)
-        print('  prem ' + repr(prem.pred))
-        print('  match ' + repr(match))
         matches = []
         for pm in pmatches:
-            print('      pmatch ' + repr([(p.var, p.val) for p in pm.pairs]) + '  ' + str(pm.fact_id))
             new_match = match.copy()
             for mpair in pm.pairs:
                 vname = self.rule.get_varname(prem, mpair.var)
@@ -574,20 +577,17 @@ class Premise(Base):
         for prem in prems:
             pms = prem.filter_pmatches(match, network)
             newcount = pms.count() if pms else 0
-            print('    count:' + str(newcount) + '  id: ' + str(prem.pred), match, pms)
             if newcount == 0:
                 raise NoMatches
             elif newcount == 1:
                 return prem, pms
             if newcount < count:
                 count, pmatches, picked = newcount, pms, prem
-        print('   Picked: ' + str(picked.id))
         return picked, pmatches
 
     def filter_pmatches(self, match, network):
         pmatches = self.node.matches
         pvar_map = self.rule.get_pvar_map(match, self)
-        print(pvar_map)
         subqueries = []
         for var, val in pvar_map:
             apair = aliased(MPair)
@@ -608,7 +608,6 @@ class Premise(Base):
             subqueries.sort(key=count_subquery)
             subquery = functools.reduce(Select.intersect, subqueries)
             pmatches = pmatches.filter(PMatch.id.in_(subquery)).distinct(PMatch.id)
-        print(pmatches, '', '')
         return pmatches
 
 
@@ -773,7 +772,7 @@ class Rule(Base):
                     old_pred.add_object('subj', con.get_object('subj'))
                     network.finish(old_pred)
             elif isa(con, network.lexicon.finish):
-                tofinish = con.get_object('subj')
+                tofinish = con.get_object('what')
                 network.finish(tofinish)
             # XXX make contradiction configurabe
             #neg = con.copy()
@@ -787,13 +786,11 @@ class Rule(Base):
                 prev = True
             except NoResultFound:
                 fact = factset.add_fact(con)
+            if prev:
+                continue
             if isa(con, network.lexicon.totell):
                 if network.pipe is not None:
                     network.pipe.send_bytes(str(con).encode('ascii'))
-            if prev:
-                continue
-            if isa(con, network.lexicon.now):
-                network.passing.append(fact)
             if network.root.child_path:
                 m = Match(con)
                 m.paths = network.get_paths(con)

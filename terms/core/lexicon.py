@@ -80,7 +80,7 @@ class Lexicon(object):
         thing = Term('thing', ttype=noun, bases=(word,))
         session.add(thing)
         finish = Term('finish', ttype=verb, bases=(now,),
-                      objs={'subj': exists})
+                      objs={'subj': thing, 'what': exists})
         session.add(finish)
         time = Time()
         session.add(time)

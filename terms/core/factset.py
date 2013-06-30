@@ -49,7 +49,8 @@ class FactSet(object):
 
     def _recurse_paths(self, pred, paths, path):
         paths.append(path + ('_verb',))
-        paths.append(path + ('_neg',))
+        if not isa(pred, self.lexicon.verb):  # not a verb var
+            paths.append(path + ('_neg',))
         for label in sorted(pred.objects):
             o = pred.objects[label].value
             if isa(o, self.lexicon.exists):
@@ -71,6 +72,7 @@ class FactSet(object):
             value = cls.resolve(pred, path, self)
             cls(fact, value, path)
         self.session.add(fact)
+        self.session.flush()
         return fact
 
     def add_object_to_fact(self, fact, value, path):
@@ -79,11 +81,13 @@ class FactSet(object):
         self.session.add(segment)
         fact.pred.add_object(path[-2], value)
 
-    def query_facts(self, pred, taken_vars):
+    def query_facts(self, pred, taken_vars, with_factset=True):
         vars = []
         sec_vars = []
         paths = self.get_paths(pred)
-        qfacts = self.session.query(Fact).filter(Fact.factset==self.name)
+        qfacts = self.session.query(Fact)
+        if with_factset:
+            qfacts = qfacts.filter(Fact.factset==self.name)
         for path in paths:
             cls = self._get_nclass(path)
             value = cls.resolve(pred, path, self)
