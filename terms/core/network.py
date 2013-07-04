@@ -880,6 +880,7 @@ class CondCode(Base):
 
     def test(self, match, network):
         exec_locals = {'condition': True}
+        exec_locals['match'] = match
         for k, v in match.items():
             if getattr(v, 'number', False):
                 exec_locals[k] = eval(v.name, {}, {})
@@ -893,7 +894,7 @@ class CondCode(Base):
             return False
 
         for k, v in exec_locals.items():
-            if k in ('condition', '__builtins__'):
+            if k in ('condition', '__builtins__', 'match'):
                 continue
             try:
                 match[k] = network.lexicon.make_term(str(0 + v), network.lexicon.number)
