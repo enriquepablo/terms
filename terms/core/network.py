@@ -159,7 +159,7 @@ class Network(object):
                 self.session.commit()
             else:
                 self.session.flush()
-            match = self.activations.pop()
+            match = self.activations.pop(0)
             Node.dispatch(self.root, match, self)
         return fact
 
@@ -224,7 +224,7 @@ class Network(object):
         submatches = []
         for pred in q:
             factset = self.present
-            if pred.get_label_set().intersection({'at_', 'till_'}):
+            if set(pred.objects).intersection({'at_', 'till_'}):
                 factset = self.past
             smatches = factset.query(pred)
             submatches.append(smatches)

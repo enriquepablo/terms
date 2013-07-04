@@ -234,9 +234,6 @@ class Predicate(Base):
                 o.value.get_vars(vars)
         return vars
 
-    def get_label_set(self):
-        return {o.label for o in self.objects}
-
 
 class Object(Base):
     '''
