@@ -17,17 +17,21 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-exec_globals = {'__builtins__': __builtins__}
+from threading import local
+
+localdata = local()
+
+localdata.exec_globals = {'__builtins__': __builtins__}
 
 
 def register_exec_global(fun, name=''):
     if name:
-        exec_globals[name] = fun
+        localdata.exec_globals[name] = fun
     else:
         try:
-            exec_globals[fun.__name__] = fun
+            localdata.exec_globals[fun.__name__] = fun
         except AttributeError:  # method?
-            exec_globals[fun.__func__.__name__] = fun
+            localdata.exec_globals[fun.__func__.__name__] = fun
 
 
 def count(compiler, sen):

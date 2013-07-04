@@ -159,7 +159,7 @@ class Predicate(Base):
     rule = relationship('Rule', backref=backref('consecuences', cascade='all'),
                          primaryjoin="Rule.id==Predicate.rule_id")
 
-    # to avoid AttributeErrors
+    # to avoid AttributeErrors when used as a term
     bases = ()
     name = ''
     var = False
@@ -233,6 +233,9 @@ class Predicate(Base):
             elif isinstance(o.value, Predicate):
                 o.value.get_vars(vars)
         return vars
+
+    def get_label_set(self):
+        return {o.label for o in self.objects}
 
 
 class Object(Base):
@@ -373,6 +376,6 @@ class ExecGlobal(Base):
 
 def load_exec_globals(session):
     egs = session.query(ExecGlobal).all()
-    from terms.core import exec_globals
+    from terms.core import localdata
     for eg in egs:
-        exec(eg.code, exec_globals)
+        exec(eg.code, localdata.exec_globals)

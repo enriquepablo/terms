@@ -26,7 +26,7 @@ from sqlalchemy.orm import relationship, backref, aliased
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import InvalidRequestError
 
-from terms.core import exec_globals
+from terms.core import localdata
 from terms.core.terms import isa, are, get_bases
 from terms.core.terms import Base, Term, term_to_base, Predicate
 from terms.core.lexicon import Lexicon
@@ -886,7 +886,7 @@ class CondCode(Base):
             else:
                 exec_locals[k] = v
         try:
-            exec(self.code, exec_globals, exec_locals)
+            exec(self.code, localdata.exec_globals, exec_locals)
         except Exception:
             if exec_locals['condition']:
                 raise

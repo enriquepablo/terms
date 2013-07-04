@@ -45,7 +45,8 @@ class Teller(Process):
                 totell += msg.decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
-            # XXX register_exec_global(self.compiler, name='compiler')
+            register_exec_global(self.compiler, name='compiler')
+            load_exec_globals(session)
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
             elif totell.startswith('_exec_global:'):
@@ -117,7 +118,6 @@ class KnowledgeBase(Daemon):
         self.teller_queue = JoinableQueue()
         self.session_factory = get_sasession(self.config)
         session = self.session_factory()
-        load_exec_globals(session)
 
     def run(self):
         reader_logger = get_rlogger(self.config)
