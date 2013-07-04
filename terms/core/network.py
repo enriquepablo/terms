@@ -224,7 +224,7 @@ class Network(object):
         submatches = []
         for pred in q:
             factset = self.present
-            if isa(pred, self.lexicon.now):
+            if pred.get_label_set().intersection({'at_', 'till_'}):
                 factset = self.past
             smatches = factset.query(pred)
             submatches.append(smatches)
