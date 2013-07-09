@@ -119,12 +119,10 @@ class Network(object):
 
     def add_fact(self, pred):
         factset = self.present
-        if isa(pred, self.lexicon.onwards):
-            pred.add_object('since_', self.lexicon.now_term)
-            if isa(pred, self.lexicon.unique):
-                old_pred = Predicate(pred.true, pred.term_type)
-                old_pred.add_object('subj', pred.get_object('subj'))
-                self.finish(old_pred)
+        if isa(pred, self.lexicon.unique):
+            old_pred = Predicate(pred.true, pred.term_type)
+            old_pred.add_object('subj', pred.get_object('subj'))
+            self.finish(old_pred)
         elif isa(pred, self.lexicon.finish):
             tofinish = pred.get_object('what')
             self.finish(tofinish)
@@ -134,13 +132,13 @@ class Network(object):
         #if contradiction:
         #    raise exceptions.Contradiction('we already have ' + str(neg))
 
-        prev = False
         try:
             fact = factset.query_facts(pred, {}).one()
-            prev = True
         except NoResultFound:
+            if isa(pred, self.lexicon.onwards):
+                pred.add_object('since_', self.lexicon.now_term)
             fact = factset.add_fact(pred)
-        if prev:
+        else:
             return fact
         if isa(pred, self.lexicon.totell):
             if self.pipe is not None:
@@ -765,12 +763,10 @@ class Rule(Base):
 
         for con in cons:
             factset = network.present
-            if isa(con, network.lexicon.onwards):
-                con.add_object('since_', network.lexicon.now_term)
-                if isa(con, network.lexicon.unique):
-                    old_pred = Predicate(con.true, con.term_type)
-                    old_pred.add_object('subj', con.get_object('subj'))
-                    network.finish(old_pred)
+            if isa(con, network.lexicon.unique):
+                old_pred = Predicate(con.true, con.term_type)
+                old_pred.add_object('subj', con.get_object('subj'))
+                network.finish(old_pred)
             elif isa(con, network.lexicon.finish):
                 tofinish = con.get_object('what')
                 network.finish(tofinish)
@@ -780,13 +776,13 @@ class Rule(Base):
             #contradiction = factset.query(neg)
             #if contradiction:
             #    raise exceptions.Contradiction('we already have ' + str(neg))
-            prev = False
             try:
                 fact = factset.query_facts(con, {}).one()
-                prev = True
             except NoResultFound:
+                if isa(con, network.lexicon.onwards):
+                    con.add_object('since_', network.lexicon.now_term)
                 fact = factset.add_fact(con)
-            if prev:
+            else:
                 continue
             if isa(con, network.lexicon.totell):
                 if network.pipe is not None:
