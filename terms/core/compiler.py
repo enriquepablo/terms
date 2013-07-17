@@ -630,3 +630,17 @@ class Compiler(object):
             self.session.add(new)
             self.session.commit()
         return 'OK'
+
+
+class Runtime(object):
+
+    def __init__(self, compiler):
+        self.compiler = compiler
+
+    def count(self, sen):
+        resp = self.compiler.parse(sen + '?')
+        if resp == 'false':
+            return 0
+        elif resp == 'true':
+            return 1
+        return len(resp)

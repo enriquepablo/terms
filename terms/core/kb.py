@@ -12,7 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from terms.core import register_exec_global
 from terms.core.terms import Term, Predicate, isa
 from terms.core.terms import ExecGlobal, load_exec_globals
-from terms.core.compiler import Compiler
+from terms.core.compiler import Compiler, Runtime
 from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
@@ -45,7 +45,7 @@ class Teller(Process):
                 totell += msg.decode('ascii')
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
-            register_exec_global(self.compiler, name='compiler')
+            register_exec_global(Runtime(self.compiler), name='runtime')
             load_exec_globals(session)
             if totell.startswith('_metadata:'):
                 resp = self._get_metadata(totell)
