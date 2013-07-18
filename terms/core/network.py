@@ -145,7 +145,7 @@ class Network(object):
             return fact
         if isa(pred, self.lexicon.totell):
             if self.pipe is not None:
-                self.pipe.send_bytes(str(pred).encode('ascii'))
+                self.pipe.send_bytes(str(pred).encode('utf8'))
         if self.root.child_path:
             m = Match(pred)
             m.paths = self.get_paths(pred)
@@ -792,7 +792,7 @@ class Rule(Base):
                 continue
             if isa(con, network.lexicon.totell):
                 if network.pipe is not None:
-                    network.pipe.send_bytes(str(con).encode('ascii'))
+                    network.pipe.send_bytes(str(con).encode('utf8'))
             if network.root.child_path:
                 m = Match(con)
                 m.paths = network.get_paths(con)

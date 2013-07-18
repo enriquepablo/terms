@@ -40,9 +40,10 @@ class Teller(Process):
 
     def run(self):
         for client in iter(self.teller_queue.get, None):
-            totell = ''
+            totell = []
             for msg in iter(client.recv_bytes, b'FINISH-TERMS'):
-                totell += msg.decode('ascii')
+                totell.append(msg.decode('utf8'))
+            totell = '\n'.join(totell)
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
             register_exec_global(Runtime(self.compiler), name='runtime')
@@ -76,7 +77,7 @@ class Teller(Process):
                 self.compiler.network.pipe = None
                 resp = json.dumps(resp, cls=TermsJSONEncoder)
             try:
-                client.send_bytes(str(resp).encode('ascii'))
+                client.send_bytes(str(resp).encode('utf8'))
             except BrokenPipeError:
                 pass
             else:
