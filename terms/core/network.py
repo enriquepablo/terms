@@ -103,7 +103,7 @@ class Network(object):
         if not isa(pred, self.lexicon.verb):  # not a verb var
             paths.append(path + ('_neg',))
         for obt in sorted(verb_.object_types, key=lambda x: x.label):
-            if obt.label in ('till_', 'since_', 'at_'):
+            if obt.label in ('till_', 'at_'):
                 continue
             t = obt.obj_type
             if isa(t, self.lexicon.verb):
@@ -122,6 +122,9 @@ class Network(object):
         if isa(pred, self.lexicon.unique):
             old_pred = Predicate(pred.true, pred.term_type)
             old_pred.add_object('subj', pred.get_object('subj'))
+            for label in pred.objects:
+                if label.startswith('u-'):
+                    old_pred.add_object(label, pred.get_object(label))
             self.finish(old_pred)
         elif isa(pred, self.lexicon.finish):
             tofinish = pred.get_object('what')
@@ -766,6 +769,9 @@ class Rule(Base):
             if isa(con, network.lexicon.unique):
                 old_pred = Predicate(con.true, con.term_type)
                 old_pred.add_object('subj', con.get_object('subj'))
+                for label in con.objects:
+                    if label.startswith('u-'):
+                        old_pred.add_object(label, con.get_object(label))
                 network.finish(old_pred)
             elif isa(con, network.lexicon.finish):
                 tofinish = con.get_object('what')

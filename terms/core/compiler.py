@@ -29,7 +29,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
 from terms.core.terms import isa, Predicate, Import
-from terms.core.exceptions import TermsSyntaxError, WrongObjectType
+from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel, ImportProblems
 
 
 
@@ -37,6 +37,7 @@ class Lexer(object):
 
     states = (
         ('pycode', 'exclusive'),
+        ('headers', 'exclusive'),
     )
 
     tokens = (
@@ -57,6 +58,7 @@ class Lexer(object):
         'INSTANT_IMPLIES',
         'RM',
         'PYCODE',
+        'HEADER',
         'FINISH',
         'IMPORT',
         'URL',
@@ -92,6 +94,11 @@ class Lexer(object):
         t.type = self.reserved.get(t.value, 'SYMBOL')
         return t
 
+    # Ignore comments.
+    def t_comment(self, t):
+        r'[#][^\n]*'
+        pass
+
     # Define a rule so we can track line numbers
     def t_newline(self, t):
         r'\n+'
@@ -114,16 +121,36 @@ class Lexer(object):
         t.lexer.begin('INITIAL')
         return t
 
-    # Any sequence of non-linebreak characters (not ending in ->)
+    # Any sequence of characters
     def t_pycode_PYCODE(self, t):
         r'.+'
         return t
 
     t_pycode_ignore = ''
 
+    def t_begin_headers(self, t):
+        r'{{{'
+        t.lexer.begin('headers')
+
+    # Define a rule so we can track line numbers
+    def t_headers_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
+
+    def t_headers_close(self, t):
+        r'}}}'
+        t.lexer.begin('INITIAL')
+
+    # Any sequence of characters
+    def t_headers_HEADER(self, t):
+        r'.+'
+        return t
+
+    t_headers_ignore = ''
+
     # Error handling rule
-    def t_pycode_INITIAL_error(self, t):
-        print("Illegal character '%s'" % t.value[0])
+    def t_headers_pycode_INITIAL_error(self, t):
+        print("Illegal character '%s' at line %d" % (t.value[0], t.lexer.lineno))
         t.lexer.skip(1)
 
     # Build the lexer
@@ -162,7 +189,7 @@ class Parser(object):
 
         self.parser = ply.yacc.yacc(
             module=self,
-            start='constructs',
+            start='module',
             write_tables=False,
             debug=yacc_debug,
             optimize=yacc_optimize)
@@ -184,6 +211,30 @@ class Parser(object):
         return self.parser.parse(text, lexer=self.lex.lexer, debug=debuglevel)
 
     # BNF
+
+    def p_module(self, p):
+        '''module : URL headers constructs
+                  | URL constructs
+                  | constructs'''
+        url, headers, code = None, None, ''
+        if len(p) >= 3:
+            url = p[1][1:-1]
+            if len(p) == 4:
+                headers = p[2]
+                code = p[3]
+            else:
+                code = p[2]
+        else:
+            code = p[1]
+        p[0] = AstNode('module', url=url, headers=headers, code=code)
+
+    def p_headers(self, p):
+        '''headers : HEADER headers
+                   | HEADER'''
+        if len(p) == 3:
+            p[0] = (p[1],) + p[2]
+        else:
+            p[0] = (p[1],)
 
     def p_constructs(self, p):
         '''constructs : construct constructs
@@ -424,12 +475,28 @@ class Compiler(object):
             yacc_debug=yacc_debug)
 
     def parse(self, s):
-        asts = self.parser.parse(s)
-        if len(asts) == 1:
-            return self.compile(asts[0])
-        asts.reverse()
-        for ast in asts:
-            self.compile(ast)
+        module = self.parser.parse(s)
+        url = module.url
+        headers = module.headers
+        known = False
+        if url is not None:
+            known = True
+            try:
+                self.session.query(Import).filter_by(url=url).one()
+            except NoResultFound:
+                known = False
+        if not known:
+            asts = module.code
+            if len(asts) == 1:
+                return self.compile(asts[0])
+            asts.reverse()
+            for ast in asts:
+                self.compile(ast)
+            if url is not None:  # XXX Save import even if compile throws an exceptin, saving the line it was thrown at?
+                headers = '\n'.join(module.headers) if headers is not None else headers
+                new = Import(s, url, headers)
+                self.session.add(new)
+                self.session.commit()
         return 'OK'
 
     def compile(self, ast):
@@ -542,7 +609,10 @@ class Compiler(object):
         mods = {}
         for mod in ast:
             label = mod.label
-            otype = tuple(filter(lambda x: x.label == label, verb.object_types))[0]
+            try:
+                otype = tuple(filter(lambda x: x.label == label, verb.object_types))[0]
+            except IndexError:
+                raise WrongLabel('Error: label %s is unknown for verb %s (in a rule)' % (label, verb.name))
             obj = self.compile_obj(mod.obj)
             if not isa(obj, otype.obj_type):
                 raise WrongObjectType('Error: word %s for label %s is not the correct type: '
@@ -604,31 +674,27 @@ class Compiler(object):
         return 'OK'
 
     def compile_import(self, url):
-        code, uri = b'', ''
         try:
-            self.session.query(Import).filter_by(url=uri).one()
+            self.session.query(Import).filter_by(url=url).one()
         except NoResultFound:
             if url.startswith('file://'):
                 path = url[7:]
                 try:
                     f = open(path, 'r')
                 except Exception as e:
-                    return 'Problems opening the file: ' + str(e)
-                uri = f.readline()[1:].strip()
+                    raise ImportProblems('Problems opening the file: ' + str(e))
                 code = f.read()
                 f.close()
             elif url.startswith('http'):
                 try:
                     resp = urlopen(url)
                 except Exception as e:
-                    return 'Problems loading the file: ' + str(e)
-                uri = resp.readline()[1:].strip()
+                    raise ImportProblems('Problems loading the file: ' + str(e))
                 code = resp.read()
                 resp.close()
+            else:
+                raise ImportProblems('Unknown protocol for <%s>' % url)
             self.parse(code)
-            new = Import(uri)
-            self.session.add(new)
-            self.session.commit()
         return 'OK'
 
 

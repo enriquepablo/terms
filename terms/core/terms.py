@@ -17,7 +17,9 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import Table, Column, Sequence, Index
+import datetime
+
+from sqlalchemy import Table, Column, Sequence, Index, DateTime
 from sqlalchemy import ForeignKey, Integer, String, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -354,10 +356,15 @@ class Import(Base):
     '''
     __tablename__ = 'imports'
     id = Column(Integer, default=0, primary_key=True)
-    url = Column(String(255))
+    url = Column(String())
+    headers = Column(Text())
+    code = Column(Text())
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
-    def __init__(self, url):
+    def __init__(self, code, url, headers):
+        self.code = code
         self.url = url
+        self.headers = headers
 
 
 class ExecGlobal(Base):

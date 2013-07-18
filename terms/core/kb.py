@@ -17,7 +17,7 @@ from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
 
-from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel, IllegalLabel, WrongObjectType
+from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel, IllegalLabel, WrongObjectType, ImportProblems
 
 
 class TermsJSONEncoder(json.JSONEncoder):
@@ -68,6 +68,9 @@ class Teller(Process):
                     session.rollback()
                     resp = 'Error: labels cannot contain underscores: %s' % e.args[0]
                 except WrongObjectType as e:
+                    session.rollback()
+                    resp = e.args[0]
+                except ImportProblems as e:
                     session.rollback()
                     resp = e.args[0]
                 self.compiler.network.pipe = None

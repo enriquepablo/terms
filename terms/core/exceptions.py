@@ -54,3 +54,6 @@ class TermsSyntaxError(TermsException):
 
 class WrongObjectType(TermsException):
     pass
+
+class ImportProblems(TermsException):
+    pass
