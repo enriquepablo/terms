@@ -62,7 +62,6 @@ class Lexer(object):
         'FINISH',
         'IMPORT',
         'URL',
-        'PDB',
     )
 
     reserved = {
@@ -70,7 +69,6 @@ class Lexer(object):
         'a': 'A',
         'FINISH': 'FINISH',
         'import': 'IMPORT',
-        'pdb': 'PDB',
     }
 
     t_NUMBER = NUM_PAT
@@ -93,11 +91,6 @@ class Lexer(object):
         # Check for reserved words
         t.type = self.reserved.get(t.value, 'SYMBOL')
         return t
-
-    # Ignore comments.
-    def t_comment(self, t):
-        r'[#][^\n]*'
-        pass
 
     # Define a rule so we can track line numbers
     def t_newline(self, t):
@@ -252,14 +245,8 @@ class Parser(object):
                      | fact-set
                      | question
                      | removal
-                     | import
-                     | pdb'''
+                     | import'''
         p[0] = p[1]
-
-    def p_pdb(self, p):
-        '''pdb : PDB DOT'''
-        import pdb
-        pdb.set_trace()
 
     def p_fact_set(self, p):
         '''fact-set : fact-list DOT'''
@@ -475,6 +462,7 @@ class Compiler(object):
             yacc_debug=yacc_debug)
 
     def parse(self, s):
+        s = '\n'.join([l for l in s.splitlines() if l and not l.startswith('#')])
         module = self.parser.parse(s)
         url = module.url
         headers = module.headers
@@ -690,7 +678,7 @@ class Compiler(object):
                     resp = urlopen(url)
                 except Exception as e:
                     raise ImportProblems('Problems loading the file: ' + str(e))
-                code = resp.read()
+                code = resp.read().decode('utf8')
                 resp.close()
             else:
                 raise ImportProblems('Unknown protocol for <%s>' % url)

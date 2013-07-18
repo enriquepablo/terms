@@ -355,7 +355,7 @@ class Import(Base):
     '''
     '''
     __tablename__ = 'imports'
-    id = Column(Integer, default=0, primary_key=True)
+    id = Column(Integer, Sequence('import_id_seq'), primary_key=True)
     url = Column(String())
     headers = Column(Text())
     code = Column(Text())
