@@ -320,8 +320,18 @@ class Parser(object):
             p[0] = p[1]
 
     def p_fact(self, p):
-        '''fact : LPAREN predicate RPAREN
-                | LPAREN NOT predicate RPAREN'''
+        '''fact : prefact
+                | var COLON prefact'''
+        if len(p) == 4:
+            p[3].predvar = p[1]
+            p[0] = p[3]
+        else:
+            p[1].predvar = None
+            p[0] = p[1]
+
+    def p_prefact(self, p):
+        '''prefact : LPAREN predicate RPAREN
+                   | LPAREN NOT predicate RPAREN'''
         if len(p) == 5:
             p[0] = AstNode('fact', predicate=p[3], true=False)
         else:
