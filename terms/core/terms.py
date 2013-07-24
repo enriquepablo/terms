@@ -166,7 +166,7 @@ class Predicate(Base):
     name = ''
     var = False
 
-    def __init__(self, true, verb_, **objs):
+    def __init__(self, true, verb_, redundant_var_=None, **objs):
         '''
         verb is a string.
         args is a dict with strings (labels) to ConObjects
@@ -178,6 +178,7 @@ class Predicate(Base):
             if label not in labels:
                 raise WrongLabel('Error: label "%s" is wrong for verb "%s"' % (label, verb_.name))
             self.add_object(label, o)
+        self.redundant_var = redundant_var_
 
     def __str__(self):
         p = not self.true and '!' or ''

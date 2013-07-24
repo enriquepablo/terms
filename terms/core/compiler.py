@@ -586,7 +586,10 @@ class Compiler(object):
         subj = self.compile_obj(fact.predicate.subj)
         mods = self.compile_mods(verb, fact.predicate.mods)
         mods['subj'] = subj
-        return Predicate(true, verb, **mods)
+        redundant_var = None
+        if fact.predvar:
+            redundant_var = self.lexicon.make_var(fact.predvar.val)
+        return Predicate(true, verb, redundant_var_=redundant_var, **mods)
 
     def compile_vterm(self, vterm):
         if vterm.type == 'var':

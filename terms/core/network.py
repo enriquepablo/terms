@@ -243,8 +243,11 @@ class Network(object):
         ntype_name = path[-1]
         cls = self._get_nclass(ntype_name)
         value = cls.resolve(term, path)
-        name = getattr(value, 'name', '')
+        redundant_var = getattr(value, 'redundant_var', False)
         is_var = getattr(value, 'var', False)
+        if redundant_var and not is_var:
+            value = value.term_type
+        name = getattr(value, 'name', '')
         pnum = 0
         if is_var:
             if name not in vars:
@@ -252,13 +255,25 @@ class Network(object):
                 vars[name] = (pnum, Varname(value, rule))
             else:
                 pnum = vars[name][0]
+        rnum = 0
+        if redundant_var:
+            rname = redundant_var.name
+            if rname not in vars:
+                rnum = len(vars) + 1
+                vars[rname] = (rnum, Varname(redundant_var, rule))
+            else:
+                rnum = vars[rname][0]
         try:
             nodes = self.session.query(cls).filter(cls.parent_id==parent.id, cls.var==pnum)
+            if redundant_var:
+                nodes = nodes.filter(cls.redundant_var==rnum)
             node = nodes.filter(cls.value==value).one()
         except NoResultFound:
             #  build the node and append it
             node = cls(value)
             node.var = pnum
+            if redundant_var:
+                node.redundant_var = rnum
             parent.children.append(node)
             if not parent.child_path:
                 parent.child_path = path
@@ -274,6 +289,7 @@ class Node(Base):
     id = Column(Integer, Sequence('node_id_seq'), primary_key=True)
     child_path_str = Column(String)
     var = Column(Integer, default=0, index=True)
+    redundant_var = Column(Integer, default=0, index=True)
     parent_id = Column(Integer, ForeignKey('nodes.id'), index=True)
     children = relationship('Node',
                          backref=backref('parent',
@@ -333,6 +349,8 @@ class Node(Base):
                         else:
                             val = value
                         new_match[child.var] = val
+                    if chcls is VerbNode and child.redundant_var:
+                        new_match[child.redundant_var] = TermNode.resolve(match.pred, path)
                     chcls.dispatch(child, new_match, network)
         if parent.terminal:
             parent.terminal.dispatch(match, network)
@@ -437,7 +455,7 @@ class VerbNode(Node):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-            if term.var:
+            if term.var or term.redundant_var:
                 return term
             return term.term_type
         except (AttributeError, KeyError):
