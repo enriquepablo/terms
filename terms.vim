@@ -21,13 +21,14 @@ syn match comma  ","
 syn match dot  "\."
 syn match verb "([a-z0-9_-]\+\>" contains=paren,var
 syn match label ",\s\+[a-z_-]\+\>" contains=comma
-syn match verbdef "^[a-z0-9_-]\+ is [a-z0-9_-]\+" contains=is
+syn match verbdef "^to [a-z0-9_-]\+ is to [a-z0-9_-]\+" contains=is,to
 syn match defn "[a-z0-9_-]\+\s\+is\>" contains=is
 syn match mod "\<[a-z0-9_-]\+\s*[,.)]"me=e-1
 syn match modef "\<[a-z_-]\+\s\+a\s\+" contains=a
 
 syn keyword import  import
 syn keyword is  is
+syn keyword to  to
 syn keyword a  a
 
 syn match var  "\<[A-Z][A-Za-z_-]*[0-9]\+\>"
@@ -43,6 +44,7 @@ hi link termsMeta String
 
 highlight link comment Comment
 highlight link is Statement
+highlight link to Statement
 highlight link comma Statement
 highlight link dot Statement
 highlight link a Statement
