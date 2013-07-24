@@ -23,7 +23,7 @@ import functools
 from sqlalchemy import Column, Sequence, Index
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.exc import InvalidRequestError
 
 from terms.core import localdata
@@ -62,11 +62,12 @@ class Network(object):
         if self.config['time'] == 'normal':
             now = past + 1
         elif self.config['time'] == 'real':
-            now = int(time.time())
+            now = int(time.monotonic())
 
         q = self.lexicon.make_var('Now1')
         topast = self.present.query_facts(q, {})
         for f in topast:
+            print('    TO PAST: %s' % str(f.pred))
             for m in f.matches:
                 self.session.delete(m)
             f.matches = []
@@ -135,34 +136,33 @@ class Network(object):
         #if contradiction:
         #    raise exceptions.Contradiction('we already have ' + str(neg))
 
-        try:
-            fact = factset.query_facts(pred, {}).one()
-        except NoResultFound:
+        facts = factset.query_facts(pred, {})
+        if facts.count() == 0:
             if isa(pred, self.lexicon.onwards):
                 pred.add_object('since_', self.lexicon.now_term)
             fact = factset.add_fact(pred)
-        else:
-            return fact
-        if isa(pred, self.lexicon.totell):
-            if self.pipe is not None:
-                self.pipe.send_bytes(str(pred).encode('utf8'))
-        if self.root.child_path:
-            m = Match(pred)
-            m.paths = self.get_paths(pred)
-            m.fact = fact
-            Node.dispatch(self.root, m, self)
-            self.session.flush()
-        n = 0
-        while self.activations:
-            n += 1
-            cmc = int(self.config['commit_many_consecuences'])
-            if cmc and n % cmc == 0:
-                self.session.commit()
-            else:
+            if isa(pred, self.lexicon.totell):
+                if self.pipe is not None:
+                    self.pipe.send_bytes(str(pred).encode('utf8'))
+            if self.root.child_path:
+                m = Match(pred)
+                m.paths = self.get_paths(pred)
+                m.fact = fact
+                Node.dispatch(self.root, m, self)
                 self.session.flush()
-            match = self.activations.pop(0)
-            Node.dispatch(self.root, match, self)
-        return fact
+            n = 0
+            while self.activations:
+                n += 1
+                cmc = int(self.config['commit_many_consecuences'])
+                if cmc and n % cmc == 0:
+                    self.session.commit()
+                else:
+                    self.session.flush()
+                match = self.activations.pop(0)
+                Node.dispatch(self.root, match, self)
+            return fact
+        else:
+            return facts.first()
 
     def finish(self, predicate):
         fs = self.present.query_facts(predicate, {})
@@ -782,22 +782,18 @@ class Rule(Base):
             #contradiction = factset.query(neg)
             #if contradiction:
             #    raise exceptions.Contradiction('we already have ' + str(neg))
-            try:
-                fact = factset.query_facts(con, {}).one()
-            except NoResultFound:
+            if factset.query_facts(con, {}).count() == 0:
                 if isa(con, network.lexicon.onwards):
                     con.add_object('since_', network.lexicon.now_term)
                 fact = factset.add_fact(con)
-            else:
-                continue
-            if isa(con, network.lexicon.totell):
-                if network.pipe is not None:
-                    network.pipe.send_bytes(str(con).encode('utf8'))
-            if network.root.child_path:
-                m = Match(con)
-                m.paths = network.get_paths(con)
-                m.fact = fact
-                network.activations.append(m)
+                if isa(con, network.lexicon.totell):
+                    if network.pipe is not None:
+                        network.pipe.send_bytes(str(con).encode('utf8'))
+                if network.root.child_path:
+                    m = Match(con)
+                    m.paths = network.get_paths(con)
+                    m.fact = fact
+                    network.activations.append(m)
 
     def get_pvar_map(self, match, prem):
         pvar_map = []
