@@ -15,6 +15,13 @@ The Terms language
 
 Here I will describe the Terms language.
 
+Terms is a declarative language.
+With it you can:
+ * define new words (nouns, verbs, and names);
+ * build facts out of your defined words;
+ * build rules that combine given facts to produce new facts;
+ * perform complex queries.
+
 To try the given examples, if you have installed Terms,
 you have to type "terms" in a terminal,
 and you will get a REPL where you can enter Terms constructs.
@@ -35,7 +42,8 @@ New words are defined relating them to existing words.
 
 There are 2 relations that can be established among pairs of words.
 
-These relations are formally similar to the set relations
+As we shall see below,
+these relations are formally similar to the set relations
 "is an element of" and "is a subset of".
 
 In English, we express the first relation as "is of type",
@@ -90,18 +98,24 @@ Therefore, from all the above, we have, for example, that::
 With these words, we can build facts.
 A fact consists of a verb and any number of (labelled) objects.
 
-Verbs are special words in that they have modifiers (or objects) when used to build facts.
-These modifiers are words, and are labeled. To define a new verb, you provide
-the types of words that can be objects for the verb in a fact,
-associated with their label.
+Verbs are special words in that they take modifiers (or objects) when used to build facts.
+These modifiers are words, and are labeled. To define a new verb,
+you provide first an ancestor verb (or a series of ancestor verbs separated by colons),
+and then the types of words that can be modifiers for the verb in a fact,
+associated with their labels.
 For example::
 
-    loves is exists, subj a person, who a person.
+    to loves is to exists, subj a person, who a person.
 
 That can be read as:
 ``loves`` is a word of type ``verb``, subtype of ``exists``,
 and when used in facts it can take a subject of type ``person``
-and an object labelled ``who`` of type ``person``.
+and an object labelled ``who`` also of type ``person``.
+
+The primitive verb is ``exists``,
+that just defines a ``subj`` object of type ``thing``.
+There are more predefined verbs,
+the use of which we shall see when we explain the treatment of time in Terms.
 
 Facts
 -----
@@ -118,16 +132,12 @@ Verbs inherit the object types of their ancestors. The primitive ``exists`` verb
 only takes one object, ``subj``, of type ``word``, inherited by all the rest of the verbs.
 So, if we define a verb::
 
-    adores is loves.
+    to adores is to loves.
 
 It will have a ``who`` object of type ``person``. If ``adores`` had provided
 a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type (like we have done above with ``subj``.)
-
-A fact must always provide all the objects that the verb can take.
-(The reason for the labels is that in rules and in queries
-it is not necessary to provide all the objects).
 
 Facts are words,
 "first class citizens",
@@ -141,7 +151,7 @@ The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a 
 a ``number``). In addition, they can also be facts (type ``exists``).
 So, if we define a verb like::
 
-    wants is exists, subj a person, what a exists.
+    to wants is to exists, subj a person, what a exists.
 
 We can then build facts like::
 
@@ -185,15 +195,15 @@ that ``(loves sue, who john)``.
 Variables can match whole facts. For example, with the verbs we have defined, we could
 build a rule such as::
 
-    (wants john, what (Exists1))
+    (wants john, what Exists1)
     ->
     (Exists1).
 
 With this, and ``(wants john, what (loves sue, who john)).``, the system would conclude
 that ``(loves sue, who john)``.
 
-Variables that match verbs have a special form, in that they are prefixed by
-the name of a verb (or a noun), so that they match verbs that are subtypes of the given verb.
+Variables that match verbs (or nouns) have a special form, in that they are prefixed by
+the name of a verb (or a noun), so that they match verbs (or nouns) that are subtypes of the given verb (or noun).
 For example, with the words we have from above, we might make a rule like::
 
     (LovesVerb1 john, who Person1)
@@ -206,7 +216,7 @@ that ``(loves sue, who john)``.
 
 For a more elaborate example we can define a new verb::
 
-    allowed is exists, subj a person, to a verb.
+    to allowed is to exists, subj a person, to a verb.
 
 and a rule::
 
@@ -218,10 +228,16 @@ and a rule::
 Then, ``(allowed john, to adores)`` would allow him to adore but not to love.
 
 We can use word variables, e.g. ``Word1``, that will match any word or fact.
-An example can be seen `here <https://github.com/enriquepablo/terms/blob/master/terms/core/tests/shegets.test>`_.
 
-Finally, number variables are composed just with a capital letter and an integer, like
-``N1``, ``P3``, or ``F122``.
+In conditions, we may want to match a whole fact, and at the same time match some of
+its component words. To do this, we prepend the fact with the name
+of the fact variable, separated with a colon. With this, the above rule would become::
+
+    (wants Person1, what Loves1:(LovesVerb1 Person1, who Person2));
+    (allowed Person1, to LovesVerb1)
+    ->
+    (Loves1).
+
 
 Numbers
 -------
@@ -230,6 +246,9 @@ Numbers are of type ``number``.
 We don't define numbers, we just use them.
 Any sequence of characters that can be cast as a number type in Python
 are numbers in Terms, e.g.: ``1``, ``-1e12``, ``2-3j``, ``10.009`` are numbers.
+
+Number variables are composed just with a capital letter and an integer, like
+``N1``, ``P3``, or ``F122``.
 
 Pythonic conditions
 -------------------
@@ -242,10 +261,10 @@ between the symbols ``<-`` and ``->``. The results of the tests are placed in a
 
 To give an example, let's imagine some new terms::
 
-    aged is exists, age a number.
+    to aged is to exists, age a number.
     a bar is a thing.
     club-momentos is a bar.
-    enters is exists, where a bar.
+    to enters is to exists, where a bar.
 
 Now, we can build a rule such as::
 
@@ -287,7 +306,7 @@ and will reject the offending fact.
 
 **Negation by failure**
 
-In pythonic conditions, we can use a function ``count``
+In pythonic conditions, we can use a function ``runtime.count``
 with a single string argument, a Terms fact (possibly with variables),
 that will return the number of facts in the db matching the given one.
 We can use this to test for the absence of any given fact
@@ -329,18 +348,19 @@ This temporal logic can be activated in the settings file::
     dbms = postgresql://terms:terms@localhost
     dbname = mykb
     time = normal
+    instant_duration = 60
 
 If it is activated, several things happen.
 
 The first is that the system starts tracking the present time.
 It has an integer register whose value represents the current time.
-This register is updated each time we add new facts.
+This register is updated every ``instant_duration`` seconds.
 There are 3 possible values for the ``mode``
 setting for time:
 If the setting is ``none``, nothing is done with time.
 If the setting is ``normal``, the current time of the system is incremented by 1 when it is updated.
 If the setting is ``real``, the current time of the system
-is updated with Python's ``import time; int(time.time())``.
+is updated with Python's ``import time; int(time.monotonic())``.
 
 The second thing that happens is that, rather than defining verbs extending ``exists``,
 we use 2 new verbs, ``now`` and ``onwards``, both subtypes of ``exists``.
@@ -356,25 +376,28 @@ both with the value of its "present" register.
 The ``till_`` object of ``onwards`` facts is left undefined.
 We never explicitly set those objects.
 When added, ``now`` facts go through the rule network, producing consecuences,
-and then are added to the past factset;
-``onwards`` facts go through the rules network and then are added
+and then are added to the present factset;
+``onwards`` facts go through the rules network and then are also added
 to the present factset.
-Queries for ``now`` facts go to the past factset,
-and those for ``onwards`` facts are done against the present.
-We might say that the facts in the present factset are in
+Each time the time is updated, all ``now`` facts are removed from the present
+and added to the past factset, and thus stop producing consecuences.
+Queries for ``now`` facts go to the past factset if we specify an ``at_`` object in the query,
+and to the present if an ``at_`` object is not provided.
+The same goes for ``onwards`` facts, substituting ``at_`` with ``since_``.
+We might say that the ``onwards`` facts in the present factset are in
 present continuous tense.
 
 The fourth thing that happens when we activate the temporal logic
 is that we can use a new predicate in the consecuances of our rules:
-``finish``. We use it with an ``onwards`` fact: ``finish (<fact>).``
+``finish``. This verb is defined like this::
+
+    to finish is to exists, subj a thing, what a exists.
+
 And when a rule with such a consecuence is activated,
-it grabs the provided fact from the present factset,
-adds to it a ``till_`` object with the present time as value,
+it grabs the provided ``what`` fact from the present factset,
+adds a ``till_`` object to it with the present time as value,
 removes it from the present factset,
 and adds it to the past factset.
-The system keeps track of the ancestry of facts obtained by reasoning,
-and when a fact is finished, its descent (if otherwise unsupported)
-is also finished.
 
 There is also the temporal verb ``unique``, subverb of ``onwards``.
 The peculiarity of ``unique`` is that whenever a fact with
@@ -393,7 +416,14 @@ To find out whether a fact is negated we must query its negation.
 
 If we include variables in the query,
 we will obtain all the variable substitutions
-that would produce a ``true`` query.
+that would produce a ``true`` query,
+in the form of a json list of mappings of strings.
+
+Several facts can be anded in a query,
+separating them with semicolons.
+
+However, we can not add special constraints,
+like we can in rules with pythonic conditions.
 
 
 **Miscelaneous technical notes.**
@@ -421,3 +451,50 @@ that would produce a ``true`` query.
    with a dict with the ``condition`` variable in locals
    and an empty dict as globals. We might add whatever we
    like as globals; for example, numpy.
+
+
+The Terms Protocol
+++++++++++++++++++
+
+Once you have a knowledge store in place and a kb daemon running,
+you communicate with it through a TCP socket,
+with a communication protocol that I shall describe here.
+
+A message from a client to the daemon, in this protocol, is a series of
+utf8 coded byte strings terminated by the string ``'FINISH-TERMS'``.
+
+The daemon joins these strings and, depending on a header,
+makes one of a few things.
+A header is an string of lower case alfabetic characters,
+separated from the rest of the message by a colon.
+
+  * I there is no header, the message is assumed to be
+    a series of constructs in the Terms language,
+    and fed to the compiler.
+    Depending on the type of constructs, the response can be different:
+    * If the construct is a query, the response is a json string
+      followed by the string ``'END'``;
+    * If the constructs are definitions, facts and/or rules,
+      the response consists on the series of facts that derive as
+      consecuences of the entered constructs, that are constructed
+      with a verb that ``is to totell``, termitnated by the string ``'END'``.
+  * If there is a ``lexicon:`` header, the response is a json string
+    followed by the string ``'END'``. The contents of the json depend
+    on a second header:
+    * ``get-subwords`` returns a list of word names that are subword
+      of the word whose name is given after the header.
+    * ``get-words:`` returns a list of word names that are
+      of the type of the word whose name is given after the header.
+    * ``get-verb:`` return a representation of the objects that the verb
+      named after the header has. For each object, there is a list with
+      3 items:
+      * A string with the name of the label;
+      * A string with the name of the type of the object;
+      * A boolean that signals that the object must be a fact in itself.
+  * If there is a ``compiler:`` header:
+    * If there is an ``exec_globals:`` header, the string that follows
+      is assumed to be an exec_global, and fed to the knowledge store as such.
+    * If there is a ``terms:`` header, what follows are assumed to be
+      Terms constructs, and we go back to the first bullet point in this series.
+
+
