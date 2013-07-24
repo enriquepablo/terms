@@ -179,7 +179,7 @@ class Network(object):
         fact = self.present.query_facts(pred, {}).one()
         self.session.delete(fact)
 
-    def add_rule(self, prems, conds, condcode, cons, finishes):
+    def add_rule(self, prems, conds, condcode, cons):
         rule = Rule()
         for n, pred in enumerate(prems):
             vars = {}
@@ -205,8 +205,6 @@ class Network(object):
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
-        for finish in finishes:
-            rule.finishes.append(finish)
         for prem in rule.prems:
             matches = self.present.query(prem.pred)
             for match in matches:
@@ -771,10 +769,6 @@ class Rule(Base):
             if not self.condcode.test(match, network):
                 return
 
-        for finish in self.finishes:
-            tofinish = finish.pred.substitute(match)
-            network.finish(tofinish)
-
         cons = []
         for con in self.consecuences:
             cons.append(con.substitute(match))
@@ -920,18 +914,3 @@ class CondCode(Base):
 
     def __init__(self, code):
         self.code = code
-
-
-class Finish(Base):
-    __tablename__ = 'finishs'
-
-    id = Column(Integer, Sequence('finish_id_seq'), primary_key=True)
-    rule_id = Column(Integer, ForeignKey('rules.id'), index=True)
-    rule = relationship('Rule', backref=backref('finishes',
-                                        cascade='all,delete-orphan'),
-                         primaryjoin="Rule.id==Finish.rule_id")
-    pred_id = Column(Integer, ForeignKey('predicates.id'), index=True)
-    pred = relationship('Predicate', primaryjoin="Predicate.id==Finish.pred_id")
-
-    def __init__(self, pred):
-        self.pred = pred

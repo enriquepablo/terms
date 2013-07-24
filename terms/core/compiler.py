@@ -27,7 +27,7 @@ from ply.lex import TOKEN
 from sqlalchemy.orm.exc import NoResultFound
 
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
-from terms.core.network import Network, CondIsa, CondIs, CondCode, Finish
+from terms.core.network import Network, CondIsa, CondIs, CondCode
 from terms.core.terms import isa, Predicate, Import
 from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel, ImportProblems
 
@@ -50,6 +50,7 @@ class Lexer(object):
         'QMARK',
         'NOT',
         'IS',
+        'TO',
         'A',
         'SEMICOLON',
         'COLON',
@@ -59,15 +60,14 @@ class Lexer(object):
         'RM',
         'PYCODE',
         'HEADER',
-        'FINISH',
         'IMPORT',
         'URL',
     )
 
     reserved = {
         'is': 'IS',
+        'to': 'TO',
         'a': 'A',
-        'FINISH': 'FINISH',
         'import': 'IMPORT',
     }
 
@@ -312,12 +312,8 @@ class Parser(object):
 
     def p_sentence(self, p):
         '''sentence : def
-                    | fact
-                    | FINISH fact'''
-        if len(p) == 3:
-            p[0] = AstNode('finish', fact=p[2])
-        else:
-            p[0] = p[1]
+                    | fact'''
+        p[0] = p[1]
 
     def p_fact(self, p):
         '''fact : prefact
@@ -406,7 +402,7 @@ class Parser(object):
         p[0] = AstNode('noun-def', name=p[2], bases=p[5])
 
     def p_terms(self, p):
-        '''terms : term COMMA terms
+        '''terms : term COLON terms
                  | term'''
         if len(p) == 4:
             p[0] = p[3] + (p[1],)
@@ -421,13 +417,13 @@ class Parser(object):
         p[0] = AstNode('name-def', name=p[1], term_type=p[4])
 
     def p_verb_def(self, p):
-        '''verb-def : SYMBOL IS terms
-                    | SYMBOL IS terms COMMA mod-defs'''
-        name = AstNode('term', val=p[1])
-        if len(p) == 4:
-            p[0] = AstNode('verb-def', name=name, bases=p[3], objs=())
+        '''verb-def : TO SYMBOL IS TO terms
+                    | TO SYMBOL IS TO terms COMMA mod-defs'''
+        name = AstNode('term', val=p[2])
+        if len(p) == 6:
+            p[0] = AstNode('verb-def', name=name, bases=p[5], objs=())
         else:
-            p[0] = AstNode('verb-def', name=name, bases=p[3], objs=p[5])
+            p[0] = AstNode('verb-def', name=name, bases=p[5], objs=p[7])
 
     def p_mod_defs(self, p):
         '''mod-defs : mod-def COMMA mod-defs
@@ -549,15 +545,11 @@ class Compiler(object):
             else:
                 cond = self.compile_conddef(sen)
                 conds.append(cond)
-        finish, consecs = [], []
+        consecs = []
         for sen in rule.cons:
-            if sen.type == 'finish':
-                fin = self.compile_finish(sen)
-                finish.append(fin)
-            else:
-                con = self.compile_fact(sen)
-                consecs.append(con)
-        return prems, conds, condcode, consecs, finish
+            con = self.compile_fact(sen)
+            consecs.append(con)
+        return prems, conds, condcode, consecs
 
     def compile_rule(self, rule):
         args = self._prepare_rule(rule)
@@ -631,10 +623,6 @@ class Compiler(object):
             name = self.compile_vterm(sen.name)
             base = self.compile_vterm(sen.bases[0])
             return CondIs(name, base)
-
-    def compile_finish(self, fin):
-        fact = self.compile_fact(fin.fact)
-        return Finish(fact)
 
     def compile_factset(self, facts):
         for f in facts:
