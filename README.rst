@@ -477,7 +477,7 @@ separated from the rest of the message by a colon.
     * If the constructs are definitions, facts and/or rules,
       the response consists on the series of facts that derive as
       consecuences of the entered constructs, that are constructed
-      with a verb that ``is to totell``, termitnated by the string ``'END'``.
+      with a verb that ``is to totell``, terminated by the string ``'END'``.
   * If there is a ``lexicon:`` header, the response is a json string
     followed by the string ``'END'``. The contents of the json depend
     on a second header:

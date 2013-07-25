@@ -48,9 +48,9 @@ class Teller(Process):
             self.compiler = Compiler(session, self.config)
             register_exec_global(Runtime(self.compiler), name='runtime')
             load_exec_globals(session)
-            if totell.startswith('_metadata:'):
-                resp = self._get_metadata(totell)
-            elif totell.startswith('_exec_global:'):
+            if totell.startswith('lexicon:'):
+                resp = self._from_lexicon(totell)
+            elif totell.startswith('compiler:exec_globals:'):
                 resp = self._add_execglobal(totell)
             else:
                 self.compiler.network.pipe = client
@@ -89,14 +89,14 @@ class Teller(Process):
         self.teller_queue.task_done()
         self.teller_queue.close()
 
-    def _get_metadata(self, totell):
+    def _from_lexicon(self, totell):
         q = totell.split(':')
         ttype = self.compiler.lexicon.get_term(q[2])
-        if q[1] == 'getwords':
+        if q[1] == 'get-words':
             resp = self.compiler.lexicon.get_terms(ttype)
-        elif q[1] == 'getsubwords':
+        elif q[1] == 'get-subwords':
             resp = self.compiler.lexicon.get_subterms(ttype)
-        elif q[1] == 'getverb':
+        elif q[1] == 'get-verb':
             resp = []
             for ot in ttype.object_types:
                 isverb = isa(ot.obj_type, self.compiler.lexicon.verb)
@@ -105,7 +105,7 @@ class Teller(Process):
 
     def _add_execglobal(self, totell):
 # XXX put it in terms.core.exec_globals, in all processes
-        egs = totell[13:]
+        egs = totell[22:]
         eg = ExecGlobal(egs)
         session = self.session_factory()
         session.add(eg)
