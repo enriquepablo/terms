@@ -1,33 +1,63 @@
 Installation and usage
 ======================
 
-Dependencies
-++++++++++++
-
-Python 3 (tested on 3.2, 3.3).
-
-Python libraries (these should be pulled by ``easy_install``):
-    * ply
-    * sqlalchemy
-
-Some RDBM system compatible with sqlalchemy (tested with postgreqsl and sqlite).
-
-To run the tests, you need the ``nose`` framework.
-
 Installation
 ++++++++++++
 
-It is advisable to install in a virtualenv.
+I start with a clean basic debian 7.1 virtual machine,
+only selecting the "standard system utilities" and
+"ssh server" software during installataion.
 
-If you have setuptools installed in your python,
-you can simply use ``easy_install``, from a command line::
+Some additional software, first to compile python-3.3::
 
-    # easy_install Terms
+    # aptitude install vim sudo build-essential libreadline-dev zlib1g-dev libpng++-dev libjpeg-dev libfreetype6-dev libncurses-dev libbz2-dev libcrypto++-dev libssl-dev libdb-dev
+    $ wget http://www.python.org/ftp/python/3.3.2/Python-3.3.2.tgz
+    $ tar xzf Python-3.3.2.tgz
+    $ cd Python-3.3.2
+    $ ./configure --prefix=/home/plone/local
+    $ make
+    $ sudo make install
 
-Alternatively you can download `the tarball <http://pypi.python.org/packages/source/T/Terms/Terms-0.1.0a1.tar.gz>`_,
-uncompress it,
-``cd`` into the extracted directory,
-and run ``python3 setup.py install``.
+I install git, and an RDBMS::
+
+    $ sudo aptitude install git postgresql postgresql-client  postgresql-server-dev-9.1
+
+I allow method "trust" to all local connections for PostgreSQL, and create a "terms" user::
+
+    $ sudo vim /etc/postgresql/9.1/main/pg_hba.conf
+    $ sudo su - postgres
+    $ psql
+    postgres=# create role terms with superuser login;
+    CREATE ROLE
+    postgres=# \q
+    $ logout
+
+We get the buildout::
+
+    $ git clone https://github.com/enriquepablo/terms-project.git
+
+Make a python-3.3.2 virtualenv::
+
+    $ cd terms-project
+    $ pyvenv env
+    $ . env/bin/activate
+    $ python bootstrap.py
+    $ bin/buildout
+
+Now we initialize the knowledge store, and start the daemon::
+
+    $ bin/initterms -c etc/terms.cfg
+
+Now, you can start the REPL and play with it::
+
+    $ bin/terms -c etc/terms.cfg
+    >> a man is a thing.
+    man
+    >> quit
+    $
+
+
+XXX BELOW HERE IS OBSOLETE; I DON'T KNOW HOW MUCH XXX
 
 Interfacing
 +++++++++++
