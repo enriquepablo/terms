@@ -456,8 +456,13 @@ like we can in rules with pythonic conditions.
 The Terms Protocol
 ++++++++++++++++++
 
-Once you have a knowledge store in place and a kb daemon running,
-you communicate with it through a TCP socket,
+Once you have a knowledge store in place and a kb daemon running::
+
+    $ mkdir -p var/log
+    $ mkdir -p var/run
+    $ bin/kbdaemon start
+
+You communicate with it through a TCP socket (e.g. telnet),
 with a communication protocol that I shall describe here.
 
 A message from a client to the daemon, in this protocol, is a series of
