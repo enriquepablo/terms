@@ -33,11 +33,11 @@ class Lexicon(object):
         self.verb = self.get_term('verb')
         self.noun = self.get_term('noun')
         self.number = self.get_term('number')
-        self.exists = self.get_term('exists')
-        self.onwards = self.get_term('onwards')
-        self.unique = self.get_term('unique')
-        self.now = self.get_term('now')
-        self.totell = self.get_term('totell')
+        self.exist = self.get_term('exist')
+        self.endure = self.get_term('endure')
+        self.exclusive_endure = self.get_term('exclusive-endure')
+        self.occur = self.get_term('occur')
+        self.happen = self.get_term('happen')
         self.vtime = self.get_term('time')
         self.thing = self.get_term('thing')
         self.finish = self.get_term('finish')
@@ -61,26 +61,26 @@ class Lexicon(object):
         session.add(noun)
         number = Term('number', ttype=word, bases=(word,))
         session.add(number)
-        exists = Term('exists', ttype=verb, bases=(word,),
+        exist = Term('exist', ttype=verb, bases=(word,),
                       objs={'subj': word})
-        session.add(exists)
-        onwards = Term('onwards', ttype=verb, bases=(exists,),
+        session.add(exist)
+        endure = Term('endure', ttype=verb, bases=(exist,),
                        objs={'since_': number, 'till_': number})
-        session.add(onwards)
-        unique = Term('unique', ttype=verb, bases=(onwards,))
-        session.add(unique)
-        now = Term('now', ttype=verb, bases=(exists,),
+        session.add(endure)
+        exclusive_endure = Term('exclusive-endure', ttype=verb, bases=(endure,))
+        session.add(exclusive_endure)
+        occur = Term('occur', ttype=verb, bases=(exist,),
                    objs={'at_': number})
-        session.add(now)
-        totell = Term('totell', ttype=verb, bases=(now,))
-        session.add(totell)
-        time = Term('time', ttype=verb, bases=(exists,),
+        session.add(occur)
+        happen = Term('happen', ttype=verb, bases=(occur,))
+        session.add(happen)
+        time = Term('time', ttype=verb, bases=(exist,),
                     objs={'subj': number})
         session.add(time)
         thing = Term('thing', ttype=noun, bases=(word,))
         session.add(thing)
-        finish = Term('finish', ttype=verb, bases=(now,),
-                      objs={'subj': thing, 'what': exists})
+        finish = Term('finish', ttype=verb, bases=(occur,),
+                      objs={'subj': thing, 'what': exist})
         session.add(finish)
         time = Time()
         session.add(time)
@@ -128,7 +128,7 @@ class Lexicon(object):
                 return self._make_name(name, term_type)
             elif are(term_type, self.verb):
                 return self._make_verb(name, vtype=term_type, objs=objs)
-            elif are(term_type, self.exists):
+            elif are(term_type, self.exist):
                 return self.make_pred(name, term_type, **objs)
             elif term_type == self.number:
                 return self.make_number(name)
@@ -154,7 +154,7 @@ class Lexicon(object):
                 return self._make_noun(name, bases=super_terms)
             elif are(term_base, self.verb):
                 return self._make_subverb(name, bases=super_terms)
-            elif are(term_base, self.exists):
+            elif are(term_base, self.exist):
                 return self._make_verb(name, bases=super_terms, objs=objs)
 
     def add_term(self, name, term_type, **objs):

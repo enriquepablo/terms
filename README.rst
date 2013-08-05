@@ -36,7 +36,7 @@ Words
 The main building block of Terms constructs are words.
 
 To start with, there are a few predefined words:
-``word``, ``verb``, ``noun``, ``number``, ``thing``, and ``exists``.
+``word``, ``verb``, ``noun``, ``number``, ``thing``, and ``exist``.
 
 New words are defined relating them to existing words.
 
@@ -67,8 +67,8 @@ Among the predifined words, these relations are given::
     a noun is a word.
     thing is a noun.
     a thing is a word.
-    exists is a verb.
-    a exists is a word.
+    exist is a verb.
+    a exist is a word.
     number is a word.
     a number is a word.
 
@@ -105,14 +105,14 @@ and then the types of words that can be modifiers for the verb in a fact,
 associated with their labels.
 For example::
 
-    to loves is to exists, subj a person, who a person.
+    to loves is to exist, subj a person, who a person.
 
 That can be read as:
-``loves`` is a word of type ``verb``, subtype of ``exists``,
+``loves`` is a word of type ``verb``, subtype of ``exist``,
 and when used in facts it can take a subject of type ``person``
 and an object labelled ``who`` also of type ``person``.
 
-The primitive verb is ``exists``,
+The primitive verb is ``exist``,
 that just defines a ``subj`` object of type ``thing``.
 There are more predefined verbs,
 the use of which we shall see when we explain the treatment of time in Terms.
@@ -128,7 +128,7 @@ They are given in parenthesis. For example, we might have a fact such as::
 The ``subj`` object is special: all verbs have it, and in sentences it is not
 labelled with ``subj``, it just takes the place of the subject right after the verb.
 
-Verbs inherit the object types of their ancestors. The primitive ``exists`` verb
+Verbs inherit the object types of their ancestors. The primitive ``exist`` verb
 only takes one object, ``subj``, of type ``word``, inherited by all the rest of the verbs.
 So, if we define a verb::
 
@@ -142,16 +142,16 @@ object type (like we have done above with ``subj``.)
 Facts are words,
 "first class citizens",
 and can be used wherever a word can be used.
-Facts are words of type ``exists``, and also of type <verb>,
+Facts are words of type ``exist``, and also of type <verb>,
 were <verb> is the verb used to build the fact.
 So our facts are actually synctactic sugar for
 ``(loves john, who sue) is a loves.``
 
 The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
-a ``number``). In addition, they can also be facts (type ``exists``).
+a ``number``). In addition, they can also be facts (type ``exist``).
 So, if we define a verb like::
 
-    to wants is to exists, subj a person, what a exists.
+    to wants is to exist, subj a person, what a exist.
 
 We can then build facts like::
 
@@ -216,7 +216,7 @@ that ``(loves sue, who john)``.
 
 For a more elaborate example we can define a new verb::
 
-    to allowed is to exists, subj a person, to a verb.
+    to allowed is to exist, subj a person, to a verb.
 
 and a rule::
 
@@ -261,10 +261,10 @@ between the symbols ``<-`` and ``->``. The results of the tests are placed in a
 
 To give an example, let's imagine some new terms::
 
-    to aged is to exists, age a number.
+    to aged is to exist, age a number.
     a bar is a thing.
     club-momentos is a bar.
-    to enters is to exists, where a bar.
+    to enters is to exist, where a bar.
 
 Now, we can build a rule such as::
 
@@ -362,36 +362,36 @@ If the setting is ``normal``, the current time of the system is incremented by 1
 If the setting is ``real``, the current time of the system
 is updated with Python's ``import time; int(time.monotonic())``.
 
-The second thing that happens is that, rather than defining verbs extending ``exists``,
-we use 2 new verbs, ``now`` and ``onwards``, both subtypes of ``exists``.
+The second thing that happens is that, rather than defining verbs extending ``exist``,
+we use 2 new verbs, ``occur`` and ``endure``, both subtypes of ``exist``.
 These new verbs have special ``number`` objects:
-``now`` has an ``at_`` object, and ``onwards`` a ``since_`` and a ``till_`` objects.
+``occur`` has an ``at_`` object, and ``endure`` a ``since_`` and a ``till_`` objects.
 
 The third is that the system starts keeping 2 different factsets,
 one for the present and one for the past.
 All reasoning occurs in the present factset.
 When we add a fact made with these verbs, the system automatically adds
-to ``now`` an ``at_`` object and to ``onwards`` a ``since_`` object,
+to ``occur`` an ``at_`` object and to ``endure`` a ``since_`` object,
 both with the value of its "present" register.
-The ``till_`` object of ``onwards`` facts is left undefined.
+The ``till_`` object of ``endure`` facts is left undefined.
 We never explicitly set those objects.
-When added, ``now`` facts go through the rule network, producing consecuences,
+When added, ``occur`` facts go through the rule network, producing consecuences,
 and then are added to the present factset;
-``onwards`` facts go through the rules network and then are also added
+``endure`` facts go through the rules network and then are also added
 to the present factset.
-Each time the time is updated, all ``now`` facts are removed from the present
+Each time the time is updated, all ``occur`` facts are removed from the present
 and added to the past factset, and thus stop producing consecuences.
-Queries for ``now`` facts go to the past factset if we specify an ``at_`` object in the query,
+Queries for ``occur`` facts go to the past factset if we specify an ``at_`` object in the query,
 and to the present if an ``at_`` object is not provided.
-The same goes for ``onwards`` facts, substituting ``at_`` with ``since_``.
-We might say that the ``onwards`` facts in the present factset are in
+The same goes for ``endure`` facts, substituting ``at_`` with ``since_``.
+We might say that the ``endure`` facts in the present factset are in
 present continuous tense.
 
 The fourth thing that happens when we activate the temporal logic
 is that we can use a new predicate in the consecuances of our rules:
 ``finish``. This verb is defined like this::
 
-    to finish is to exists, subj a thing, what a exists.
+    to finish is to exist, subj a thing, what a exist.
 
 And when a rule with such a consecuence is activated,
 it grabs the provided ``what`` fact from the present factset,
@@ -399,10 +399,15 @@ adds a ``till_`` object to it with the present time as value,
 removes it from the present factset,
 and adds it to the past factset.
 
-There is also the temporal verb ``unique``, subverb of ``onwards``.
-The peculiarity of ``unique`` is that whenever a fact with
+There is also the temporal verb ``exclusive-endure``, subverb of ``endure``.
+The peculiarity of ``exclusive-endure`` is that whenever a fact with
 such verb is added to the knowledge base,
 any previous present facts with the same subject and verb are ``finish``ed.
+
+A further verb, ``happen``, derived from ``occur``, has the singularity that,
+when a fact is added as a consecuence of other facts, and is built
+with a verb derived from ``happen``, is fed through the pipeline back to the
+user adding the facts that are producing consecuences.
 
 
 Querying
@@ -482,7 +487,7 @@ separated from the rest of the message by a colon.
     * If the constructs are definitions, facts and/or rules,
       the response consists on the series of facts that derive as
       consecuences of the entered constructs, that are constructed
-      with a verb that ``is to totell``, terminated by the string ``'END'``.
+      with a verb that ``is to happen``, terminated by the string ``'END'``.
   * If there is a ``lexicon:`` header, the response is a json string
     followed by the string ``'END'``. The contents of the json depend
     on a second header:

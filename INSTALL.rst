@@ -14,7 +14,7 @@ Some additional software, first to compile python-3.3::
     $ wget http://www.python.org/ftp/python/3.3.2/Python-3.3.2.tgz
     $ tar xzf Python-3.3.2.tgz
     $ cd Python-3.3.2
-    $ ./configure --prefix=/home/plone/local
+    $ ./configure
     $ make
     $ sudo make install
 

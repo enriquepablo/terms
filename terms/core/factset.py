@@ -53,7 +53,7 @@ class FactSet(object):
             paths.append(path + ('_neg',))
         for label in sorted(pred.objects):
             o = pred.objects[label].value
-            if isa(o, self.lexicon.exists):
+            if isa(o, self.lexicon.exist):
                 self._recurse_paths(o, paths, path + (label,))
             elif isa(o, self.lexicon.word):
                 paths.append(path + (label, '_term'))
@@ -259,7 +259,7 @@ class VerbSegment(Segment):
 #            import pdb;pdb.set_trace()
         if isa(value, factset.lexicon.verb):
             sbases = factset.lexicon.get_subterms(get_bases(value)[0])
-        elif isa(value, factset.lexicon.exists):
+        elif isa(value, factset.lexicon.exist):
             sbases = factset.lexicon.get_subterms(value.term_type)
         sbases = [b.id for b in sbases]
         path_str = '.'.join(path)

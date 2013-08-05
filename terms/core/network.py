@@ -64,7 +64,7 @@ class Network(object):
         elif self.config['time'] == 'real':
             now = int(time.monotonic())
 
-        q = self.lexicon.make_var('Now1')
+        q = self.lexicon.make_var('Occur1')
         topast = self.present.query_facts(q, {})
         for f in topast:
             print('    TO PAST: %s' % str(f.pred))
@@ -120,7 +120,7 @@ class Network(object):
 
     def add_fact(self, pred):
         factset = self.present
-        if isa(pred, self.lexicon.unique):
+        if isa(pred, self.lexicon.exclusive_endure):
             old_pred = Predicate(pred.true, pred.term_type)
             old_pred.add_object('subj', pred.get_object('subj'))
             for label in pred.objects:
@@ -138,10 +138,10 @@ class Network(object):
 
         facts = factset.query_facts(pred, {})
         if facts.count() == 0:
-            if isa(pred, self.lexicon.onwards):
+            if isa(pred, self.lexicon.endure):
                 pred.add_object('since_', self.lexicon.now_term)
             fact = factset.add_fact(pred)
-            if isa(pred, self.lexicon.totell):
+            if isa(pred, self.lexicon.happen):
                 if self.pipe is not None:
                     self.pipe.send_bytes(str(pred).encode('utf8'))
             if self.root.child_path:
@@ -168,7 +168,7 @@ class Network(object):
         fs = self.present.query_facts(predicate, {})
         for f in fs:
             pred = f.pred
-            if isa(pred, self.lexicon.onwards):
+            if isa(pred, self.lexicon.endure):
                 self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
                 f.factset = 'past'
                 for m in f.matches:
@@ -342,7 +342,7 @@ class Node(Base):
                     new_match = match.copy()
                     if child.var:
                         val = None
-                        if chcls is VerbNode and isa(child.value, network.lexicon.exists):
+                        if chcls is VerbNode and isa(child.value, network.lexicon.exist):
                             val = TermNode.resolve(match.pred, path)
                         else:
                             val = value
@@ -421,7 +421,7 @@ class TermNode(Node):
 
     @classmethod
     def get_children(cls, parent, value, network):
-        if isa(value, network.lexicon.exists):
+        if isa(value, network.lexicon.exist):
             types = (value.term_type.term_type,) + get_bases(value.term_type.term_type)
             type_ids = [t.id for t in types]
             return network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0).join(Term, cls.term_id==Term.id).filter(Term.type_id.in_(type_ids)),
@@ -778,7 +778,7 @@ class Rule(Base):
 
         for con in cons:
             factset = network.present
-            if isa(con, network.lexicon.unique):
+            if isa(con, network.lexicon.exclusive_endure):
                 old_pred = Predicate(con.true, con.term_type)
                 old_pred.add_object('subj', con.get_object('subj'))
                 for label in con.objects:
@@ -795,10 +795,10 @@ class Rule(Base):
             #if contradiction:
             #    raise exceptions.Contradiction('we already have ' + str(neg))
             if factset.query_facts(con, {}).count() == 0:
-                if isa(con, network.lexicon.onwards):
+                if isa(con, network.lexicon.endure):
                     con.add_object('since_', network.lexicon.now_term)
                 fact = factset.add_fact(con)
-                if isa(con, network.lexicon.totell):
+                if isa(con, network.lexicon.happen):
                     if network.pipe is not None:
                         network.pipe.send_bytes(str(con).encode('utf8'))
                 if network.root.child_path:
