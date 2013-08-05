@@ -107,12 +107,13 @@ class Network(object):
             if obt.label in ('till_', 'at_'):
                 continue
             t = obt.obj_type
-            if isa(t, self.lexicon.verb):
-                pred = pred.get_object(obt.label)
-                verb_ = pred.term_type
-                self._recurse_paths(verb_, pred, paths, path + (obt.label,))
-            else:
-                paths.append(path + (obt.label, '_term'))
+            if obt.label in pred.objects:
+                if isa(t, self.lexicon.verb):
+                    pred = pred.get_object(obt.label)
+                    verb_ = pred.term_type
+                    self._recurse_paths(verb_, pred, paths, path + (obt.label,))
+                else:
+                    paths.append(path + (obt.label, '_term'))
 
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__
