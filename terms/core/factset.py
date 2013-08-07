@@ -55,6 +55,8 @@ class FactSet(object):
             o = pred.objects[label].value
             if isa(o, self.lexicon.exist):
                 self._recurse_paths(o, paths, path + (label,))
+            elif isa(o, self.lexicon.number):
+                paths.append(path + (label, '_num'))
             elif isa(o, self.lexicon.word):
                 paths.append(path + (label, '_term'))
 
@@ -93,6 +95,7 @@ class FactSet(object):
             value = cls.resolve(pred, path, self)
             if value is not None:
                 qfacts = cls.filter_segment(qfacts, value, vars, path)
+        vars.sort(key=lambda x: 1 if getattr(x, 'set_condition', False) else 0)
         for var in vars:
             qfacts = var['cls'].filter_segment_first_var(qfacts, var['value'], var['path'], self, taken_vars, sec_vars)
         for var in sec_vars:
@@ -161,14 +164,23 @@ class Segment(Base):
         return qfact
 
     @classmethod
-    def resolve(cls, pred, path, factset, preds=False):
+    def resolve(cls, term, path, factset, preds=False):
         '''
         Get the value pointed at by path in w (a word).
         It can be a boolean (for neg nodes),
         a sting (for label nodes),
         a word, or some custom value for custom node types.
         '''
-        raise NotImplementedError
+        for segment in path[:-1]:
+            term = term.get_object(segment)
+        return term
+
+    @classmethod
+    def filter_segment_sec_var(cls, qfacts, path, salias):
+        alias = aliased(cls)
+        path_str = '.'.join(path)
+        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.term_id==salias.term_id)
+        return qfacts
 
 
 class NegSegment(Segment):
@@ -194,18 +206,6 @@ class TermSegment(Segment):
                          primaryjoin="Term.id==TermSegment.term_id")
 
     @classmethod
-    def resolve(cls, term, path, factset, preds=False):
-        '''
-        Get the value pointed at by path in w (a word).
-        It can be a boolean (for neg nodes),
-        a sting (for label nodes),
-        a word, or some custom value for custom node types.
-        '''
-        for segment in path[:-1]:
-            term = term.get_object(segment)
-        return term
-
-    @classmethod
     def filter_segment_first_var(cls, qfacts, value, path, factset, taken_vars, sec_vars):
         salias = aliased(cls)
         talias = aliased(Term)
@@ -223,11 +223,47 @@ class TermSegment(Segment):
             qfacts = qfacts.join(salias, Fact.id==salias.fact_id).filter(salias.path==path_str).join(talias, salias.term_id==talias.id).filter(talias.type_id.in_(sbases))
         return qfacts
 
+
+class NumberSegment(Segment):
+
+    __mapper_args__ = {'polymorphic_identity': '_num'}
+    int_value = Column(Integer, index=True)
+
+    def __init__(self, fact, value, path):
+        self.fact = fact
+        if getattr(value, 'name', False):
+            value = int(value.name)
+        self.value = value
+        self.path = '.'.join(path)
+
+    @property
+    def value(self):
+        return self.int_value
+
+    @value.setter
+    def value(self, val):
+        self.int_value = val
+
     @classmethod
-    def filter_segment_sec_var(cls, qfacts, path, salias):
+    def filter_segment(cls, qfact, value, vars, path):
+        if getattr(value, 'var', False):
+            vars.append({'cls': cls, 'value': value, 'path': path})
+        else:
+            alias = aliased(cls)
+            path_str = '.'.join(path)
+            qfact = qfact.join(alias, Fact.id==alias.fact_id).filter(alias.int_value==int(value.name), alias.path==path_str)
+        return qfact
+
+    @classmethod
+    def filter_segment_first_var(cls, qfacts, value, path, factset, taken_vars, sec_vars):
         alias = aliased(cls)
+        taken_vars[value.name] = (path, alias)
         path_str = '.'.join(path)
-        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str, alias.term_id==salias.term_id)
+        qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str)
+        if getattr(value, 'set_condition', False):
+            vardict = {k: str(v[1]) + '.int_value' for k, v in taken_vars.items()}
+            filtr = value.set_condition % vardict
+            qfacts = qfacts.filter(filtr)
         return qfacts
 
 

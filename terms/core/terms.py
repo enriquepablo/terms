@@ -49,7 +49,7 @@ class Term(Base):
     __tablename__ = 'terms'
 
     id = Column(Integer, Sequence('term_id_seq'), primary_key=True)
-    name = Column(String(200))
+    name = Column(String)
     type_id = Column(Integer, ForeignKey('terms.id'))
     term_type = relationship('Term', remote_side=[id],
                          primaryjoin="Term.id==Term.type_id",

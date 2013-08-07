@@ -37,6 +37,7 @@ class Lexer(object):
 
     states = (
         ('pycode', 'exclusive'),
+        ('set', 'exclusive'),
         ('headers', 'exclusive'),
     )
 
@@ -62,6 +63,16 @@ class Lexer(object):
         'HEADER',
         'IMPORT',
         'URL',
+        'SVAR',
+        'SCOLON',
+        'SLPAREN',
+        'SRPAREN',
+        'SNUMBER',
+        'SOPER',
+        'SPRED',
+        'SBAR',
+        'SAMP',
+        'SNOT',
     )
 
     reserved = {
@@ -85,6 +96,17 @@ class Lexer(object):
     t_IMPLIES = r'->'
     t_RM = r'_RM_'
     t_URL = r'<[^>]+>'
+
+    t_set_SVAR = VAR_PAT
+    t_set_SCOLON = r':'
+    t_set_SLPAREN = r'\('
+    t_set_SRPAREN = r'\)'
+    t_set_SNUMBER = NUM_PAT
+    t_set_SOPER = r'[*/+%-]'
+    t_set_SPRED = r'[<>=]=?'
+    t_set_SBAR = r'\|'
+    t_set_SAMP = r'&'
+    t_set_SNOT = r'~'
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self, t):
@@ -121,6 +143,16 @@ class Lexer(object):
 
     t_pycode_ignore = ''
 
+    def t_begin_set(self, t):
+        r'(?<=[^{]){(?=[^{])'
+        t.lexer.begin('set')
+
+    def t_set_RCURLY(self, t):
+        r' }'
+        t.lexer.begin('INITIAL')
+
+    t_set_ignore = ' \t'
+
     def t_begin_headers(self, t):
         r'{{{'
         t.lexer.begin('headers')
@@ -142,7 +174,7 @@ class Lexer(object):
     t_headers_ignore = ''
 
     # Error handling rule
-    def t_headers_pycode_INITIAL_error(self, t):
+    def t_set_headers_pycode_INITIAL_error(self, t):
         print("Illegal character '%s' at line %d" % (t.value[0], t.lexer.lineno))
         t.lexer.skip(1)
 
@@ -388,7 +420,47 @@ class Parser(object):
     def p_object(self, p):
         '''object : vterm
                   | fact
-                  | number'''
+                  | number
+                  | set'''
+        p[0] = p[1]
+
+    def p_set(self, p):
+        '''set : SVAR SCOLON s-expr'''
+        p[0] = AstNode('set', var=p[1], stmnt=p[3])
+
+    def p_snumber(self, p):
+        '''s-number : SNUMBER'''
+        p[0] = AstNode('s-vnum', val=p[1], var=False)
+
+    def p_svar(self, p):
+        '''s-var : SVAR'''
+        p[0] = AstNode('s-vnum', val=p[1], var=True)
+
+    def p_svnum(self, p):
+        '''s-vnum : s-number
+                  | s-var'''
+        p[0] = p[1]
+
+    def p_sexpr(self, p):
+        '''s-expr : SLPAREN s-expr SRPAREN s-conn SLPAREN s-expr SRPAREN
+                  | SNOT SLPAREN s-expr SRPAREN
+                  | s-expr s-conn s-expr
+                  | s-vnum'''
+        if len(p) == 2:
+            p[0] = p[1]
+        elif len(p) == 4:
+            p[0] = AstNode('s-expr', arg1=p[1], oper=p[2], arg2=p[3])
+        elif len(p) == 5:
+            p[0] = AstNode('s-expr', arg1=p[3], oper=p[1], arg2=None)
+        else:
+            p[0] = AstNode('s-expr', arg1=p[2], oper=p[4], arg2=p[6])
+
+    def p_sconn(self, p):
+        '''s-conn : SOPER
+                  | SPRED
+                  | SBAR
+                  | SAMP
+                  | SNOT'''
         p[0] = p[1]
 
     def p_def(self, p):
@@ -597,6 +669,28 @@ class Compiler(object):
             return self.compile_fact(obj)
         elif obj.type == 'number':
             return self.lexicon.make_term(obj.val, self.lexicon.number)
+        elif obj.type == 'set':
+            return self.compile_set(obj)
+
+    def compile_set(self, ast):
+        var = self.lexicon.make_var(ast.var)
+        var.set_condition = self._compile_expr(ast.stmnt)
+        return var
+
+    def _compile_expr(self, expr):
+        if expr.type == 's-vnum':
+            return self._compile_vnum(expr)
+        oper = expr.oper
+        arg1 = self._compile_expr(expr.arg1)
+        if expr.arg2 is not None:
+            arg2 = self._compile_expr(expr.arg2)
+            return '( %s %s %s )' % (arg1, oper, arg2)
+        return '%s %s' % (oper, arg1)
+
+    def _compile_vnum(self, vnum):
+        if vnum.var:
+            return '%(' + vnum.val + ')d'
+        return vnum.val
 
     def compile_mods(self, verb, ast):
         mods = {}
@@ -646,8 +740,9 @@ class Compiler(object):
                 if defn.type == 'noun-def':
                     if defn.name.type == 'var':
                         terms = self.lexicon.get_terms
+                        #  XXX unfinished
                 elif defn.type == 'name-def':
-                    term = self.compile_namedef(definition)
+                    term = self.compile_namedef(defn)
 
         if not matches:
             matches = 'false'

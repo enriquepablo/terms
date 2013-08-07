@@ -533,6 +533,8 @@ class Premise(Base):
         pred = self.pred
         prem_paths = network.present.get_paths(pred)
         for p in prem_paths:
+            if p[-1] == '_num':
+                p = p[:-1] + ('_term',)
             if p not in match.paths:
                 return False
         return True
