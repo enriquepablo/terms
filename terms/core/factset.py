@@ -60,7 +60,7 @@ class FactSet(object):
                 self._recurse_paths(o, paths, path + (label,))
             elif isa(o, self.lexicon.number):
                 paths.append(path + (label, '_num'))
-            elif isa(o, self.lexicon.word):
+            else:
                 paths.append(path + (label, '_term'))
 
     def _get_nclass(self, path):

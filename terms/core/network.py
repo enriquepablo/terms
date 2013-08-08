@@ -62,7 +62,7 @@ class Network(object):
         if self.config['time'] == 'normal':
             now = past + 1
         elif self.config['time'] == 'real':
-            now = int(time.monotonic())
+            now = int(time.time())
 
         q = self.lexicon.make_var('Occur1')
         topast = self.present.query_facts(q, {})
@@ -107,13 +107,15 @@ class Network(object):
             if obt.label in ('till_', 'at_'):
                 continue
             t = obt.obj_type
-            if obt.label in pred.objects:
-                if isa(t, self.lexicon.verb):
+            if isa(t, self.lexicon.verb):
+                if obt.label in pred.objects:
                     pred = pred.get_object(obt.label)
                     verb_ = pred.term_type
                     self._recurse_paths(verb_, pred, paths, path + (obt.label,))
                 else:
-                    paths.append(path + (obt.label, '_term'))
+                    paths.append(path + (obt.label, '_verb'))
+            else:
+                paths.append(path + (obt.label, '_term'))
 
     def _get_nclass(self, ntype):
         mapper = Node.__mapper__
@@ -370,6 +372,8 @@ class RootNode(Node):
     A root node
     '''
     __mapper_args__ = {'polymorphic_identity': '_root'}
+    __tablename__ = 'rootnodes'
+    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
 
     def __init__(self):
         pass
@@ -380,6 +384,8 @@ class NegNode(Node):
     A node that tests whether a predicate is negated
     '''
     __mapper_args__ = {'polymorphic_identity': '_neg'}
+    __tablename__ = 'negnodes'
+    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
 
     value = Column(Boolean, index=True)
 
@@ -402,6 +408,9 @@ class TermNode(Node):
     '''
     '''
     __mapper_args__ = {'polymorphic_identity': '_term'}
+    __tablename__ = 'termnodes'
+    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
+
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==TermNode.term_id")
 
@@ -446,6 +455,9 @@ class VerbNode(Node):
     '''
     '''
     __mapper_args__ = {'polymorphic_identity': '_verb'}
+    __tablename__ = 'verbnodes'
+    nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
+
     verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==VerbNode.verb_id")
 
