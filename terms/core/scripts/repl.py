@@ -1,9 +1,13 @@
 
 import sys
+import os
+
 try:
     import readline
+    HAS_READLINE = True
 except ImportError:
-    pass
+    HAS_READLINE = False
+
 from code import InteractiveConsole
 
 from sqlalchemy import create_engine
@@ -21,7 +25,10 @@ class TermsRepl(object):
         self._buffer = ''
         self.no_response = object()
         self.prompt = '>> '
-
+        if HAS_READLINE and config['terms_history_file'] and int(config['terms_history_length']):
+            readline.set_history_length(int(config['terms_history_length']))
+            fn = os.path.expanduser(config['terms_history_file'])
+            readline.read_history_file(fn)
         address = '%s/%s' % (config['dbms'], config['dbname'])
         engine = create_engine(address)
         Session = sessionmaker(bind=engine)
@@ -73,10 +80,15 @@ class TermsRepl(object):
         while True:
             line = ic.raw_input(prompt=self.prompt)
             if line in ('quit', 'exit'):
-                sys.exit('bye')
+                self.quit()
             resp = self.process_line(line)
             if resp is not self.no_response:
                 print(resp)
+
+    def quit(self):
+        if HAS_READLINE and self.config['terms_history_file'] and int(self.config['terms_history_length']):
+            readline.write_history_file(os.path.expanduser(self.config['terms_history_file']))
+        sys.exit('bye')
 
 
 def repl():
