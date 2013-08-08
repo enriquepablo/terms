@@ -103,7 +103,7 @@ class Lexer(object):
     t_set_SRPAREN = r'\)'
     t_set_SNUMBER = NUM_PAT
     t_set_SOPER = r'[*/+%-]'
-    t_set_SPRED = r'[<>=]=?'
+    t_set_SPRED = r'[<>=!]=?'
     t_set_SBAR = r'\|'
     t_set_SAMP = r'&'
     t_set_SNOT = r'~'
@@ -674,23 +674,8 @@ class Compiler(object):
 
     def compile_set(self, ast):
         var = self.lexicon.make_var(ast.var)
-        var.set_condition = self._compile_expr(ast.stmnt)
+        var.set_condition = ast.stmnt
         return var
-
-    def _compile_expr(self, expr):
-        if expr.type == 's-vnum':
-            return self._compile_vnum(expr)
-        oper = expr.oper
-        arg1 = self._compile_expr(expr.arg1)
-        if expr.arg2 is not None:
-            arg2 = self._compile_expr(expr.arg2)
-            return '( %s %s %s )' % (arg1, oper, arg2)
-        return '%s %s' % (oper, arg1)
-
-    def _compile_vnum(self, vnum):
-        if vnum.var:
-            return '%(' + vnum.val + ')d'
-        return vnum.val
 
     def compile_mods(self, verb, ast):
         mods = {}

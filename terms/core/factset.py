@@ -17,9 +17,12 @@
 # along with any part of the terms project.
 # If not, see <http://www.gnu.org/licenses/>.
 
+import operator
+
 from sqlalchemy import Table, Column, Sequence
 from sqlalchemy import ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, backref, aliased
+from sqlalchemy import sql
 
 from terms.core.terms import get_bases
 from terms.core.terms import Base, Term
@@ -229,6 +232,26 @@ class NumberSegment(Segment):
     __mapper_args__ = {'polymorphic_identity': '_num'}
     int_value = Column(Integer, index=True)
 
+    binopers = {
+        '|': sql.or_,
+        '&': sql.and_,
+        '=': operator.eq,
+        '!=': operator.ne,
+        '<': operator.lt,
+        '<=': operator.le,
+        '>': operator.gt,
+        '>=': operator.ge,
+        '+': operator.add,
+        '-': operator.sub,
+        '*': operator.mul,
+        '/': operator.truediv,
+        '%': operator.mod,
+    }
+    unopers = {
+        '~': sql.not_,
+        '-': operator.neg,
+    }
+
     def __init__(self, fact, value, path):
         self.fact = fact
         if getattr(value, 'name', False):
@@ -261,10 +284,27 @@ class NumberSegment(Segment):
         path_str = '.'.join(path)
         qfacts = qfacts.join(alias, Fact.id==alias.fact_id).filter(alias.path==path_str)
         if getattr(value, 'set_condition', False):
-            vardict = {k: str(v[1]) + '.int_value' for k, v in taken_vars.items()}
-            filtr = value.set_condition % vardict
-            qfacts = qfacts.filter(filtr)
+            condition = cls.compile_condition(value.set_condition, taken_vars)
+            qfacts = qfacts.filter(condition)
         return qfacts
+
+    @classmethod
+    def compile_condition(cls, expr, taken_vars):
+        if expr.type == 's-vnum':
+            return cls.compile_vnum(expr, taken_vars)
+        oper = expr.oper
+        arg1 = cls.compile_condition(expr.arg1, taken_vars)
+        if expr.arg2 is not None:
+            arg2 = cls.compile_condition(expr.arg2, taken_vars)
+            return cls.binopers[oper](arg1, arg2)
+        return cls.unopers[oper](arg1)
+
+    @classmethod
+    def compile_vnum(cls, vnum, taken_vars):
+        if vnum.var:
+            alias = taken_vars[vnum.val][1]
+            return getattr(alias, 'int_value')
+        return int(vnum.val)
 
 
 class VerbSegment(Segment):
