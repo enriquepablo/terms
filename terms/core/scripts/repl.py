@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from terms.core import register_exec_global
 from terms.core.utils import get_config
-from terms.core.compiler import Compiler
+from terms.core.compiler import Compiler, Runtime
 
 
 class TermsRepl(object):
@@ -38,7 +38,7 @@ class TermsRepl(object):
             from terms.core.network import Network
             Network.initialize(Session())
         self.compiler = Compiler(Session(), config)
-        register_exec_global(self.compiler, name='compiler')
+        register_exec_global(Runtime(self.compiler), name='runtime')
 
     def _parse_buff(self):
         resp = self.compiler.parse(self._buffer)

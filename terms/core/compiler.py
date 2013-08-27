@@ -688,7 +688,7 @@ class Compiler(object):
             obj = self.compile_obj(mod.obj)
             if not isa(obj, otype.obj_type):
                 raise WrongObjectType('Error: word %s for label %s is not the correct type: '
-                                       'is is a %s and should be a %s' %
+                                       'it is a %s and should be a %s' %
                                       (obj.name, label, obj.term_type.name, otype.obj_type.name))
             mods[label] = obj
         return mods

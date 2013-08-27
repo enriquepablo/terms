@@ -67,11 +67,10 @@ class Network(object):
         q = self.lexicon.make_var('Occur1')
         topast = self.present.query_facts(q, {})
         for f in topast:
-            print('    TO PAST: %s' % str(f.pred))
             for m in f.matches:
                 self.session.delete(m)
             f.matches = []
-            f.factset = 'past'
+            f.pred.add_object('at_', self.lexicon.now_term)
             self.present.add_object_to_fact(f, self.lexicon.now_term,
                                                     ('at_', '_term'))
             f.factset = 'past'
@@ -152,15 +151,12 @@ class Network(object):
                 m.paths = self.get_paths(pred)
                 m.fact = fact
                 Node.dispatch(self.root, m, self)
-                self.session.flush()
             n = 0
             while self.activations:
                 n += 1
                 cmc = int(self.config['commit_many_consecuences'])
                 if cmc and n % cmc == 0:
                     self.session.commit()
-                else:
-                    self.session.flush()
                 match = self.activations.pop(0)
                 Node.dispatch(self.root, match, self)
             return fact
@@ -466,7 +462,7 @@ class VerbNode(Node):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-            if term.var or term.redundant_var:
+            if term.var or getattr(term, 'redundant_var', False):
                 return term
             return term.term_type
         except (AttributeError, KeyError):
