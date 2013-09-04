@@ -1,11 +1,12 @@
 The Terms knowledge store
 =========================
 
-Terms is a smart knowledge store.
-It is used to store knowledge, that can later be queried.
-It provides a declarative language with which to express the knowledge.
-I call it smart because its language can be used to express rules,
-and these rules combine existing knowledge to produce new knowledge.
+Terms is a knowledge store.
+It provides a declarative language to express and query that knowledge.
+The main claim to usefulness that Terms has
+lies in the Terms language:
+It is purported to be very powerful,
+and very close to the natural languages.
 
 Terms is licensed under the GPLv3, and is hosted at
 `github <https://github.com/enriquepablo/terms>`_.
@@ -15,17 +16,41 @@ The Terms language
 
 Here I will describe the Terms language.
 
-Terms is a declarative language.
+Terms is a declarative logic language. 
+
 With it you can:
  * define new words (nouns, verbs, and names);
  * build facts out of your defined words;
  * build rules that combine given facts to produce new facts;
  * perform complex queries.
 
-To try the given examples, if you have installed Terms,
+
+It is similar to other logic languages,
+such as prolog, or CLIPS
+(it is nearer to CLIPS in that it is forward chaining, based on a RETE network),
+but it is more powerful, because all defined items (or terms)
+have the same category. What do I mean with the same category?
+Well, in Terms, you build sentences, or facts,
+that have a verb and any number of objects,
+and these objects can be any kind of term:
+Names, verbs, or nouns, or even other facts.
+In contrast, to build facts in prolog or in CLIPS,
+you use as verbs a special kind of item, a predicate,
+that cannot be treated as an object;
+or, you cannot use other facts as objects.
+In Terms, a rule can have a logical variable
+that ranges over any fact or term,
+something that is unthinkable in (idiomatic) prolog or CLIPS.
+
+However, Terms is based on a first order theory,
+interpreted in a finite universe,
+so it might be implemented in any of those languages;
+that's why I specified "idiomatic".
+
+To try the examples given below, if you have installed Terms,
 you have to type "terms" in a terminal,
 and you will get a REPL where you can enter Terms constructs.
-Follow the instuctions in the INSTALL.rst.
+To install Terms, follow the instuctions in the INSTALL.rst.
 
 More examples can be found in the
 `github repository <https://github.com/enriquepablo/terms/tree/master/terms/core/examples>`_.
@@ -43,7 +68,7 @@ New words are defined relating them to existing words.
 There are 2 relations that can be established among pairs of words.
 
 As we shall see below,
-these relations are formally similar to the set relations
+these relations are formally similar to the set theory relations
 "is an element of" and "is a subset of".
 
 In English, we express the first relation as "is of type",
@@ -51,13 +76,15 @@ and in Terms it is expressed as::
 
     word1 is a word2.
 
-So we would say that ``word1`` is of type ``word2``.
+So we would say that ``word1`` is of type ``word2``,
+defining ``word1`` in terms of ``word2``.
 The second relation is expressed in English as "is subtype of",
 and in Terms::
 
     a word1 is a word2.
 
-So, we would say that ``word1`` is a subtype of ``word2``.
+So, we would say that ``word1`` is a subtype of ``word2``,
+also defining ``word1`` in terms of ``word2``.
 Among the predifined words, these relations are given::
 
     word is a word.
