@@ -18,9 +18,13 @@ The Terms language
 Here I will describe the Terms language. 
 It is a declarative logic language. 
 With it you can:
+
 * define new words (nouns, verbs, and names);
+
 * build facts out of your defined words;
+
 * build rules that combine given facts to produce new facts;
+
 * perform complex queries.
 
 The Terms language is similar to other logic languages,
@@ -464,29 +468,29 @@ like we can in rules with pythonic conditions.
 
 **Miscelaneous technical notes.**
 
-  * I have shown several different kinds of variables,
-    for things, for verbs, for numbers, for facts.
-    But the logic behind Terms is first order,
-    there is only one kind of individuals,
-    and the proliferation of kinds of variables
-    is just syntactic sugar.
-    ``Person1`` would be equivalent to something like
-    "for all x, x is a person and x...".
-    ``LoveVerb1`` would be equivalent to something like
-    "for all x, a x is a love and x...".
+* I have shown several different kinds of variables,
+  for things, for verbs, for numbers, for facts.
+  But the logic behind Terms is first order,
+  there is only one kind of individuals,
+  and the proliferation of kinds of variables
+  is just syntactic sugar.
+  ``Person1`` would be equivalent to something like
+  "for all x, x is a person and x...".
+  ``LoveVerb1`` would be equivalent to something like
+  "for all x, a x is a love and x...".
 
- *  The design of the system is such that
-    both adding new facts (with their consecuences)
-    and querying for facts should be independent of
-    the size of the knowledge base.
-    The only place where we depend on the size of the data
-    is in arithmetic conditions,
-    since at present number objects are not indexed as such.
+*  The design of the system is such that
+   both adding new facts (with their consecuences)
+   and querying for facts should be independent of
+   the size of the knowledge base.
+   The only place where we depend on the size of the data
+   is in arithmetic conditions,
+   since at present number objects are not indexed as such.
 
- * The Python section of the rules is ``exec``ed
-   with a dict with the ``condition`` variable in locals
-   and an empty dict as globals. We might add whatever we
-   like as globals; for example, numpy.
+* The Python section of the rules is ``exec``ed
+  with a dict with the ``condition`` variable in locals
+  and an empty dict as globals. We might add whatever we
+  like as globals; for example, numpy.
 
 
 The Terms Protocol
