@@ -42,7 +42,10 @@ In Terms, a rule can have a logical variable
 that ranges over any fact or term, including verbs,
 something that is not possible in (idiomatic) Prolog.
 
-However, Terms is based on a first order theory,
+I would say that that difference gives Terms
+enough of an edge so as to be generally useful.
+
+In any case, Terms is based on a first order theory,
 interpreted in a finite universe,
 so it might be implemented in Prolog;
 that's why I specified "idiomatic".
