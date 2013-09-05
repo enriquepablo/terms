@@ -4,9 +4,10 @@ The Terms knowledge store
 Terms is a knowledge store.
 It provides a declarative language to express and query that knowledge.
 The main claim to usefulness that Terms has
-lies in the Terms language:
-It is purported to be very powerful,
-and very close to the natural languages.
+relies in the Terms language:
+It is purported to be very powerful and concise,
+and at the same time very readable,
+very close to the natural languages.
 
 Terms is licensed under the GPLv3, and is hosted at
 `github <https://github.com/enriquepablo/terms>`_.
@@ -14,37 +15,36 @@ Terms is licensed under the GPLv3, and is hosted at
 The Terms language
 ++++++++++++++++++
 
-Here I will describe the Terms language.
-
-Terms is a declarative logic language. 
-
+Here I will describe the Terms language. 
+It is a declarative logic language. 
 With it you can:
  * define new words (nouns, verbs, and names);
  * build facts out of your defined words;
  * build rules that combine given facts to produce new facts;
  * perform complex queries.
 
-
-It is similar to other logic languages,
-such as prolog, or CLIPS
-(it is nearer to CLIPS in that it is forward chaining, based on a RETE network),
-but it is more powerful, because all defined items (or terms)
-have the same category. What do I mean with the same category?
-Well, in Terms, you build sentences, or facts,
-that have a verb and any number of objects,
-and these objects can be any kind of term:
-Names, verbs, or nouns, or even other facts.
-In contrast, to build facts in prolog or in CLIPS,
+The Terms language is similar to other logic languages,
+such as Prolog, or CLIPS
+(it is nearer to CLIPS in that it is forward chaining,
+based on a RETE network).
+But in a certain sense it is more expressive,
+because all defined items (or words)
+have the same category.
+In Terms, you build sentences, or facts,
+with a verb (i.e. a word) and any number of objects,
+and these objects can be any kind of word:
+names, verbs, or nouns, or even other facts.
+In contrast, to build facts in Prolog,
 you use as verbs a special kind of item, a predicate,
-that cannot be treated as an object;
-or, you cannot use other facts as objects.
+that cannot be treated as an argument term
+(equivalent in Prolog to an object in Terms).
 In Terms, a rule can have a logical variable
-that ranges over any fact or term,
-something that is unthinkable in (idiomatic) prolog or CLIPS.
+that ranges over any fact or term, including verbs,
+something that is not possible in (idiomatic) Prolog.
 
 However, Terms is based on a first order theory,
 interpreted in a finite universe,
-so it might be implemented in any of those languages;
+so it might be implemented in Prolog;
 that's why I specified "idiomatic".
 
 To try the examples given below, if you have installed Terms,
@@ -52,7 +52,8 @@ you have to type "terms" in a terminal,
 and you will get a REPL where you can enter Terms constructs.
 To install Terms, follow the instuctions in the INSTALL.rst.
 
-More examples can be found in the
+More examples can be found `here <https://github.com/enriquepablo/terms-server/tree/master/terms/server/app/ontology>`_
+and in the
 `github repository <https://github.com/enriquepablo/terms/tree/master/terms/core/examples>`_.
 
 Words
@@ -77,7 +78,8 @@ and in Terms it is expressed as::
     word1 is a word2.
 
 So we would say that ``word1`` is of type ``word2``,
-defining ``word1`` in terms of ``word2``.
+defining ``word1`` in terms of ``word2``
+(so ``word2`` must have been defined before, or be predefined).
 The second relation is expressed in English as "is subtype of",
 and in Terms::
 
@@ -85,7 +87,7 @@ and in Terms::
 
 So, we would say that ``word1`` is a subtype of ``word2``,
 also defining ``word1`` in terms of ``word2``.
-Among the predifined words, these relations are given::
+Among the predefined words, these relations are given::
 
     word is a word.
     verb is a word.
@@ -121,21 +123,25 @@ Therefore, from all the above, we have, for example, that::
     a man is a thing.
     john is a thing.
     sue is a person.
+    ...
 
-With these words, we can build facts.
+With words, we can build facts.
 A fact consists of a verb and any number of (labelled) objects.
 
-Verbs are special words in that they take modifiers (or objects) when used to build facts.
-These modifiers are words, and are labeled. To define a new verb,
-you provide first an ancestor verb (or a series of ancestor verbs separated by colons),
+Verbs are special words, in that they determine
+the modifiers of the facts built with them.
+These modifiers are words, and are labeled.
+To define a new verb,
+you provide first an ancestor verb
+(or a series of ancestor verbs separated by colons),
 and then the types of words that can be modifiers for the verb in a fact,
 associated with their labels.
 For example::
 
-    to loves is to exist, subj a person, who a person.
+    to love is to exist, subj a person, who a person.
 
 That can be read as:
-``loves`` is a word of type ``verb``, subtype of ``exist``,
+``love`` is defined as a subtype of ``exist``,
 and when used in facts it can take a subject of type ``person``
 and an object labelled ``who`` also of type ``person``.
 
@@ -150,21 +156,23 @@ Facts
 Facts are built with a verb and a number of objects.
 They are given in parenthesis. For example, we might have a fact such as::
 
-    (loves john, who sue).
+    (love john, who sue).
 
-The ``subj`` object is special: all verbs have it, and in sentences it is not
-labelled with ``subj``, it just takes the place of the subject right after the verb.
+The ``subj`` object is special: all verbs have it,
+and in facts it is not labelled with ``subj``,
+it just takes the place of the subject right after the verb.
 
 Verbs inherit the object types of their ancestors. The primitive ``exist`` verb
 only takes one object, ``subj``, of type ``word``, inherited by all the rest of the verbs.
 So, if we define a verb::
 
-    to adores is to loves.
+    to adore is to love.
 
-It will have a ``who`` object of type ``person``. If ``adores`` had provided
+It will have a ``who`` object of type ``person``. If ``adore`` had provided
 a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
-object type (like we have done above with ``subj``.)
+object type
+(like we have done above with ``subj``; subj is predefined to be of type ``word``.)
 
 Facts are words,
 "first class citizens",
@@ -172,34 +180,34 @@ and can be used wherever a word can be used.
 Facts are words of type ``exist``, and also of type <verb>,
 were <verb> is the verb used to build the fact.
 So our facts are actually synctactic sugar for
-``(loves john, who sue) is a loves.``
+``(love john, who sue) is a love.``
 
 The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
 a ``number``). In addition, they can also be facts (type ``exist``).
 So, if we define a verb like::
 
-    to wants is to exist, subj a person, what a exist.
+    to want is to exist, subj a person, what a exist.
 
 We can then build facts like::
 
-    (wants john, what (loves sue, who john)).
+    (want john, what (love sue, who john)).
 
 And indeed::
 
-    (wants john, what (wants sue, what (loves sue, who john))).
+    (want john, what (want sue, what (love sue, who john))).
 
 Rules
 -----
 
 We can build rules, that function producing new facts out of existing (or newly added) ones.
-A rule has 2 sets of facts, the conditions and the consecuences. The facts in each set of
-facts are separated by semicolons, and the symbol ``->`` separates the conditions
+A rule has 2 sets of facts, the conditions (given first) and the consecuences. The facts in each set of
+facts are separated by semicolons (conjunctions), and the symbol ``->`` (implication) separates the conditions
 from the consecuences.
 A simple rule might be::
 
-    (loves john, who sue)
+    (love john, who sue)
     ->
-    (loves sue, who john).
+    (love sue, who john).
 
 The facts in the knowledge base are matched with the conditions of rules,
 and when all the conditions of a rule are matched by coherent facts,
@@ -212,47 +220,47 @@ capitalizing the name of the type of words that it can match, and appending any 
 digits. So, for example, a variable ``Person1`` would match any person, such as
 ``sue`` or ``john``. With variables, we may build a rule like::
 
-    (loves Person1, who Person2)
+    (love Person1, who Person2)
     ->
-    (loves Person2, who Person1).
+    (love Person2, who Person1).
 
-If we have this rule, and also that ``(loves john, who sue)``, the system will conclude
-that ``(loves sue, who john)``.
+If we have this rule, and also that ``(love john, who sue)``, the system will conclude
+that ``(love sue, who john)``.
 
 Variables can match whole facts. For example, with the verbs we have defined, we could
 build a rule such as::
 
-    (wants john, what Exists1)
+    (want john, what Exists1)
     ->
     (Exists1).
 
-With this, and ``(wants john, what (loves sue, who john)).``, the system would conclude
-that ``(loves sue, who john)``.
+With this, and ``(want john, what (love sue, who john)).``, the system would conclude
+that ``(love sue, who john)``.
 
 Variables that match verbs (or nouns) have a special form, in that they are prefixed by
-the name of a verb (or a noun), so that they match verbs (or nouns) that are subtypes of the given verb (or noun).
+the name of a verb (or a noun), so that they match verbs (or nouns) that are subtypes of the prefix verb (or noun).
 For example, with the words we have from above, we might make a rule like::
 
-    (LovesVerb1 john, who Person1)
+    (LoveVerb1 john, who Person1)
     ->
-    (loves Person1, who john).
+    (LoveVerb1 Person1, who john).
 
-In this case, ``LovesVerb1`` would match both ``loves`` and ``adores``, so both
-``(loves john, who sue)`` and ``(adores john, who sue)`` would produce the conclusion
-that ``(loves sue, who john)``.
+In this case, ``LoveVerb1`` would match both ``love`` and ``adore``, so both
+``(love john, who sue)`` and ``(adore john, who sue)`` would produce the conclusion
+that ``(love sue, who john)`` or ``(adore sue, who john)``.
 
 For a more elaborate example we can define a new verb::
 
-    to allowed is to exist, subj a person, to a verb.
+    to be-allowed is to exist, subj a person, to a verb.
 
 and a rule::
 
-    (wants Person1, what (LovesVerb1 Person1, who Person2));
-    (allowed Person1, to LovesVerb1)
+    (want Person1, what (LoveVerb1 Person1, who Person2));
+    (be-allowed Person1, to LoveVerb1)
     ->
-    (LovesVerb1 Person1, who Person2).
+    (LoveVerb1 Person1, who Person2).
 
-Then, ``(allowed john, to adores)`` would allow him to adore but not to love.
+Then, ``(be-allowed john, to adore)`` would allow him to adore but not to love.
 
 We can use word variables, e.g. ``Word1``, that will match any word or fact.
 
@@ -260,19 +268,19 @@ In conditions, we may want to match a whole fact, and at the same time match som
 its component words. To do this, we prepend the fact with the name
 of the fact variable, separated with a colon. With this, the above rule would become::
 
-    (wants Person1, what Loves1:(LovesVerb1 Person1, who Person2));
-    (allowed Person1, to LovesVerb1)
+    (want Person1, what Love1:(LoveVerb1 Person1, who Person2));
+    (be-allowed Person1, to LoveVerb1)
     ->
-    (Loves1).
+    (Love1).
 
 
-Numbers
--------
+Integers
+--------
 
-Numbers are of type ``number``.
+Integers are of type ``number``.
 We don't define numbers, we just use them.
-Any sequence of characters that can be cast as a number type in Python
-are numbers in Terms, e.g.: ``1``, ``-1e12``, ``2-3j``, ``10.009`` are numbers.
+Any sequence of characters that can be cast as an integer type in Python
+are numbers in Terms, e.g.: ``1``.
 
 Number variables are composed just with a capital letter and an integer, like
 ``N1``, ``P3``, or ``F122``.
@@ -296,7 +304,7 @@ To give an example, let's imagine some new terms::
 Now, we can build a rule such as::
 
     (aged Person1, age N1);
-    (wants Person1, what (enters Person1, where Bar1))
+    (want Person1, what (enters Person1, where Bar1))
     <-
     condition = N1 >= 18
     ->
@@ -306,8 +314,8 @@ If we have that::
 
     (aged sue, age 17).
     (aged john, age 19).
-    (wants sue, what (enters sue, where club-momentos)).
-    (wants john, what (enters john, where club-momentos)).
+    (want sue, what (enters sue, where club-momentos)).
+    (want john, what (enters john, where club-momentos)).
 
 The system will (only) conclude that ``(enters john, where club-momentos)``.
 
@@ -361,9 +369,9 @@ Time
 
 In the monotonic classical logic we have depicted so far,
 it is very simple to represent physical time:
-you only need to add a ``time`` object of type number
+you only need to add a ``time`` object of type ``number``
 to any temporal verb.
-However, to represent the present time,
+However, to represent the present time, the now,
 i.e., a changing distinguished instant of time,
 this logic is not enough.
 We need to use some non-monotonic tricks for that,
@@ -379,15 +387,15 @@ This temporal logic can be activated in the settings file::
 
 If it is activated, several things happen.
 
-The first is that the system starts tracking the present time.
+The first is that the system starts tracking the present time:
 It has an integer register whose value represents the current time.
-This register is updated every ``instant_duration`` seconds.
+This register is updated every ``config['instant_duration']`` seconds.
 There are 3 possible values for the ``mode``
 setting for time:
 If the setting is ``none``, nothing is done with time.
 If the setting is ``normal``, the current time of the system is incremented by 1 when it is updated.
 If the setting is ``real``, the current time of the system
-is updated with Python's ``import time; int(time.monotonic())``.
+is updated with Python's ``import time; int(time.time())``.
 
 The second thing that happens is that, rather than defining verbs extending ``exist``,
 we use 2 new verbs, ``occur`` and ``endure``, both subtypes of ``exist``.
@@ -402,10 +410,6 @@ to ``occur`` an ``at_`` object and to ``endure`` a ``since_`` object,
 both with the value of its "present" register.
 The ``till_`` object of ``endure`` facts is left undefined.
 We never explicitly set those objects.
-When added, ``occur`` facts go through the rule network, producing consecuences,
-and then are added to the present factset;
-``endure`` facts go through the rules network and then are also added
-to the present factset.
 Each time the time is updated, all ``occur`` facts are removed from the present
 and added to the past factset, and thus stop producing consecuences.
 Queries for ``occur`` facts go to the past factset if we specify an ``at_`` object in the query,
@@ -440,8 +444,8 @@ user adding the facts that are producing consecuences.
 Querying
 --------
 
-Right now the query language of Terms is a bit limited.
-Queries are facts, with or without variables.
+Queries are sets of facts separated by semicolons,
+with or without variables.
 If the query contains no variables, the answer will be ``true``
 for presence of the asked facts or ``false`` for their absence.
 To find out whether a fact is negated we must query its negation.
@@ -450,9 +454,6 @@ If we include variables in the query,
 we will obtain all the variable substitutions
 that would produce a ``true`` query,
 in the form of a json list of mappings of strings.
-
-Several facts can be anded in a query,
-separating them with semicolons.
 
 However, we can not add special constraints,
 like we can in rules with pythonic conditions.
@@ -468,8 +469,8 @@ like we can in rules with pythonic conditions.
     is just syntactic sugar.
     ``Person1`` would be equivalent to something like
     "for all x, x is a person and x...".
-    ``LovesVerb1`` would be equivalent to something like
-    "for all x, a x is a loves and x...".
+    ``LoveVerb1`` would be equivalent to something like
+    "for all x, a x is a love and x...".
 
  *  The design of the system is such that
     both adding new facts (with their consecuences)

@@ -22,7 +22,7 @@ import distribute_setup
 distribute_setup.use_setuptools()
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0b1'
+VERSION = '0.1.0b2'
 
 setup(
     name = 'Terms',

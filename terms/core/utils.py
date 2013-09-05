@@ -104,8 +104,7 @@ def get_config(cmd_line=True):
     name = 'default'
     if cmd_line:
         parser = OptionParser(usage="usage: %prog [options] [name]")
-        _opt = parser.add_option
-        _opt("-c", "--config", help="path to config file.")
+        parser.add_option("-c", "--config", help="path to config file.")
         opt, args = parser.parse_args()
         name = args[0] if args else name
         if opt.config:
