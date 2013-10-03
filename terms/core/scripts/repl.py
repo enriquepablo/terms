@@ -28,7 +28,13 @@ class TermsRepl(object):
         if HAS_READLINE and config['terms_history_file'] and int(config['terms_history_length']):
             readline.set_history_length(int(config['terms_history_length']))
             fn = os.path.expanduser(config['terms_history_file'])
-            readline.read_history_file(fn)
+            try:
+                if not os.path.exists(fn):
+                    with open(fn, 'w') as f:
+                        f.write('# terms history\n')
+                readline.read_history_file(fn)
+            except Exception:
+                pass
         address = '%s/%s' % (config['dbms'], config['dbname'])
         engine = create_engine(address)
         Session = sessionmaker(bind=engine)
@@ -91,7 +97,12 @@ class TermsRepl(object):
         sys.exit('bye')
 
 
+try:
+    import cProfile as profile
+except ImportError:
+    import profile
+
 def repl():
     config = get_config()
     tr = TermsRepl(config)
-    tr.run()
+    profile.run(tr.run())
