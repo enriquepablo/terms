@@ -477,7 +477,7 @@ like we can in rules with pythonic conditions.
   ``Person1`` would be equivalent to something like
   "for all x, x is a person and x...".
   ``LoveVerb1`` would be equivalent to something like
-  "for all x, a x is a love and x...".
+  "for all x, a x is a verb, subverb of love, and x...".
 
 *  The design of the system is such that
    both adding new facts (with their consecuences)
