@@ -199,8 +199,6 @@ class Network(object):
         rule.condcode = condcode
         for con in cons:
             if isinstance(con, Predicate):
-                #convars = con.get_vars()
-                #rule.add_convars(convars)
                 rule.consecuences.append(con)
             else:
                 rule.vconsecuences.append(con)
@@ -345,6 +343,8 @@ class Node(Base):
                             val = TermNode.resolve(match.pred, path)
                         else:
                             val = value
+                        if child.var in match and match[child.var] != val:
+                            continue
                         new_match[child.var] = val
                     if chcls is VerbNode and child.redundant_var:
                         new_match[child.redundant_var] = TermNode.resolve(match.pred, path)
