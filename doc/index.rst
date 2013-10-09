@@ -35,7 +35,7 @@ First I define a few words, then add a rule to the network,
 provide some facts to the KB, and make some queries against it.
 Prededined symbols, including words, are presented in bold typeface.
 
-.. parsed_literal::
+.. parsed-literal::
 
   >> she **is a thing**.
   >> **a** food **is a thing**.
