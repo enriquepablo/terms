@@ -7,7 +7,7 @@ Contents
 .. toctree::
    :maxdepth: 1
 
-   index
+   Introduction <index>
    language
    install
    usage
