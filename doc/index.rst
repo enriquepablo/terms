@@ -35,35 +35,64 @@ First I define a few words, then add a rule to the network,
 provide some facts to the KB, and make some queries against it.
 Prededined symbols, including words, are presented in bold typeface.
 
->> she is a thing.
->> a food is a thing.
->> this-banana is a food.
->> to eat is to exist, what a food.
->> to want is to exist, what a word.
->> to get is to exist, what a word.
+>> she **is a thing**.
+
+>> **a** food **is a thing**.
+
+>> this-banana **is a** food.
+
+>> **to** eat **is to exist,** what **a** food.
+
+>> **to** want **is to exist,** what **a** word.
+
+>> **to** get **is to exist,** what **a** word.
+
 >> (want she, what Word1)
+
 \.. ->
+
 \.. (get she, what Word1).
+
 >> (want she, what this-banana).
+
 >> (get she, what this-banana)?
+
 true
+
 >> (get she, what eat)?
+
 false
+
 >> (want she, what eat).
+
 >> (get she, what eat)?
+
 true
+
 >> (want she, what food).
+
 >> (get she, what food)?
+
 true
+
 >> (get she, what (eat she, what this-banana))?
+
 false
+
 >> (want she, what (eat she, what this-banana)).
+
 >> (get she, what (eat she, what this-banana))?
+
 true
+
 >> (eat she, what this-banana)?
+
 false
+
 >> (eat she, what this-banana).
+
 >> (eat she, what this-banana)?
+
 true
 
 
