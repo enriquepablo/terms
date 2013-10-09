@@ -1,6 +1,20 @@
 The Terms Project
 =================
 
+Contents
+++++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   index
+   language
+   install
+   usage
+   protocol
+   theory
+   contact
+
 Introduction
 ++++++++++++
 
@@ -67,17 +81,3 @@ Prededined symbols, including words, are presented in bold typeface.
   >> (eat she, what this-banana).
   >> (eat she, what this-banana)?
   true
-
-
-Contents
-++++++++
-
-.. toctree::
-   :maxdepth: 1
-
-   language
-   install
-   usage
-   protocol
-   theory
-   contact
