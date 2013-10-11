@@ -13,7 +13,6 @@ Contents
    usage
    protocol
    theory
-   contact
 
 Introduction
 ++++++++++++
