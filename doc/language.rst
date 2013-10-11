@@ -6,11 +6,9 @@ Here I will describe the Terms language.
 To try the examples given below, if you have installed Terms,
 you have to type "terms" in a terminal,
 and you will get a REPL where you can enter Terms constructs.
-To install Terms, follow the instuctions in the INSTALL.rst.
+To install Terms, follow the instuctions :doc:`here <install>`.
 
-More examples `can be found here <https://github.com/enriquepablo/terms-server/tree/master/terms/server/app/ontology>`_
-and in the
-`github repository <https://github.com/enriquepablo/terms/tree/master/terms/core/examples>`_.
+More examples `can be found here <https://github.com/enriquepablo/terms-server/tree/master/terms/server/app/ontology>`.
 
 Words
 +++++
@@ -36,6 +34,7 @@ and in Terms it is expressed as::
 So we would say that ``word1`` is of type ``word2``,
 defining ``word1`` in terms of ``word2``
 (so ``word2`` must have been defined before, or be predefined).
+
 The second relation is expressed in English as "is subtype of",
 and in Terms::
 
@@ -103,7 +102,7 @@ and an object labelled ``who`` also of type ``person``.
 
 The primitive verb is ``exist``,
 that just defines a ``subj`` object of type ``thing``.
-There are more predefined verbs,
+There are some more predefined verbs,
 the use of which we shall see when we explain the treatment of time in Terms.
 
 Facts
@@ -124,7 +123,16 @@ So, if we define a verb::
 
     to adore is to love.
 
-It will have a ``who`` (and a ``subj`` object of type ``person``. If ``adore`` had provided
+
+
+  XXXXXXXXX
+
+si añadimos una frase repetida, va a producir consecuencias antes de ver que está repetida?
+
+  XXXXXXXXXX
+
+
+It will have a ``who`` (and a ``subj``) object of type ``person``. If ``adore`` had provided
 a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type

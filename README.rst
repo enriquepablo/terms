@@ -16,43 +16,6 @@ The Terms language
 ++++++++++++++++++
 
 Here I will describe the Terms language. 
-It is a declarative logic language. 
-With it you can:
-
-* define new words (nouns, verbs, and names);
-
-* build facts out of your defined words;
-
-* build rules that combine given facts to produce new facts;
-
-* perform complex queries.
-
-The Terms language is similar to other logic languages,
-such as Prolog, or CLIPS
-(it is nearer to CLIPS in that it is forward chaining,
-based on a RETE network).
-But in a certain sense it is more expressive,
-because all defined items (or words)
-have the same category.
-In Terms, you build sentences, or facts,
-with a verb (i.e. a word) and any number of objects,
-and these objects can be any kind of word:
-names, verbs, or nouns, or even other facts.
-In contrast, to build facts in Prolog,
-you use as verbs a special kind of item, a predicate,
-that cannot be treated as an argument term
-(equivalent in Prolog to an object in Terms).
-In Terms, a rule can have a logical variable
-that ranges over any fact or term, including verbs,
-something that is not possible in (idiomatic) Prolog.
-
-I would say that that difference gives Terms
-enough of an edge so as to be generally useful.
-
-In any case, Terms is based on a first order theory,
-interpreted in a finite universe,
-so it might be implemented in Prolog;
-that's why I specified "idiomatic".
 
 To try the examples given below, if you have installed Terms,
 you have to type "terms" in a terminal,
@@ -135,20 +98,20 @@ Therefore, from all the above, we have, for example, that::
 With words, we can build facts.
 A fact consists of a verb and any number of (labelled) objects.
 
-Verbs are special words, in that they determine
-the modifiers of the facts built with them.
-These modifiers are words, and are labeled.
+Verbs are special words, in that in their definition
+they determine the possible objects of the facts built with them.
+These objects are words, and are labeled.
 To define a new verb,
 you provide first an ancestor verb
 (or a series of ancestor verbs separated by colons),
-and then the types of words that can be modifiers for the verb in a fact,
+and then the types of words that can be objects for the verb in a fact,
 associated with their labels.
 For example::
 
     to love is to exist, subj a person, who a person.
 
 That can be read as:
-``love`` is defined as a subtype of ``exist``,
+``love`` is defined as a ``verb``, subtype of ``exist``,
 and when used in facts it can take a subject of type ``person``
 and an object labelled ``who`` also of type ``person``.
 
@@ -175,11 +138,11 @@ So, if we define a verb::
 
     to adore is to love.
 
-It will have a ``who`` object of type ``person``. If ``adore`` had provided
+It will have a ``who`` (and a ``subj`` object of type ``person``. If ``adore`` had provided
 a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type
-(like we have done above with ``subj``; subj is predefined to be of type ``word``.)
+(like we have done above with ``subj``; ``subj`` is predefined in ``exist`` to be of type ``word``.)
 
 Facts are words,
 "first class citizens",
