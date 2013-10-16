@@ -17,28 +17,7 @@ such as Prolog:
 it is declarative, and knowledge is expressed as facts and rules,
 that are made up of atomic and compound terms.
 However, Terms is, in a sense, more expressive than Prolog,
-as I will try to show next.
-The basic building block of Terms constructs are what we call words,
-of which there are several types: verbs, nouns, names, numbers, and a few more;
-even facts are themselves words.
-To compose a fact, we need a verb and a number of arguments, or objects;
-and any type of word can act as an object,
-including facts, or the verbs used to build facts.
-In contrast, to build facts in Prolog,
-you use as verbs a special kind of item, a predicate,
-that cannot be treated as an argument term.
-The variables used in Terms rules
-range -in principle- over the set of all words,
-including facts and the verbs used to compose facts,
-whereas variables in Prolog cannot range over predicates,
-unless you consider higher order extensions to Prolog.
-
-The formal basis for Terms is a :doc:`first order theory <theory>`
-and, as such, might easily be implemented in Prolog (based on first order logic),
-so I am not claiming that Terms is more generally powerful than Prolog.
-What I claim is that it is idiomatically more appropriate
-to formally represent the kind of knowledge that
-people manage with the natural languages.
+as I try to show :doc:`in the section about the formal theory <theory>`.
 
 Next I show a session with a Terms REPL
 using an empty KB and RN, to give a taste of what it looks like.
@@ -91,16 +70,3 @@ Anf finally we enter some facts and make some simple queries:
   >> (eat she, what this-banana).
   >> (eat she, what this-banana)?
   true
-
-Contents
-++++++++
-
-.. toctree::
-   :maxdepth: 1
-
-   Home <index>
-   language
-   install
-   usage
-   protocol
-   theory
