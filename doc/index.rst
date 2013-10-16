@@ -72,6 +72,7 @@ Anf finally we enter some facts and make some simple queries:
   true
 
 .. toctree::
+   :maxdepth: 1
    :hidden:
 
    Home <index>
