@@ -70,3 +70,13 @@ Anf finally we enter some facts and make some simple queries:
   >> (eat she, what this-banana).
   >> (eat she, what this-banana)?
   true
+
+.. toctree::
+   :hidden:
+
+    index
+    language
+    install
+    usage
+    protocol
+    theory
