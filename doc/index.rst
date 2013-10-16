@@ -74,7 +74,7 @@ Anf finally we enter some facts and make some simple queries:
 .. toctree::
    :hidden:
 
-   index
+   Home <index>
    language
    install
    usage
