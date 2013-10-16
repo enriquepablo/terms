@@ -74,9 +74,9 @@ Anf finally we enter some facts and make some simple queries:
 .. toctree::
    :hidden:
 
-    index
-    language
-    install
-    usage
-    protocol
-    theory
+   index
+   language
+   install
+   usage
+   protocol
+   theory
