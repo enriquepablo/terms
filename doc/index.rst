@@ -15,9 +15,16 @@ Terms is a logic programming language,
 that has similarities with other logic programming languages,
 such as Prolog:
 it is declarative, and knowledge is expressed as facts and rules,
-that are made up of atomic and compound terms.
-However, Terms is, in a sense, more expressive than Prolog,
-as I try to show :doc:`in the section about the formal theory <theory>`.
+that are made up of atomic and compound terms (words in Terms, sorry about that).
+The main difference with Prolog, from a logical point of view,
+is that where Prolog is based on first order logic,
+Terms is based on a first order theory.
+A program in Prolog might be said to correspond
+with a first order theory,
+so Terms might be implemented in Prolog.
+The purported advantage of Terms is that
+it is idiomatically more appropriate to express the kind of knowledge that
+people express with the natural languages.
 
 Next I show a session with a Terms REPL
 using an empty KB and RN, to give a taste of what it looks like.
@@ -34,16 +41,16 @@ First we define some words. We define a noun ``food``,
   >> **a** food **is a thing**.
   >> this-banana **is a** food.
   >> **to** eat **is to exist,** what **a** food.
-  >> **to** want **is to exist,** what **a** word.
-  >> **to** get **is to exist,** what **a** word.
+  >> **to** want **is to exist,** what **a word**.
+  >> **to** get **is to exist,** what **a word**.
 
 Next we provide a rule:
 
 .. parsed-literal::
 
-  >> (want she, what Word1)
+  >> (want she, what **Word1**)
   \.. ->
-  \.. (get she, what Word1).
+  \.. (get she, what **Word1**).
 
 Anf finally we enter some facts and make some simple queries:
 
