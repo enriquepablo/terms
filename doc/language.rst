@@ -14,6 +14,10 @@ Words
 +++++
 
 The main building block of Terms constructs are words.
+They are the only data type there is in the Terms language.
+There are 2 basic operation that involve words:
+composing them to produce facts,
+and matching variables in the rules.
 
 To start with, there are a few predefined words:
 ``word``, ``verb``, ``noun``, ``number``, ``thing``, and ``exist``.
@@ -23,7 +27,7 @@ New words are defined relating them to existing words.
 There are 2 relations that can be established among pairs of words.
 
 As we shall see below,
-these relations are formally similar to the set theory relations
+these relations are formally similar to the set relations
 "is an element of" and "is a subset of".
 
 In English, we express the first relation as "is of type",
@@ -101,9 +105,9 @@ and when used in facts it can take a subject of type ``person``
 and an object labelled ``who`` also of type ``person``.
 
 The primitive verb is ``exist``,
-that just defines a ``subj`` object of type ``thing``.
+that just defines a ``subj`` object of type ``word``.
 There are some more predefined verbs,
-the use of which we shall see when we explain the treatment of time in Terms.
+the use of which we shall see when I explain below the treatment of time in Terms.
 
 Facts
 +++++
@@ -117,26 +121,16 @@ The ``subj`` object is special: all verbs have it,
 and in facts it is not labelled with ``subj``,
 it just takes the place of the subject right after the verb.
 
-Verbs inherit the object types of their ancestors. The primitive ``exist`` verb
-only takes one object, ``subj``, of type ``word``, inherited by all the rest of the verbs.
+Verbs inherit the object types of their ancestors.
 So, if we define a verb::
 
     to adore is to love.
-
-
-
-  XXXXXXXXX
-
-si añadimos una frase repetida, va a producir consecuencias antes de ver que está repetida?
-
-  XXXXXXXXXX
-
 
 It will have a ``who`` (and a ``subj``) object of type ``person``. If ``adore`` had provided
 a new object, it would have been added to the inherited ones.
 A new verb can override an inherited object type to provide a subtype of the original
 object type
-(like we have done above with ``subj``; ``subj`` is predefined in ``exist`` to be of type ``word``.)
+(like we have done above with ``subj``)
 
 Facts are words,
 "first class citizens",
@@ -306,27 +300,20 @@ and will reject the offending fact.
 **Negation by failure**
 
 In pythonic conditions, we can use a function ``runtime.count``
-with a single string argument, a Terms fact (possibly with variables),
+with a single string argument, a Terms fact (possibly with variables) as a string,
 that will return the number of facts in the db matching the given one.
 We can use this to test for the absence of any given fact
 in the knowledge base, and thus have negation by failure.
 
 Some care must be taken with the ``count`` function.
-If a fact is entered that might match a pythonic ``count`` condition,
-it will never by itself trigger any rule.
+If a fact is entered that might match a pythonic ``count`` condition in a rule,
+it will never by itself trigger the rule.
 Rules are activated by facts matching normal conditions;
 and pythonic conditions can only allow or abort
 those activations.
 In other words, when a fact is added,
 it is tested against all normal conditions in all rules,
 and if it activates any rule, the pythonic conditions are tested.
-An example of this behaviour can be seen
-`here <https://github.com/enriquepablo/terms/blob/master/terms/core/tests/person_loves.test>`_.
-If you examine the ontology in the previous link,
-you will see that it is obviously wrong;
-that's the reason I say that care must be taken.
-Counting happens in time,
-and it is not advisable to use it without activating time.
 
 Time
 ++++
@@ -336,11 +323,12 @@ it is very simple to represent physical time:
 you only need to add a ``time`` object of type ``number``
 to any temporal verb.
 However, to represent the present time, the now,
-i.e., a changing distinguished instant of time,
+i.e., a changing distinguished individual instant of time,
 this logic is not enough.
 We need to use some non-monotonic tricks for that,
 that are implemented in Terms as a kind of temporal logic.
-This temporal logic can be activated in the settings file::
+This temporal logic can be activated in the settings file
+(see the :doc:`install docs <install>` for more on the settings file)::
 
 
     [mykb]
@@ -349,13 +337,15 @@ This temporal logic can be activated in the settings file::
     time = normal
     instant_duration = 60
 
+Time can only be activated if you are using the daemon
+to talk to Terms (rather than the REPL, see the :doc:`interfacing docs <using>`)
 If it is activated, several things happen.
 
 The first is that the system starts tracking the present time:
 It has an integer register whose value represents the current time.
 This register is updated every ``config['instant_duration']`` seconds.
-There are 3 possible values for the ``mode``
-setting for time:
+There are 3 possible values for the ``time``
+setting:
 If the setting is ``none``, nothing is done with time.
 If the setting is ``normal``, the current time of the system is incremented by 1 when it is updated.
 If the setting is ``real``, the current time of the system
@@ -378,8 +368,8 @@ Each time the time is updated, all ``occur`` facts are removed from the present
 and added to the past factset, and thus stop producing consecuences.
 Queries for ``occur`` facts go to the past factset if we specify an ``at_`` object in the query,
 and to the present if an ``at_`` object is not provided.
-The same goes for ``endure`` facts, substituting ``at_`` with ``since_``.
-We might say that the ``endure`` facts in the present factset are in
+The same thing in queries goes for ``endure`` facts, substituting ``at_`` with ``since_``.
+We might say that the ``endure`` facts in the present factset (with an undefined ``till_`` object) are in
 present continuous tense.
 
 The fourth thing that happens when we activate the temporal logic
