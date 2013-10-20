@@ -391,7 +391,7 @@ any previous present facts with the same subject and verb are ``finish`` ed.
 
 A further verb, ``happen``, derived from ``occur``, has the singularity that,
 when a fact is added as a consecuence of other facts, and is built
-with a verb derived from ``happen``, is fed through the pipeline back to the
+with a verb derived from ``happen``, is fed through the network connection back to the
 user adding the facts that are producing consecuences.
 
 

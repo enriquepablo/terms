@@ -87,4 +87,4 @@ Anf finally we enter some facts and make some simple queries:
    install
    usage
    protocol
-   theory
+   contact
