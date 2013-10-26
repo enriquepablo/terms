@@ -31,7 +31,7 @@ setup(
     author_email = 'enriquepablo@gmail.com',
     url = 'http://pypi.python.org/terms.core',
     license = 'GNU GENERAL PUBLIC LICENSE Version 3',
-    description = 'A smart knowledge store',
+    description = 'A rule production system',
     long_description = (open('README.rst').read() +
                         '\n' + open('INSTALL.rst').read()) +
                         '\n' + open('SUPPORT.rst').read(),
@@ -53,11 +53,11 @@ setup(
         'coverage',
     ],
     extras_require = {
-        'PG': ['psycopg2 == 2.4.5',],
+        'PG': ['psycopg2 == 2.5.1',],
         },
     install_requires = [
         'distribute',
-        'sqlalchemy >= 0.8.0b2',
+        'sqlalchemy >= 0.8.2',
         'ply == 3.4',
     ],
 )
