@@ -338,7 +338,7 @@ This temporal logic can be activated in the settings file
     instant_duration = 60
 
 Time can only be activated if you are using the daemon
-to talk to Terms (rather than the REPL, see the :doc:`interfacing docs <using>`)
+to talk to Terms (rather than the REPL, see the :doc:`interfacing docs <usage>`)
 If it is activated, several things happen.
 
 The first is that the system starts tracking the present time:

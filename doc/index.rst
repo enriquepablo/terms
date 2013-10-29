@@ -18,7 +18,7 @@ it is declarative, and knowledge is expressed as facts and rules,
 that are made up of atomic and compound terms.
 The main difference with Prolog, from a logical point of view,
 is that where Prolog is based on first order logic,
-Terms is based on :doc:`a first order theory`.
+Terms is based on :doc:`a first order theory <theory>`.
 A program in Prolog might be said to correspond
 with a first order theory,
 so Terms might be implemented in Prolog.
