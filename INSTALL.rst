@@ -1,7 +1,7 @@
 Install
-=======
+-------
 
-Install instructions can be found `here <http://terms.readthedocs.org/en/latest/contact.html>`_.
+Install instructions can be found `here <http://terms.readthedocs.org/en/latest/install.html>`_.
 
 For the impatient::
 

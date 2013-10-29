@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2007-2012 by Enrique Pérez Arnaud <enriquepablo@gmail.com>
 #
 # This file is part of the terms project.
@@ -22,16 +23,26 @@ import distribute_setup
 distribute_setup.use_setuptools()
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0b7'
+VERSION = '0.1.0b8'
 
 setup(
     name = 'Terms',
     version = VERSION,
     author = 'Enrique Pérez Arnaud',
     author_email = 'enriquepablo@gmail.com',
-    url = 'http://pypi.python.org/terms.core',
+    url = 'http://terms.readthedocs.org/en/latest/',
     license = 'GNU GENERAL PUBLIC LICENSE Version 3',
     description = 'A rule production system',
+    platform = 'UNIX',
+    classifiers=[
+          "Development Status :: 4 - Beta",
+          "Intended Audience :: Developers",
+          "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+          "Operating System :: POSIX",
+          "Programming Language :: Python :: 3",
+          "Topic :: Scientific/Engineering",
+
+    ],
     long_description = (open('README.rst').read() +
                         '\n' + open('INSTALL.rst').read()) +
                         '\n' + open('SUPPORT.rst').read(),
