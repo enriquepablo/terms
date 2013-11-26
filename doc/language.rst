@@ -84,40 +84,48 @@ Therefore, from all the above, we have, for example, that::
     sue is a person.
     ...
 
-With words, we can build facts.
-A fact consists of a verb and any number of (labelled) objects.
-
-Verbs are special words, in that in their definition
-they determine the possible objects of the facts built with them.
-These objects are words, and are labeled.
-To define a new verb,
-you provide first an ancestor verb
-(or a series of ancestor verbs separated by colons),
-and then the types of words that can be objects for the verb in a fact,
-associated with their labels.
-For example::
-
-    to love is to exist, subj a person, who a person.
-
-That can be read as:
-``love`` is defined as a ``verb``, subtype of ``exist``,
-and when used in facts it can take a subject of type ``person``
-and an object labelled ``who`` also of type ``person``.
-
-The primitive verb is ``exist``,
-that just defines a ``subj`` object of type ``word``.
-There are some more predefined verbs,
-the use of which we shall see when I explain below the treatment of time in Terms.
 
 Facts
 +++++
 
-Facts are built with a verb and a number of objects.
-They are given in parenthesis. For example, we might have a fact such as::
+With words, we can build facts.
+Facts consist, at least, of a verb and a subject,
+and are given in parentheses.
+The subject can be a word of any type,
+but the verb must be of type ``verb``.
+The primitive verb is ``exist``,
+so an example of a fact could be::
+
+    (exist sue).
+
+In addition to a subject and a verb,
+a fact can have any number of objects.
+Like the subject, objects can be words of any type.
+The types of words that can be objects for a given verb
+are determined in the definition of the verb.
+Therefore, definitions of verbs are special,
+and do not follow the general syntax shown above.
+
+Since a fact using a verb can have less objects
+than are determined in the definition of the verb,
+the objects are labelled.
+The definition of a verb ``<verb1>`` in terms of ``<verb2>`` takes the following form::
+
+    to <verb1> is to <verb2>, subj a <word1>, <label1> a <word2>, <label2> a <word3>...
+
+An example might be::
+
+    to love is to exist, subj a person, who a person.
+
+This defines a verb ``love``, that is subtype of ``exist``,
+that forms facts with a subject of type ``person``,
+and an object labelled ``who`` of type ``person``.
+With it, we may build a fact such as::
 
     (love john, who sue).
 
-The ``subj`` object is special: all verbs have it,
+The ``subj`` sbject is just a special object: all verbs have it
+(it is determined in the definition of ``exist``),
 and in facts it is not labelled with ``subj``,
 it just takes the place of the subject right after the verb.
 
@@ -136,9 +144,14 @@ Facts are words,
 "first class citizens",
 and can be used wherever a word can be used.
 Facts are words of type ``exist``, and also of type <verb>,
-were <verb> is the verb used to build the fact.
-So our facts are actually synctactic sugar for
-``(love john, who sue) is a love.``
+were <verb> is the verb used to build the fact;
+and, in the case where a fact is asserted,
+we can imagine a word ``fact`` so that asserting a fact ``(love john, who sue)``
+is actually syntactic sugar for
+``(love john, who sue) is a fact.``
+This is, however, hidden in the implementation,
+and in Terms we only allow one-to-one typing,
+so that a word can only be defined in relation to just one type.
 
 The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
 a ``number``). In addition, they can also be facts (type ``exist``).
