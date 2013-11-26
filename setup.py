@@ -68,7 +68,7 @@ setup(
         },
     install_requires = [
         'distribute',
-        'sqlalchemy >= 0.8.2',
+        'sqlalchemy >= 0.9.0b1',
         'ply == 3.4',
     ],
 )
