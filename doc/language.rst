@@ -153,9 +153,7 @@ This is, however, hidden in the implementation,
 and in Terms we only allow one-to-one typing,
 so that a word can only be defined in relation to just one type.
 
-The objects in a fact can be of any type (a ``word``, a ``verb``, a ``noun``, a ``thing``,
-a ``number``). In addition, they can also be facts (type ``exist``).
-So, if we define a verb like::
+Since facts are words, if we define a verb like::
 
     to want is to exist, subj a person, what a exist.
 
