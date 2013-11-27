@@ -18,7 +18,7 @@ it is declarative, and knowledge is expressed as facts and rules,
 that are made up of atomic and compound terms.
 The main difference with Prolog, from a logical point of view,
 is that where Prolog is based on first order logic,
-Terms is based on :doc:`a first order theory <theory>`.
+Terms is based on :doc:`a first order theory </theory>`.
 A program in Prolog might be said to correspond
 with a first order theory,
 so Terms might be implemented in Prolog.
@@ -28,7 +28,7 @@ people express with the natural languages.
 
 Next I show a session with a Terms REPL
 using an empty KB and RN, to give a taste of what it looks like.
-Prededined symbols, including words but excluding punctuation,
+Predefined symbols, including words but excluding punctuation,
 are presented in bold typeface.
 
 
