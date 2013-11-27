@@ -118,13 +118,13 @@ An example might be::
     to love is to exist, subj a person, who a person.
 
 This defines a verb ``love``, that is subtype of ``exist``,
-that forms facts with a subject of type ``person``,
+and that forms facts with a subject of type ``person``
 and an object labelled ``who`` of type ``person``.
 With it, we may build a fact such as::
 
     (love john, who sue).
 
-The ``subj`` sbject is just a special object: all verbs have it
+The ``subj`` (subject) is just a special object: all verbs have it
 (it is determined in the definition of ``exist``),
 and in facts it is not labelled with ``subj``,
 it just takes the place of the subject right after the verb.
