@@ -53,7 +53,7 @@ This ensures the existence of any possible fact.
 
 We now introduce a final distinguished constant, ``fact``.
 We use it to distinguish certain facts;
-those we want asserted.
+those we want asserted. ::
 
   fact E word
   fact C word
@@ -76,3 +76,28 @@ Advantage over other logical AI systems
 
 We can indiscriminatelly quantify over the constructs used to
 stand for names, nouns, verbs, and facts.
+
+Usage
+-----
+
+We use T by extending it.
+
+   element E word
+   element C word
+
+   set C element
+
+   relate E verb
+
+   equal C relate
+
+   belong C relate
+
+   reflexive E verb
+
+   x1 C relate,
+   x2 C set,
+   (x1 reflexive x2) E fact,
+   (x3 belong x2) E fact,
+   ->
+   (x3 x1 x3) E fact.
