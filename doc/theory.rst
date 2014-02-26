@@ -80,7 +80,7 @@ stand for names, nouns, verbs, and facts.
 Usage
 -----
 
-We use T by extending it.
+We use T by extending it. ::
 
    element E word
    element C word
