@@ -70,9 +70,9 @@ class Network(object):
             for m in f.matches:
                 self.session.delete(m)
             f.matches = []
-            f.pred.add_object('at_', self.lexicon.now_term)
-            self.present.add_object_to_fact(f, self.lexicon.now_term,
-                                                    ('at_', '_term'))
+#            f.pred.add_object('at_', self.lexicon.now_term)
+#            self.present.add_object_to_fact(f, self.lexicon.now_term,
+#                                                    ('at_', '_term'))
             f.factset = 'past'
 
         self.now = now
@@ -142,6 +142,8 @@ class Network(object):
         if facts.count() == 0:
             if isa(pred, self.lexicon.endure):
                 pred.add_object('since_', self.lexicon.now_term)
+            elif isa(pred, self.lexicon.occur):
+                pred.add_object('at_', self.lexicon.now_term)
             fact = factset.add_fact(pred)
             if isa(pred, self.lexicon.happen):
                 if self.pipe is not None:
@@ -808,6 +810,8 @@ class Rule(Base):
             if factset.query_facts(con, {}).count() == 0:
                 if isa(con, network.lexicon.endure):
                     con.add_object('since_', network.lexicon.now_term)
+                elif isa(con, network.lexicon.occur):
+                    con.add_object('at_', network.lexicon.now_term)
                 fact = factset.add_fact(con)
                 if isa(con, network.lexicon.happen):
                     if network.pipe is not None:
