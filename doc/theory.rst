@@ -58,10 +58,10 @@ In any case, without constructive axioms,
 it is trivial to prove the consistency and completeness of any such systems.
 If, for simplicity, we assume a theory without equality,
 we might use just a couple of axioms such as
-(denoting the belongs relation by "isa" and the subset relation by "is"):
+(denoting the belongs relation by ``isa`` and the subset relation by ``is``):
 
-1)  forall x, y, z: x is y & y is z -> x is z.
-2)  forall x, y, z: x isa y & y is z -> x isa z.
+1)  ``forall x, y, z: x is y & y is z -> x is z.``
+2)  ``forall x, y, z: x isa y & y is z -> x isa z.``
 
 This "formal taxonomy" theories have limited usefulness.
 They allow us to represent, in a formal or mechanical system,
@@ -102,28 +102,28 @@ to express non-taxonomic knowledge.
 
 The individuals of TT are called "words", and they comply with the axioms (1) and (2) above.
 Words are represented by strings of lowercase alphanumeric characters.
-We axiomatically add a first word, which we call "word":
+We Now axiomatically add a first word, denoted by ``word``:
 
-3)  forall x: x isa word.
+3)  ``forall x: x isa word.``
 
-Now, we have an operator with which we can build triplets, denoted by "[ ]".
+Now, we have an operator with which we can build triplets, denoted by ``[ ]``.
 As operations, these triplets have word value, and so, can be related to other words
-through "is" and "isa".
-To introduce this operator, we first define a new word, "verb":
+through ``is`` and ``isa``.
+To introduce this operator, we first define a new word, ``verb``:
 
-4)  verb is word.
-5)  forall x, y, z: y isa verb -> [ x y z ] isa y.
+4)  ``verb is word.``
+5)  ``forall x, y, z: y isa verb -> [ x y z ] isa y.``
 
-So, in (4), we define "verb" as a word that can contain other words (a subword of "word"),
-and in (5) we guarantee that each verb (each word that "isa verb")
+So, in (4), we define ``verb`` as a word that can contain other words (a subword of ``word``),
+and in (5) we guarantee that each verb (each word that ``isa verb``)
 contains all the triplets that can be formed with itself as middle term in the triplet.
 
-Finally, we define one last word, "fact", that allows us to distinguish certain triplets (which we call facts):
+Finally, we define one last word, ``fact``, that allows us to distinguish certain triplets (which we call facts):
 
-6)  fact is word.
-7)  forall x, y, z: [ x y z ] isa fact -> y isa verb.
+6)  ``fact is word.``
+7)  ``forall x, y, z: [ x y z ] isa fact -> y isa verb.``
 
-So, in (6) we introduce "fact" as a word that can contain other words,
+So, in (6) we introduce ``fact`` as a word that can contain other words,
 and with (7) we simply indicate that we can choose certain triplets and mark them as facts.
 We can choose whatever triplets we want as facts, ad hoc.
 
@@ -146,7 +146,7 @@ Examples
 
 A trivial example.
 
-English text: There are people. John and Sue are people. To love is a verb. When a person loves another, the second loves the first. John loves Sue. Therefore Sue loves John.
+English text: There are people. John and Sue are people. To love is a verb. When a person loves another, the second loves the first. John loves Sue. Therefore Sue loves John::
 
   person is word.
   jonh isa person.
@@ -159,7 +159,7 @@ English text: There are people. John and Sue are people. To love is a verb. When
   [ john love sue ] isa fact.
 
 As said, this example is trivial, easily representable in any other system, such as the semantic web.
-To show the possible power of TT, suppose that, rather than the previous simmetry rule for love, we say that:
+To show the possible power of TT, suppose that, rather than the previous simmetry rule for love, we say that::
 
   simmetry isa word.
 
@@ -174,23 +174,23 @@ To show the possible power of TT, suppose that, rather than the previous simmetr
 You can in sw define a symmetric relation: you have owl:SimmetricProperty.
 But that is an integral part of the language.
 Other DL may not have that kind of 'second order predicate'.
-But, in TT we have just defined "symmetry" like any other old word.
+But, in TT we have just defined ``symmetry`` like any other old word.
 In the same sense, in the SW you cannot treat a class as an individual (unless you recurr to OWL Full)
 but in TT, classes are individuals.
 
-As a last example, we might say that Sue gets whatever she wants:
+As a last example, we might say that Sue gets whatever she wants::
 
   want isa verb.
   get isa verb.
   forall x: [ sue want x ] isa fact -> [ sue get x ] isa fact.
 
-So, we would have consecuences with any of the following facts:
+So, we would have consecuences with any of the following facts::
 
   [ sue want john ] isa fact.
   [ sue want love ] isa fact.
   [ sue want [ john love sue ] ] isa fact.
   [ sue want [ john want [ john love sue ] ] ] isa fact.
 
-Lastly:
+Lastly::
 
   forall x, y: x isa y & y isa verb & [ sue get x ] isa fact -> x isa fact.
