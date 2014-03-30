@@ -67,14 +67,12 @@ class Network(object):
         q = self.lexicon.make_var('Occur1')
         topast = self.present.query_facts(q, {})
         for f in topast:
-            for m in f.matches:
-                self.session.delete(m)
-            f.matches = []
-#            f.pred.add_object('at_', self.lexicon.now_term)
-#            self.present.add_object_to_fact(f, self.lexicon.now_term,
-#                                                    ('at_', '_term'))
-            f.factset = 'past'
-
+            print('to past: ' + str(f.pred))
+            new_pred = f.pred.copy()
+            self.session.delete(f)
+            new_pred.add_object('at_', self.lexicon.now_term)
+            self.past.add_fact(new_pred)
+            self.session.flush()
         self.now = now
 
     def _get_now(self):
@@ -142,8 +140,6 @@ class Network(object):
         if facts.count() == 0:
             if isa(pred, self.lexicon.endure):
                 pred.add_object('since_', self.lexicon.now_term)
-            elif isa(pred, self.lexicon.occur):
-                pred.add_object('at_', self.lexicon.now_term)
             fact = factset.add_fact(pred)
             if isa(pred, self.lexicon.happen):
                 if self.pipe is not None:
@@ -168,13 +164,13 @@ class Network(object):
     def finish(self, predicate):
         fs = self.present.query_facts(predicate, {})
         for f in fs:
-            pred = f.pred
-            if isa(pred, self.lexicon.endure):
-                self.present.add_object_to_fact(f, self.lexicon.now_term, ('till_', '_term'))
-                f.factset = 'past'
-                for m in f.matches:
-                    self.session.delete(m)
-                f.matches = []
+            if isa(f.pred, self.lexicon.endure):
+                print('finish: ' + str(f.pred))
+                new_pred = f.pred.copy()
+                self.session.delete(f)
+                new_pred.add_object('at_', self.lexicon.now_term)
+                self.past.add_fact(new_pred)
+                self.session.flush()
 
     def del_fact(self, pred):
         fact = self.present.query_facts(pred, {}).one()
@@ -670,7 +666,8 @@ class MPair(Base):
     mindex = Index('mindex', 'id', 'parent_id')
 
     mtype = Column(Integer)
-    __mapper_args__ = {'polymorphic_on': mtype}
+    __mapper_args__ = {'polymorphic_on': mtype,
+                       'with_polymorphic': '*'}
 
     def __init__(self, var, val):
         self.var = var
@@ -810,8 +807,6 @@ class Rule(Base):
             if factset.query_facts(con, {}).count() == 0:
                 if isa(con, network.lexicon.endure):
                     con.add_object('since_', network.lexicon.now_term)
-                elif isa(con, network.lexicon.occur):
-                    con.add_object('at_', network.lexicon.now_term)
                 fact = factset.add_fact(con)
                 if isa(con, network.lexicon.happen):
                     if network.pipe is not None:
