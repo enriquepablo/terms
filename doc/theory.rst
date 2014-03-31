@@ -159,19 +159,19 @@ English text: There are people. John and Sue are people. To love is a verb. When
   [ john love sue ] isa fact.
 
 As said, this example is trivial, easily representable in any other system, such as the semantic web.
-To show the possible power of TT, suppose that, rather than the previous simmetry rule for love, we say that::
+To show the possible power of TT, suppose that, rather than the previous symmetry rule for love, we say that::
 
-  simmetry isa word.
+  symmetry isa word.
 
   has-verb-property isa verb.
 
-  forall x, y, z: [ y has-verb-property simmetry ] isa fact & [ x y z ] isa fact -> [ z y x ] isa fact.
+  forall x, y, z: [ y has-verb-property symmetry ] isa fact & [ x y z ] isa fact -> [ z y x ] isa fact.
 
-  [ love has-verb-property simmetry ] isa fact.
+  [ love has-verb-property symmetry ] isa fact.
 
   [ john love sue ] isa fact.
 
-You can in sw define a symmetric relation: you have owl:SimmetricProperty.
+You can in sw define a symmetric relation: you have owl:SymmetricProperty.
 But that is an integral part of the language.
 Other DL may not have that kind of 'second order predicate'.
 But, in TT we have just defined ``symmetry`` like any other old word.
