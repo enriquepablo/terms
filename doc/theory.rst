@@ -2,7 +2,7 @@ The formal theory behind Terms
 ==============================
 
 Introduction
-------------
+++++++++++++
 
 Here I will develop a formal theory TT, that can be seen as the theoretical foundation ot Terms
 (TT is meant to stand for Terms Theory).
@@ -114,7 +114,7 @@ since we can have anonymous classes defined over predicates),
 but is undecidable, and cannot have dependable reasoning systems.
 
 The theory TT
--------------
++++++++++++++
 
 What I propose in TT is to use operations (rather than predicates)
 to express "non-taxonomic" knowledge.
@@ -151,7 +151,7 @@ to create what in other knowledge representation systems are called ontologies,
 that represent particular pieces of "natural" knowledge.
 
 Examples
---------
+++++++++
 
 A trivial example.
 
@@ -232,7 +232,7 @@ We would have as theorems that::
   [ sue get [ john want [ john love sue ] ] ] isa fact.
 
 Semantics
----------
++++++++++
 
 The semantics of these formal theories could be found in the syntax of the natural language texts
 that contain the knowledge we want to formalize,
