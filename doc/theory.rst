@@ -189,19 +189,19 @@ But that is an integral part of the language.
 Other DL may not have that kind of 'second order predicate'.
 But, in TT we have just defined ``symmetry`` like any other word:
 it is not an original part of the language.
-We can then define reflexivity:
+We can then define reflexivity::
 
   reflexivity isa word.
 
   forall x, y: [ y has-verb-property reflexivity ] isa fact -> [ x y x ] isa fact.
 
-and transitivity:
+and transitivity::
 
   transitivity isa word.
 
   forall x, y, z, w: [ y has-verb-property transitivity ] isa fact & [ x y z ] is a fact & [ z y w ] is a fact -> [ x y w ] isa fact.
 
-Now we can define equivalence verbs:
+Now we can define equivalence verbs::
 
   equivalence isa word.
 
