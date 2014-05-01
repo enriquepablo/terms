@@ -120,7 +120,8 @@ What I propose in TT is to use operations (rather than predicates)
 to express "non-taxonomic" knowledge.
 
 The individuals of TT are called "words", and they comply with the axioms (1) and (2) above.
-Words are represented by strings of lowercase alphanumeric characters.
+Here, I will represent logical variables by ``x``, ``y``, ``z``, and ``w``,
+and words by any other strings of lowercase alphanumeric characters.
 We Now axiomatically add a first word, denoted by ``word``:
 
 3)  ``forall x: x isa word.``
