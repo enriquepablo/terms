@@ -78,7 +78,7 @@ we might use just a couple of axioms such as
 1)  ``forall x, y, z: x is y & y is z -> x is z.``
 2)  ``forall x, y, z: x isa y & y is z -> x isa z.``
 
-This "formal taxonomy" theories have limited usefulness.
+These "formal taxonomy" theories have limited usefulness.
 They allow us to represent, in a formal or mechanical system,
 a certain knowledge that we previously had informally,
 in the natural language.
@@ -174,7 +174,7 @@ English text (natural knowledge): There are people. John and Sue are people. To 
 From this, we would have, as theorem, that ``[ sue love john ] isa fact.``
 
 As said, this example is trivial, easily representable in any other system, such as OWL DL.
-To show the possible power of TT, suppose that, rather than the previous simmetry rule for love, we say that::
+To show the possible power of TT, suppose that, rather than the previous symmetry rule for love, we say that::
 
   symmetry isa word.
 
@@ -209,7 +209,7 @@ Now we can define equivalence verbs::
 
   equivalence isa word.
 
-  forall y: [ y has-verb-property equivalence ] isa fact -> [ y has-verb-property transitivity ] isa fact & [ y has-verb-property reflexivity ] isa fact &  [ y has-verb-property simmetry ] isa fact.
+  forall y: [ y has-verb-property equivalence ] isa fact -> [ y has-verb-property transitivity ] isa fact & [ y has-verb-property reflexivity ] isa fact &  [ y has-verb-property symmetry ] isa fact.
 
 
 In the same sense, in the SW you cannot treat a class as an individual (unless you recurr to OWL Full)
