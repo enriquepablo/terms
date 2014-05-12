@@ -84,6 +84,7 @@ Anf finally we enter some facts and make some simple queries:
 
    Home <index>
    language
+   theory
    install
    usage
    protocol

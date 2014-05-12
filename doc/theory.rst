@@ -7,8 +7,8 @@ Introduction
 Here I will develop a formal theory TT, that can be seen as the theoretical foundation ot Terms
 (TT is meant to stand for Terms Theory).
 TT has some similitudes with axiomatic set theory, even though its purpose and development are quite different (and much simpler).
-The purpose of TT is more along the lines of knowledge representation,
-and would attempt to compete with things like description logics, or the semantic web (minus its networking aspect).
+The purpose of TT is more along the lines of knowledge representation and reasoning,
+and would attempt to compete with things like description logics.
 In any case, the origin of TT is in the study of the work of Frege, Russell, et al.,
 and on its evolution towards axiomatic set theory, rather than on its evolution towards type theory,
 so I will introduce TT by pointing out, first, its similitudes with set theory, and then its differences.
@@ -18,7 +18,7 @@ and which he called system Z (for Zermelo, beacuse it was mainly based on Zermel
 I rely on this system just for the clarity of its exposition,
 rather than for any particular dependence on this formulation of set theory.
 
-Fraenkel classified the axioms of the Z theory into 3 groups.
+Fraenkel classified the axioms of system Z into 3 groups.
 The first group, under the title "equality and extensionality",
 had the purpose of establishing the interrelation between
 the 3 basic predicates of the theory ("belongs to", "is subset of", and "equals").
