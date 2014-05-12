@@ -191,7 +191,7 @@ To show the possible power of TT, suppose that, rather than the previous symmetr
 
 From this, we would also have as theorem that ``[ sue love john ] isa fact.``
 
-You can in OWL DL define a symmetric relation: you have owl:SimmetricProperty.
+You can in OWL DL define a symmetric relation: you have owl:SymmetricProperty.
 But that is an integral part of the language.
 Other DL may not have that kind of 'second order predicate'.
 But, in TT we have just defined ``symmetry`` like any other word:
