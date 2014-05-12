@@ -225,7 +225,7 @@ Now we can define equivalence verbs::
             [ y has-verb-property symmetry ] isa fact.
 
 
-In the same sense, in the SW you cannot treat a class as an individual (unless you recurr to OWL Full)
+In the same sense, in the semantic web you cannot treat a class as an individual (unless you recurr to OWL Full)
 but in TT, classes are individuals.
 
 As a last example, we might say that Sue always gets whatever she wants::
