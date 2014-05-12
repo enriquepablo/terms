@@ -259,6 +259,6 @@ that appear in the text.
 The formal relations (``is``, ``isa``) in the theory are interpreted as hypothetical relations
 established among words by the copular sentences in the text.
 And the facts in the theory are interpreted in the non-copular sentences (or facts) in the text,
-assuming that they are asserted as "it is a fact that <fact>"
+assuming that they are asserted as "<fact> is a fact"
 (i.e., they are asserted as copular sentences,
 since copular sentences are the only kind of sentence that can be interpreted as relations in these theories).
