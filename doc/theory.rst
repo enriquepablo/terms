@@ -180,7 +180,10 @@ To show the possible power of TT, suppose that, rather than the previous symmetr
 
   has-verb-property isa verb.
 
-  forall x, y, z: [ y has-verb-property symmetry ] isa fact & [ x y z ] isa fact -> [ z y x ] isa fact.
+  forall x, y, z: [ y has-verb-property symmetry ] isa fact & 
+                  [ x y z ] isa fact
+                  ->
+                  [ z y x ] isa fact.
 
   [ love has-verb-property symmetry ] isa fact.
 
@@ -197,19 +200,29 @@ We can then define reflexivity::
 
   reflexivity isa word.
 
-  forall x, y: [ y has-verb-property reflexivity ] isa fact -> [ x y x ] isa fact.
+  forall x, y: [ y has-verb-property reflexivity ] isa fact
+               -> 
+               [ x y x ] isa fact.
 
 and transitivity::
 
   transitivity isa word.
 
-  forall x, y, z, w: [ y has-verb-property transitivity ] isa fact & [ x y z ] is a fact & [ z y w ] is a fact -> [ x y w ] isa fact.
+  forall x, y, z, w: [ y has-verb-property transitivity ] isa fact &
+                     [ x y z ] is a fact &
+                     [ z y w ] is a fact
+                     ->
+                     [ x y w ] isa fact.
 
 Now we can define equivalence verbs::
 
   equivalence isa word.
 
-  forall y: [ y has-verb-property equivalence ] isa fact -> [ y has-verb-property transitivity ] isa fact & [ y has-verb-property reflexivity ] isa fact &  [ y has-verb-property symmetry ] isa fact.
+  forall y: [ y has-verb-property equivalence ] isa fact
+            ->
+            [ y has-verb-property transitivity ] isa fact &
+            [ y has-verb-property reflexivity ] isa fact &
+            [ y has-verb-property symmetry ] isa fact.
 
 
 In the same sense, in the SW you cannot treat a class as an individual (unless you recurr to OWL Full)
