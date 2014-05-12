@@ -9,6 +9,9 @@ Here I will develop a formal theory TT, that can be seen as the theoretical foun
 TT has some similitudes with axiomatic set theory, even though its purpose and development are quite different (and much simpler).
 The purpose of TT is more along the lines of knowledge representation and reasoning,
 and would attempt to compete with things like description logics.
+Even though we present here TT as a first order theory,
+it is possible to implement a system (prototyped in `Terms <https://github.com/enriquepablo/terms>`_)
+that has much efficient decision problems than first order logic.
 In any case, the origin of TT is in the study of the work of Frege, Russell, et al.,
 and on its evolution towards axiomatic set theory, rather than on its evolution towards type theory,
 so I will introduce TT by pointing out, first, its similitudes with set theory, and then its differences.
