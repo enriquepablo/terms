@@ -197,7 +197,11 @@ But that is an integral part of the language.
 Other DL may not have that kind of 'second order predicate'.
 But, in TT we have just defined ``symmetry`` like any other word:
 it is not an original part of the language.
-We can then define reflexivity::
+In the same sense, in the semantic web you cannot treat a class as an individual
+(unless you recurr to OWL Full) but in TT, classes (such as the above ``person``,
+or even ``word``) are just individuals.
+
+We can then further define reflexivity::
 
   reflexivity isa word.
 
@@ -210,8 +214,8 @@ and transitivity::
   transitivity isa word.
 
   forall x, y, z, w: [ y has-verb-property transitivity ] isa fact &
-                     [ x y z ] is a fact &
-                     [ z y w ] is a fact
+                     [ x y z ] isa fact &
+                     [ z y w ] isa fact
                      ->
                      [ x y w ] isa fact.
 
@@ -225,15 +229,36 @@ Now we can define equivalence verbs::
             [ y has-verb-property reflexivity ] isa fact &
             [ y has-verb-property symmetry ] isa fact.
 
+From all this, if we state that::
 
-In the same sense, in the semantic web you cannot treat a class as an individual (unless you recurr to OWL Full)
-but in TT, classes are individuals.
+  looks-like isa verb.
+  [looks-like has-verb-property equivalence] isa fact.
+  sue isa person.
+  mary isa person.
+  marian isa person.
+  [sue looks-like mary] isa fact.
+  [mary looks-like marian] isa fact.
+
+We would have, as theorems, that::
+
+  [sue looks-like marian] isa fact.
+  [mary looks-like sue] isa fact.
+  [mary looks-like marian] isa fact.
+  [marian looks-like sue] isa fact.
+  [sue looks-like sue] isa fact.
+  [marian looks-like marian] isa fact.
+  [mary looks-like mary] isa fact.
+
+  [looks-like has-verb-property transitivity] isa fact.
+  [looks-like has-verb-property reflexivity] isa fact.
+  [looks-like has-verb-property symmetry] isa fact.
 
 As a last example, we might say that Sue always gets whatever she wants::
 
   want isa verb.
   get isa verb.
   forall x: [ sue want x ] isa fact -> [ sue get x ] isa fact.
+  forall x, y, z, w: [ x get [ y z w ] ] isa fact -> [ y z w ] isa fact.
 
 So, if we assert axiomatically that::
 
@@ -248,6 +273,8 @@ We would have as theorems that::
   [ sue get love ] isa fact.
   [ sue get [ john love sue ] ] isa fact.
   [ sue get [ john want [ john love sue ] ] ] isa fact.
+  [ john love sue ] isa fact.
+  [ john want [ john love sue ] ] isa fact.
 
 Semantics
 +++++++++
