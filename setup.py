@@ -26,7 +26,7 @@ VERSION = '0.1.0b9'
 setup(
     name = 'Terms',
     version = VERSION,
-    author = 'Enrique Pérez Arnaud',
+    author = 'Enrique Perez Arnaud',
     author_email = 'enriquepablo@gmail.com',
     url = 'http://terms.readthedocs.org/en/latest/',
     license = 'GNU GENERAL PUBLIC LICENSE Version 3',
