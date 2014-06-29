@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2007-2012 by Enrique Pérez Arnaud <enriquepablo@gmail.com>
+# Copyright (c) 2007-2012 by Enrique Perez Arnaud <enriquepablo@gmail.com>
 #
 # This file is part of the terms project.
 # https://github.com/enriquepablo/terms
