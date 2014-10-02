@@ -62,11 +62,11 @@ setup(
         'coverage',
     ],
     extras_require = {
-        'PG': ['psycopg2 == 2.5.1',],
+        'PG': ['psycopg2 == 2.5.4',],
         },
     install_requires = [
         'distribute',
-        'sqlalchemy == 0.9.3',
+        'sqlalchemy == 0.9.7',
         'ply == 3.4',
     ],
 )
