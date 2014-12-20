@@ -4,23 +4,25 @@ The formal theory behind Terms
 Introduction
 ++++++++++++
 
-Here I will develop a formal theory TT, that can be seen as the theoretical foundation ot `Terms <https://github.com/enriquepablo/terms>`_
+Here I will develop a formal theory TT,
+that can be seen as the theoretical foundation of `Terms <https://github.com/enriquepablo/terms>`_
 (TT is meant to stand for Terms Theory).
-TT has some similitudes with axiomatic set theory, even though its purpose and development are quite different (and much simpler).
+TT has some similitudes with axiomatic set theory,
+and, even though its purpose and development are quite different (and much simpler),
+I will introduce it in its relation with set theory.
 The purpose of TT is more along the lines of knowledge representation and reasoning,
-and would attempt to compete with things like description logics.
-Even though we present here TT as a first order theory,
-it is possible to implement a system based on TT
-(prototyped in `Terms <https://github.com/enriquepablo/terms>`_)
-that has much efficient decision problems than first order logic.
-In any case, the origin of TT is in the study of the work of Frege, Russell, et al.,
-and on its evolution towards axiomatic set theory, rather than on its evolution towards type theory,
-so I will introduce TT by pointing out, first, its similitudes with set theory, and then its differences.
-The particular formulation of set theory that I will use as reference is the system laid out by
-A. A. Fraenkel, in his introduction to "Axiomatic Set Theory" by Paul Bernays (2nd ed. Amsterdam: North Holland Pub. Co., 1968),
-and which he called system Z (for Zermelo, beacuse it was mainly based on Zermelo's 1908 system).
+and would pretend to compete with things like description logics.
+The particular formulation of set theory that I will use as reference
+is the system laid out by A. A. Fraenkel,
+in his introduction to "Axiomatic Set Theory" by Paul Bernays
+(2nd ed. Amsterdam: North Holland Pub. Co., 1968),
+and which he called system Z
+(for Zermelo, beacuse it was mainly based on Zermelo's 1908 system).
 I rely on this system just for the clarity of its exposition,
 rather than for any particular dependence on this formulation of set theory.
+
+Fraenkel's System Z
+-------------------
 
 Fraenkel classified the axioms of system Z into 3 groups.
 The first group, under the title "equality and extensionality",
@@ -36,7 +38,7 @@ In the words of Fraenkel:
 "Constructive means that, certain things (one set, two sets, a set and a predicate) being given,
 the axiom states the existence of a uniquely determined other set".
 
-It is well known that the purpose of axiomatic set theory is to lay a foundation for all mathematics;
+It is well known that the purpose of axiomatic set theory is to lay a foundation for mathematics;
 in the words of Fraenkel,
 "setting up a comprehensive axiom system of set theory in which the axiomatic theories of other disciplines can be embedded".
 The idea is to have a very rich universe of sets determined by a short list of axioms,
@@ -49,7 +51,11 @@ the intuitionistic type theory of Martin-Löf,
 and later, still in development, homotopy type theory.
 I won't go into these here, because TT is not meant to be a foundational effort.
 
-If we just take the first group of axioms, we obtain a simple theory that is both consistent and complete.
+Taxonomies
+----------
+
+If we just take the first group of axioms (equality and extensionality),
+we obtain a simple theory that is both consistent and complete.
 It is also quite useless by itself.
 We cannot infer any theorem, there is no set of which we can talk.
 The theory limits itself to 3 axioms that do not say anything about anything,
@@ -79,6 +85,9 @@ we might use just a couple of axioms such as
 1)  ``forall x, y, z: x is y & y is z -> x is z.``
 2)  ``forall x, y, z: x isa y & y is z -> x isa z.``
 
+Extending taxonomies: natural vs formal predicates
+--------------------------------------------------
+    
 These "formal taxonomy" theories have limited usefulness.
 They allow us to represent, in a formal or mechanical system,
 a certain knowledge that we previously had informally,
@@ -104,7 +113,7 @@ just the same as the taxonomic knowledge.
 This presents a problem, because natural language predicates and formal predicates
 are quite different things.
 There is much more freedom in the use of natural language predicates:
-we can quantify them and combine them in ways that are unthinkable
+we can "quantify them" and combine them in ways that are unthinkable
 with the predicates of a formal system.
 Therefore, when we take some natural language informal theory (some knowledge),
 and try to express it in a formal system designed along those lines,
@@ -117,13 +126,14 @@ where we can treat classes as individuals,
 since we can have anonymous classes defined over predicates),
 but is undecidable, and cannot have dependable reasoning systems.
 
+What is proposed in TT is to use an operation (rather than predicates)
+to express "non-taxonomic" knowledge.
+
 The theory TT
 +++++++++++++
 
-What I propose in TT is to use operations (rather than predicates)
-to express "non-taxonomic" knowledge.
-
-The individuals of TT are called "words", and they comply with the axioms (1) and (2) above.
+The individuals of TT are called "words",
+and they comply with the axioms (1) and (2) above.
 Here, I will represent logical variables by ``x``, ``y``, ``z``, and ``w``,
 and words by any other strings of lowercase alphanumeric characters.
 We Now axiomatically add a first word, denoted by ``word``:
