@@ -292,6 +292,17 @@ Semantics
 The semantics of these formal theories could be found in the syntax of the natural language texts
 that contain the knowledge we want to formalize,
 disregarding the actual informal semantics of the natural language texts.
+The natural texts that may be taken as interpretation of TT derived theories
+are a subset of all possible natural texts.
+These texts cannot have any ambiguities,
+and must define all words that appear in them through copular sentences,
+in terms of a few primitive words, basically: word, verb, noun, exist, thing, fact.
+Rather than exactly delimiting which natural texts can be models of a Terms theory,
+we can work them out the other way round,
+by starting from Terms,
+and giving a few (obvious) rules to make natural texts out of Terms theories.
+Then, the subset of natural texts that can be a model for a Terms theory
+is composed of those texts that can be derived from a Terms theory.
 The universe of interpretation would be the set of words (names, nouns, and verbs)
 that appear in the text.
 The formal relations (``is``, ``isa``) in the theory are interpreted as hypothetical relations
