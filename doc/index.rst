@@ -1,8 +1,8 @@
 Terms
 =====
 
-Hey you Muscovite!
-++++++++++++++++++
+Hey you Muscovite friend!
++++++++++++++++++++++++++
 
 I see you are going through the Terms documentation,
 and I would love to know your impressions about it.
