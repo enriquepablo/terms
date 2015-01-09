@@ -1,6 +1,21 @@
 Interfacing with Terms
 ======================
 
+Hey you Muscovite!
+++++++++++++++++++
+
+I see you are going through the Terms documentation,
+and I would love to know your impressions about it.
+If you read this, I encourage you to drop me a line
+at enriquepablo@gmail.com, and tell me what you think,
+ask me whatever is not clear in the docs, get support,
+start some collaboration,
+or anything at all.
+Thanks for your interest anyway!
+
+(End temp notice)
++++++++++++++++++
+
 Once installed, you should have a ``terms`` script,
 that provides a REPL.
 
