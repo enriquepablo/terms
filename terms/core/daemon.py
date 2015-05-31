@@ -15,6 +15,7 @@ class Daemon:
 
     def __init__(self, pidfile):
         self.pidfile = pidfile
+        self.config = {}
 
     def daemonize(self):
         """Deamonize class. UNIX double fork mechanism."""
@@ -86,7 +87,8 @@ class Daemon:
             sys.exit(1)
 
         # Start the daemon
-        self.daemonize()
+        if int(self.config.get('daemonize', 1)):
+            self.daemonize()
         self.run()
 
     def cleanup(self, signum, frame):
