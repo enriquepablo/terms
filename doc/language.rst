@@ -84,6 +84,14 @@ Therefore, from all the above, we have, for example, that::
     sue is a person.
     ...
 
+In general, identifiers for words must have the form of
+a string that starts with a lower case alphabetic character,
+followed by any number of aphabetic character, dashes or
+underscores, optionally ending in any number of digits.
+The pattern for this is ``r'[a-z][a-z-_]*\d*'``.
+Additionally, words of type ``thing`` can be any string
+quoted in double quotes, with pattern ``r'"(""|[^"])*"'``.
+
 
 Facts
 +++++

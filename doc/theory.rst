@@ -140,6 +140,19 @@ We Now axiomatically add a first word, denoted by ``word``:
 
 3)  ``forall x: x isa word.``
 
+Some might see the shadow of Russell's paradox over this,
+since, then, ``word is a word``.
+One might then imagine
+"the word for all words that are not words for themselves".
+However, there is nothing to guarantee that word.
+Nothing supports its existence in this system,
+for there is nothing similar to unrestricted comprehension.
+From the premises that we have we cannot derive that word.
+We can of course create it axiomatically, ex-nihilo,
+in the same way we create all other words,
+and then we will have an inconsistent system.
+But only if we so choose.
+
 Now, we have an operator with which we can build triplets, denoted by ``[ ]``.
 As operations, these triplets have word value, and so, can be related to other words
 through ``is`` and ``isa``.
