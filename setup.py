@@ -21,7 +21,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0b9'
+VERSION = '0.1.0b10'
 
 setup(
     name = 'Terms',
