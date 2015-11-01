@@ -32,3 +32,7 @@ NAME_PAT = re.compile(r'^([a-z][a-z-]*[a-z])[1-9]+$')
 NUM_PAT = r'(([+]|[-])?([0-9]*)(\.)?([0-9]+)(\.)?)+(j)?((e|E)([0-9]+))?'
 
 numpat = re.compile(NUM_PAT)
+
+QUOTED_SYMBOL_PAT = r'"(""|[^"])*"'
+
+qsym_pat = re.compile(QUOTED_SYMBOL_PAT)

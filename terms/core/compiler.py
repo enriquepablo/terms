@@ -26,7 +26,7 @@ from ply.lex import TOKEN
 
 from sqlalchemy.orm.exc import NoResultFound
 
-from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT
+from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT, QUOTED_SYMBOL_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode
 from terms.core.terms import isa, Predicate, Import
 from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel, ImportProblems
@@ -43,6 +43,7 @@ class Lexer(object):
 
     tokens = (
         'SYMBOL',
+        'QSYMBOL',
         'NUMBER',
         'COMMA',
         'LPAREN',
@@ -107,6 +108,12 @@ class Lexer(object):
     t_set_SBAR = r'\|'
     t_set_SAMP = r'&'
     t_set_SNOT = r'~'
+
+    @TOKEN(QUOTED_SYMBOL_PAT)
+    def t_QSYMBOL(self, t):
+        # Check for reserved words
+        t.type = self.reserved.get(t.value, 'QSYMBOL')
+        return t
 
     @TOKEN(SYMBOL_PAT)
     def t_SYMBOL(self, t):
@@ -394,7 +401,8 @@ class Parser(object):
             p[0] = (p[1],)
 
     def p_term(self, p):
-        '''term : SYMBOL'''
+        '''term : SYMBOL
+                | QSYMBOL'''
         p[0] = AstNode('term', val=p[1])
 
     def p_var(self, p):
@@ -483,6 +491,7 @@ class Parser(object):
 
     def p_name_def(self, p):
         '''name-def : SYMBOL IS A term
+                    | QSYMBOL IS A term
                     | vterm IS A vterm'''
         if isinstance(p[1], str):
             p[1] = AstNode('term', val=p[1])
