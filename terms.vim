@@ -54,10 +54,10 @@ highlight link mod Question
 highlight link var Function
 
 highlight link defn NonText
-highlight link verb NonText
+highlight link verb String
 highlight link verbdef NonText
 
-highlight link label String
-highlight link modef String
+highlight link label Operator
+highlight link modef Operator
 
 let b:current_syntax="terms"
