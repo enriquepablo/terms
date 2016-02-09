@@ -19,4 +19,4 @@ def init_terms():
     Network.initialize(session)
     session.commit()
     session.close()
-    sys.exit('Created knowledge store %s' % config['dbname'])
+    sys.exit(0)
