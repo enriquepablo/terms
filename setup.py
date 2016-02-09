@@ -31,7 +31,6 @@ setup(
     url = 'http://terms.readthedocs.org/en/latest/',
     license = 'GNU GENERAL PUBLIC LICENSE Version 3',
     description = 'A rule production system',
-    platform = 'UNIX',
     classifiers=[
           "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
@@ -65,8 +64,8 @@ setup(
         'PG': ['psycopg2 == 2.6.1',],
         },
     install_requires = [
-        'distribute',
-        'sqlalchemy == 1.0.9',
+        'setuptools==18.4',
+        'sqlalchemy == 1.0.11',
         'ply == 3.8',
     ],
 )
