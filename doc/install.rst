@@ -1,14 +1,16 @@
 Installation
 ============
 
+Docker
+++++++
+
+You can use Docker to run Terms, see
+`terms-docker <https://github.com/enriquepablo/terms-docker>`_.
+
 Installation with setuptools on a virtualenv
 ++++++++++++++++++++++++++++++++++++++++++++
 
-You don't need to use pythonbrew,
-but you must make sure you are using python 3.3.0 or above::
-
-    $ pythonbrew use 3.3.0
-
+You must make sure you are using python 3.3.0 or above.
 Make a virtualenv, and install setuptools::
 
     $ pyvenv test-terms
@@ -16,7 +18,8 @@ Make a virtualenv, and install setuptools::
     $ . bin/activate
     $ wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python
 
-Install Terms (in this case, with PostgreSQL support)::
+Install Terms (in this case, with PostgreSQL support, in which case you need
+the devel package for postgresql-server installed in your system)::
 
     $ easy_install Terms[PG]
 

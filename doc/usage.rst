@@ -1,8 +1,9 @@
 Interfacing with Terms
 ======================
 
-Once installed, you should have a ``terms`` script,
-that provides a REPL.
+Once you have installed Terms, you should have a ``terms`` script,
+that provides a REPL. (If running a terms-basic docker container,
+you are already in the REPL.)
 
 If you just type ``terms`` in the command line,
 you will get a command line interpreter,
@@ -36,7 +37,7 @@ And now you can start the REPL::
   >> (love sue, who john)?
   false
   >> quit
-  eperez@calandria$ terms testing
+  $ terms mykb
   >> (love john, who sue)?
   true
 
@@ -49,7 +50,10 @@ Using the kbdaemon
 ++++++++++++++++++
 
 Terms provides a daemon that listens on TCP port 1967.
-To use the daemon, you must put your config in a section of the config file named "default"::
+If you are running a docker container from a terms-server image,
+this is what you have got. If installed manually,
+to use the daemon, you must add a"default" section to
+the config file, with entries::
 
     [default]
     dbms = postgresql://terms:terms@localhost
@@ -63,4 +67,4 @@ Now you can start the daemon::
     $
 
 And you can interface with it by making a TCP connection to port 1967 of the machine
-and using the protocol described at the end of the README.rst.
+and using the protocol described in the "protocol" section of this set of docs.
