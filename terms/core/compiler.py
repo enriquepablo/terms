@@ -29,7 +29,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from terms.core.patterns import SYMBOL_PAT, VAR_PAT, NUM_PAT, QUOTED_SYMBOL_PAT
 from terms.core.network import Network, CondIsa, CondIs, CondCode
 from terms.core.terms import isa, Predicate, Import
-from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel, ImportProblems
+from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel
+from terms.core.exceptions import ImportProblems, DuplicateWord
 
 
 
@@ -600,17 +601,29 @@ class Compiler(object):
         self.session.commit()
         return term
 
+    def _test_previous(self, name):
+        try:
+            prev = self.lexicon.get_term(name)
+        except TermNotFound:
+            pass
+        else:
+            raise DuplicateWord('Word {} already exists, with type {}'.format(
+                name, prev.term_type.name))
+
     def compile_verbdef(self, defn):
+        self._test_previous(defn.name.val)
         bases = [self.lexicon.get_term(t.val) for t in defn.bases]
         objs = {o.label: self.lexicon.get_term(o.obj_type.val)
                 for o in defn.objs}
         return self.lexicon.add_subterm(defn.name.val, bases, **objs)
 
     def compile_noundef(self, defn):
+        self._test_previous(defn.name.val)
         bases = [self.lexicon.get_term(t.val) for t in defn.bases]
         return self.lexicon.add_subterm(defn.name.val, bases)
 
     def compile_namedef(self, defn):
+        self._test_previous(defn.name.val)
         term_type = self.lexicon.get_term(defn.term_type.val)
         return self.lexicon.add_term(defn.name.val, term_type)
 

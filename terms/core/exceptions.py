@@ -57,3 +57,6 @@ class WrongObjectType(TermsException):
 
 class ImportProblems(TermsException):
     pass
+
+class DuplicateWord(TermsException):
+    pass

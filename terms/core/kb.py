@@ -17,7 +17,9 @@ from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
 from terms.core.logger import get_rlogger
 
-from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel, IllegalLabel, WrongObjectType, ImportProblems
+from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel
+from terms.core.exceptions import IllegalLabel, WrongObjectType
+from terms.core.exceptions import ImportProblems, DuplicateWord
 
 
 class TermsJSONEncoder(json.JSONEncoder):
@@ -72,6 +74,9 @@ class Teller(Process):
                     session.rollback()
                     resp = e.args[0]
                 except ImportProblems as e:
+                    session.rollback()
+                    resp = e.args[0]
+                except DuplicateWord:
                     session.rollback()
                     resp = e.args[0]
                 self.compiler.network.pipe = None
