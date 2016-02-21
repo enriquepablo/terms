@@ -31,7 +31,7 @@ from terms.core.network import Network, CondIsa, CondIs, CondCode
 from terms.core.terms import isa, Predicate, Import
 from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel
 from terms.core.exceptions import ImportProblems, DuplicateWord
-
+from terms.core.exceptions import TermNotFound
 
 
 class Lexer(object):
