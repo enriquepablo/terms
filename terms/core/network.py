@@ -34,6 +34,9 @@ from terms.core.factset import FactSet
 from terms.core import exceptions
 from terms.core.utils import Match, merge_submatches
 
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 class Network(object):
 
@@ -67,7 +70,7 @@ class Network(object):
         q = self.lexicon.make_var('Occur1')
         topast = self.present.query_facts(q, {})
         for f in topast:
-            print('to past: ' + str(f.pred))
+            logger.info('To past: ' + str(f.pred))
             new_pred = f.pred.copy()
             self.session.delete(f)
             new_pred.add_object('at_', self.lexicon.now_term)
@@ -165,7 +168,7 @@ class Network(object):
         fs = self.present.query_facts(predicate, {})
         for f in fs:
             if isa(f.pred, self.lexicon.endure):
-                print('finish: ' + str(f.pred))
+                logger.info('Finish: ' + str(f.pred))
                 new_pred = f.pred.copy()
                 self.session.delete(f)
                 new_pred.add_object('at_', self.lexicon.now_term)

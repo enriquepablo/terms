@@ -21,6 +21,7 @@
 import os
 import os.path
 import sys
+import logging
 from configparser import ConfigParser
 from optparse import OptionParser
 
@@ -110,3 +111,20 @@ def get_config(cmd_line=True):
         if opt.config:
             config.read([opt.config])
     return config[name]
+
+
+def set_logging(config):
+    log_level = os.path.abspath(config['loglevel'], 'WARNING')
+    logging.root.setLevel(getattr(logging, config['loglevel']))
+    log_file = os.path.abspath(config['logfile'])
+    log_dir = os.path.dirname(log_file)
+    if not os.path.isfile(log_file):
+        if not os.path.isdir(log_dir):
+            os.mkdir(log_dir)
+        f = open(log_file, 'w')
+        f.write('log file for Terms\n\n')
+        f.close()
+    hdlr = logging.FileHandler(log_file)
+    lformat = '%(asctime)s %(levelname)s [%(name)s:%(funcName)s]: %(message)s'
+    hdlr.setFormatter(logging.Formatter(lformat))
+    logging.root.addHandler(hdlr)

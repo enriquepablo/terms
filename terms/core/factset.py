@@ -29,7 +29,8 @@ from terms.core.terms import Base, Term
 from terms.core.terms import isa
 from terms.core.utils import Match
 
-
+from logging import getLogger
+logger = getLogger(__name__)
 
 
 class FactSet(object):
@@ -71,7 +72,7 @@ class FactSet(object):
         return mapper.base_mapper.polymorphic_map[ntype].class_
 
     def add_fact(self, pred):
-        print(pred)
+        logger.info('Adding {!r} to factset {}'.format(pred, self.name))
         fact = Fact(pred, self.name)
         paths = self.get_paths(pred)
         for path in paths:

@@ -33,6 +33,9 @@ from terms.core.exceptions import TermsSyntaxError, WrongObjectType, WrongLabel
 from terms.core.exceptions import ImportProblems, DuplicateWord
 from terms.core.exceptions import TermNotFound
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Lexer(object):
 
@@ -183,7 +186,7 @@ class Lexer(object):
 
     # Error handling rule
     def t_set_headers_pycode_INITIAL_error(self, t):
-        print("Illegal character '%s' at line %d" % (t.value[0], t.lexer.lineno))
+        logger.info("Illegal character '%s' at line %d" % (t.value[0], t.lexer.lineno))
         t.lexer.skip(1)
 
     # Build the lexer

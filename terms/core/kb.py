@@ -15,11 +15,14 @@ from terms.core.terms import ExecGlobal, load_exec_globals
 from terms.core.compiler import Compiler, Runtime
 from terms.core.sa import get_sasession
 from terms.core.daemon import Daemon
-from terms.core.logger import get_rlogger
+from terms.core.utils import set_logging
 
 from terms.core.exceptions import TermNotFound, TermsSyntaxError, WrongLabel
 from terms.core.exceptions import IllegalLabel, WrongObjectType
 from terms.core.exceptions import ImportProblems, DuplicateWord
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class TermsJSONEncoder(json.JSONEncoder):
@@ -121,6 +124,7 @@ class Teller(Process):
 class KnowledgeBase(Daemon):
 
     def __init__(self, config):
+        set_logging(config)
         self.config = config
         self.pidfile = os.path.abspath(config['pidfile'])
         self.time_lock = Lock()
@@ -129,10 +133,6 @@ class KnowledgeBase(Daemon):
         session = self.session_factory()
 
     def run(self):
-        reader_logger = get_rlogger(self.config)
-        sys.stdout = reader_logger
-        sys.stderr = reader_logger
-
         if int(self.config['instant_duration']):
             self.clock = Ticker(self.config, self.session_factory(),
                                 self.time_lock, self.teller_queue)
@@ -170,7 +170,7 @@ class KnowledgeBase(Daemon):
             self.clock.join()
         except AttributeError:
             pass
-        print('bye from {n}, received signal {p}'.format(n=mp.current_process().name, p=str(signum)))
+        logger.warn('bye from {n}, received signal {p}'.format(n=mp.current_process().name, p=str(signum)))
 
 
 class Ticker(Thread):

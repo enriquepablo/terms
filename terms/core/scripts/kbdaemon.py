@@ -37,7 +37,7 @@ def stop(config):
             if os.path.exists(pidfile):
                 os.remove(pidfile)
             else:
-                print (str(err.args))
+                logger.error(str(err.args))
     sys.exit(1)
 
 
