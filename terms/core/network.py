@@ -71,11 +71,16 @@ class Network(object):
         topast = self.present.query_facts(q, {})
         for f in topast:
             logger.info('To past: ' + str(f.pred))
-            new_pred = f.pred.copy()
-            self.session.delete(f)
-            new_pred.add_object('at_', self.lexicon.now_term)
-            self.past.add_fact(new_pred)
-            self.session.flush()
+            try:
+                new_pred = f.pred.copy()
+            except Exception as e:
+                logger.error('Exception passing {!r}: {!r}'.format(f.pred, e))
+                self.session.delete(f)
+            else:
+                self.session.delete(f)
+                new_pred.add_object('at_', self.lexicon.now_term)
+                self.past.add_fact(new_pred)
+                self.session.flush()
         self.now = now
 
     def _get_now(self):
@@ -335,8 +340,11 @@ class Node(Base):
             chcls = network._get_nclass(ntype_name)
             value = chcls.resolve(match.pred, path)
             children = chcls.get_children(parent, value, network)
+            logger.debug('value "{!r}" got children from parent {!s}'.format(
+                                            value, parent))
             for ch in children:
                 for child in ch:
+                    logger.debug('One match {!s} from parent {!s}'.format(child, parent))
                     new_match = match.copy()
                     if child.var:
                         val = None
@@ -350,6 +358,8 @@ class Node(Base):
                     if chcls is VerbNode and child.redundant_var:
                         new_match[child.redundant_var] = TermNode.resolve(match.pred, path)
                     chcls.dispatch(child, new_match, network)
+        else:
+            logger.debug('parent {!r} has no child path'.format(parent))
         if parent.terminal:
             parent.terminal.dispatch(match, network)
 
@@ -375,6 +385,9 @@ class RootNode(Node):
     def __init__(self):
         pass
 
+    def __str__(self):
+        return '<RootNode>'
+
 
 class NegNode(Node):
     '''
@@ -385,6 +398,9 @@ class NegNode(Node):
     nid = Column(Integer, ForeignKey('nodes.id'), primary_key=True)
 
     value = Column(Boolean, index=True)
+
+    def __str__(self):
+        return '<NegNode>'
 
     @classmethod
     def resolve(cls, pred, path):
@@ -410,6 +426,9 @@ class TermNode(Node):
 
     term_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==TermNode.term_id")
+
+    def __str__(self):
+        return '<TermNode value: {!r}>'.format(self.value)
 
     @classmethod
     def resolve(cls, term, path):
@@ -458,6 +477,9 @@ class VerbNode(Node):
     verb_id = Column(Integer, ForeignKey('terms.id'), index=True)
     value = relationship('Term', primaryjoin="Term.id==VerbNode.verb_id")
 
+    def __str__(self):
+        return '<VerbNode value: {!r}>'.format(self.value)
+
     @classmethod
     def resolve(cls, term, path):
         try:
@@ -498,7 +520,12 @@ class PremNode(Base):
     def __init__(self, parent):
         self.parent = parent  # node
 
+    def __str__(self):
+        prems = ', '.join([str(prem.pred) for prem in self.prems])
+        return '<PremNode prems: {!r}>'.format(prems)
+
     def dispatch(self, match, network):
+        logging.debug('this has matched: {!r}'.format(match))
         if not self.prems[0].check_match(match, network):
             return
         m = PMatch(self, match.fact)
@@ -562,10 +589,12 @@ class Premise(Base):
         return pvar.num
 
     def dispatch(self, match, network):
+        logger.debug('match: {!r}'.format(match))
         prems = [p for p in self.rule.prems if p != self]
         try:
             if prems:
                 matches = self.recurse_premises(match, prems, network)
+                logger.debug('matches: {!r}'.format(matches))
             else:
                 matches = [match]
         except NoMatches:
@@ -575,6 +604,7 @@ class Premise(Base):
 
     def recurse_premises(self, match, remaining_prems, network):
         prem, pmatches = self.pick_prem(remaining_prems, match, network)
+        logger.debug('picked {!r}, pmatches {!r}'.format(prem, pmatches))
         remaining_prems.remove(prem)
         matches = []
         for pm in pmatches:
@@ -655,6 +685,10 @@ class PMatch(Base):
     def __init__(self, prem, fact):
         self.prem = prem
         self.fact = fact
+
+    def __str__(self):
+        return '<PMatch prem: {!r}, pred: {!r}>'.format(self.prem,
+                self.fact.pred)
 
 
 class MPair(Base):
@@ -782,12 +816,14 @@ class Rule(Base):
             if not self.condcode.test(match, network):
                 return
 
+
         cons = []
         for con in self.consecuences:
             cons.append(con.substitute(match))
 
         for con in self.vconsecuences:
-            cons.append(match[con.name])
+            new_pred = match[con.name].copy()
+            cons.append(new_pred)
 
         for con in cons:
             factset = network.present
@@ -815,8 +851,10 @@ class Rule(Base):
                     if network.pipe is not None:
                         network.pipe.send_bytes(str(con).encode('utf8'))
                 if network.root.child_path:
+                    logger.debug('con to add: ' + str(con))
                     m = Match(con)
                     m.paths = network.get_paths(con)
+                    logger.debug('con in fact: ' + str(fact.pred))
                     m.fact = fact
                     network.activations.append(m)
 
@@ -888,7 +926,10 @@ class CondIs(Condition):
     __mapper_args__ = {'polymorphic_identity': 1}
 
     def test(self, match, network):
-        return are(self.args[0].solve(match), self.args[1].solve(match))
+        sub = self.args[0].solve(match)
+        super_ = self.args[1].solve(match)
+        logger.debug('matching: {!r} and {!r}'.format(sub, super_))
+        return are(sub, super_)
 
 
 class CondCode(Base):

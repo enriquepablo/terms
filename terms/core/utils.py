@@ -114,7 +114,7 @@ def get_config(cmd_line=True):
 
 
 def set_logging(config):
-    log_level = os.path.abspath(config['loglevel'], 'WARNING')
+    log_level = os.path.abspath(config.get('loglevel', 'WARNING'))
     logging.root.setLevel(getattr(logging, config['loglevel']))
     log_file = os.path.abspath(config['logfile'])
     log_dir = os.path.dirname(log_file)
