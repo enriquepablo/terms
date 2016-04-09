@@ -48,21 +48,18 @@ original expression in some natural language.
 One of the main differences in expressive power between formal and natural
 languages is given by the
 syntactic mismatch between the predicates of the natural
-languages and those of the formal languages.
-The logical form of the natural languages seems to be first order, but,
+languages and those of the formal languages. This mismatch is due to the fact
+that the logical form of the natural languages seems to be first order, but,
 at the  same time, predicates are liberally quantified as if there
 actually were higher order variables.
 So, while in the natural languages we enjoy this freedom from order,
 in formal languages we must constraint the predicates by the order of
 the system where they occur.
-With T\textsubscript{T} we attempt to overcome this
+In T\textsubscript{T}, we attempt to overcome this
 mismatch by reducing the set of natural language predicates that are
 put in correspondence with logical predicates to just the copular predicates,
-and by modeling the rest of the predicates as operations,
-in which the (non-copular) verbs are represented by mere contants.
-This solution allows the development of first order systems where
-it is possible to establish a kind of unrestricted comprehension
-that, while staying right off the paradoxical, can be as broad as needed.
+and by modeling the rest of the predicates as formal operations,
+in which the (non-copular) verbs are represented by mere logical contants.
 \end{abstract}
 
 \begin{keyword}
@@ -92,7 +89,7 @@ than for any particular dependence on this formulation of set theory.
 \subsection{Fraenkel's System Z}
 Fraenkel classified the axioms of system Z into 3 groups. The first group,
 under the title "equality and extensionality", played the role of
-establishing the interrelation between the 3 basic predicates of the theory
+establishing the interrelations between the 3 basic predicates of the theory
 (denoted here by $\in$, $\subseteq$, and =). In this group,
 Fraenkel put the axioms of extensionality and equality, and the definition of
 subset.
@@ -108,7 +105,7 @@ other set" \cite{r1}.
 
 As pointed out above above, the development of axiomatic set theory was
 intended as an effort to provide a foundation for all mathematics; in the words
-of Fraenkel, "setting up a comprehensive axiom system [\ellipsis] in which the
+of Fraenkel, "setting up a comprehensive axiom system [...] in which the
 axiomatic theories of other disciplines can be embedded" \cite{r1}. The idea is
 to have a very rich universe of sets determined by a short list of axioms, so
 that we can explore the internal structure of this universe (by means of
@@ -128,8 +125,8 @@ there are things to classify.  The interpretation of this theory can be reduced
 to an empty universe. Obviously, we need the "constructive" axioms to make
 something useful out of it.
 
-There is, however, another way of using that first group of axioms,
-to make what might be called formal classifications, or perhaps taxonomies.
+There might be, however, another way of using that first group of axioms,
+to make what could be called formal classifications, or perhaps taxonomies.
 In this sense, what we would do is to define individuals (sets) axiomatically,
 ad hoc, to represent the classes and the objects that we want to classify.
 For example, and stretching the meaning of "set" a little bit (since the
@@ -152,61 +149,66 @@ of any such system. If, for simplicity, we assume a theory without equality,
 we might use just a couple of axioms such as:
 
 \begin{equation}
-\forall\,\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\left(\mathbf{x\in y}\right)\:\bigwedge\:\left(\mathbf{y\subseteq\mathbf{z}}\right)\rightarrow\left(\mathbf{x\in\mathbf{z}}\right)}}}}
+\forall\,\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\left(\mathbf{x\in y}\right)\;\bigwedge\;\left(\mathbf{y\subseteq\mathbf{z}}\right)\rightarrow\left(\mathbf{x\in\mathbf{z}}\right)}}}}
 \end{equation}
 
 \begin{equation}
-\forall\,\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\left(\mathbf{x\subseteq y}\right)\:\bigwedge\:\left(\mathbf{y\subseteq\mathbf{z}}\right)\rightarrow\left(\mathbf{x\subseteq\mathbf{z}}\right)}}}}
+\forall\,\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\left(\mathbf{x\subseteq y}\right)\;\bigwedge\;\left(\mathbf{y\subseteq\mathbf{z}}\right)\rightarrow\left(\mathbf{x\subseteq\mathbf{z}}\right)}}}}
 \end{equation}
 
 \subsection{Extending Taxonomies: Natural vs Formal Predicates}
 These "formal taxonomy" theories have limited usefulness. They allow us to
 represent, in a formal or mechanical system, a certain knowledge that we
-previously had informally, as expressed in the natural language. However,
+previously had informally, as expressed in a natural language. However,
 in general this falls short, and we additionally want to say other things about
 the classified objects: We usually want to represent other kind of knowledge
 in addition to "taxonomic" knowledge. In the natural languages we represent
 this knowledge in the same way we represent taxonomic knowledge, that is,
 using additional predicates: conjugated verbs, modified by adverbs and objects.
 
-There are many formal systems that incorporate this  logic.
+There are many formal systems that incorporate this basic classificatory logic.
 From the class systems of object oriented programming languages,
-to type systems, etc. As regards knowledge representation,
-there have been numerous proposals for formal systems catering for this need:
-systems where, on top of a class system without constructive axioms, there are
-additional techniques to express arbitrary knowledge. We may think, for example,
-of the OWL of the semantic web, where there are relations (such as
-rdfs:subClassOf, etc.)
+to type systems in functional languages, etc. As regards knowledge representation,
+there have been numerous proposals for formal systems where,
+on top of a class system without constructive axioms, there are
+additional techniques to express arbitrary knowledge.
+The  logical positivists of the 1\textsuperscript{st} half of the
+20\textsuperscript{th} century were all about that;
+an example of their proposals may be found in \cite{r3}.
+A more recent example can be found in the OWL of the semantic web,
+where there are relations (such as rdfs:subClassOf, etc.)
 to express clasification knowledge, and then there are relations to express
-any other kind of knowledge \cite{r3}. At least to my knowledge, all these
+any other kind of knowledge \cite{r4}. At least to my knowledge, all these
 systems have something in common: the arbitrary knowledge is expressed through
 formal predicates, just the same as the taxonomic knowledge.
 
 This presents a problem, because natural language predicates and formal
 predicates are quite different things. This difference is quite clearly
 manifested in the way variables range over predicates. In a formal language,
-a variable that ranges over predicates has to be high order: either second
-order if the arguments to the predicate are first order, or higher order
-otherwise. The natural languages, in contrast, do not appear to have high
-order variables \cite{8}, but, in spite of this, allow a functional
-equivalent of variables that range over predicates. As an example of this,
+a variable that ranges over predicates has to be high order.
+The natural languages, in contrast, do not appear to have high
+order variables \cite{r5}, but, in spite of this, seem to allow
+variables that range over predicates. As an ilustration of this,
 we can consider that to the question "what does she want?", both "that apple"
-and "to go to the cinema" are acceptable answers. Taking "what" as
-a variable, and the answers to the question it appears in as
-syntactic objects that belong to its range,
-we see that it has to be first order, since "that apple" has to be
-a basic atom. Therefore, we have that "to go to the cinema",
-clearly a predicate, is in the range of a first order variable.
+and "to go to the cinema" are (synctactically) acceptable answers.
+If we try to "formalize" (express in an \textit{ad hoc} formal language)
+those question and answers, we would
+want to take "what" as a variable, and the answers to the question as
+syntactic objects that belong to the range of that variable.
+Then, "that apple" would most naturally correspond to a basic atom,
+and so, we would have to assume that the "what" variable is first order.
+But "to go to the cinema" would clearly correspond to a predicate,
+that shouldn't be in the range of a first order variable.
 
 An example of this problem may be seen in the OWL Full sublanguage of
-the semantic web, where it is possible to treat classes as individuals \cite{9}.
-This is equivalent to saying that we can have (first order)
-variables ranging over predicates, because OWL Full
+the semantic web, where it is possible to treat classes as individuals
+\cite{r6}. This is equivalent to saying that we can have (first order)
+variables ranging over predicates, because OWL
 allows for anonymous classes defined from predicates. This provides a
 language that has a higher expressive power compared to the other OWL
-sublanguages, nearer the expressive power of the natural language;
+sublanguages, nearing the expressive power of the natural languages;
 but it makes OWL Full undecidable, so that we cannot have dependable
-reasoning systems for OWL Full.
+reasoning systems for it.
 
 What is proposed in T\textsubscript{T} is to use an operation
 (rather than predicates) to express "non-taxonomic" knowledge.
@@ -221,7 +223,7 @@ by any other strings of boldface lowercase alphanumeric
 characters. We axiomatically add a first word, denoted by \textbf{word}:
 
 \begin{equation}
-\forall\,\mathbf{x:\:x\in word}
+\forall\,\mathbf{x:\;x\in word}
 \end{equation}
 
 Now, we introduce an operator with which we can build triplets, denoted by [ ].
@@ -230,32 +232,32 @@ other words through $\in$ and $\subseteq$. To introduce this operator,
 we first define a new word, \textbf{verb}:
 
 \begin{equation}
-\mathbf{verb\in word}
+\mathbf{verb\subseteq word}
 \end{equation}
 
 \begin{equation}
-\forall\:\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\:\mathbf{\left(\mathbf{y\in\mathbf{verb}}\right)\rightarrow\left(\left[\mathbf{x\; y\; z}\right]\in y\right)}}}}}
+\forall\;\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\mathbf{\left(\mathbf{y\in\mathbf{verb}}\right)\rightarrow\left(\left[\mathbf{x\; y\; z}\right]\in y\right)}}}}}
 \end{equation}
 
-So, in (4), we define \textbf{verb} as a word that can contain other words
+In (4), we define \textbf{verb} as a word that can contain other words
 (it is a a subword of \textbf{word}), and in (5) we guarantee that each verb
 (each word that $\in$ \textbf{verb}) "contains" all the triplets that can be
 formed with itself as middle term in the triplet. This is just a device to
 introduce the triplet operator and guarantee the existence of
-any possible triplet.
+any possible triplet where the middle term is a verb.
 
 Finally, we define one last word, \textbf{fact}, that allows us to distinguish
 certain triplets (which we call facts):
 
 \begin{equation}
-\mathbf{fact\in word}
+\mathbf{fact\subseteq word}
 \end{equation}
 
 \begin{equation}
-\forall\:\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\:\left(\left[\mathbf{x\; y\; z}\right]\in \mathbf{fact}\right)}\mathbf\rightarrow\left(\mathbf{y\in\mathbf{verb}}\right)}}}
+\forall\;\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\left(\left[\mathbf{x\; y\; z}\right]\in \mathbf{fact}\right)}\mathbf\rightarrow\left(\mathbf{y\in\mathbf{verb}}\right)}}}
 \end{equation}
 
-So, in (6) we introduce \textbf{fact}
+So, in (6) we introduce the word \textbf{fact}
 and in (7) we indicate that we can choose certain triplets and mark
 them as facts. We can choose whatever triplets we want as facts,
 and set them as postulates, and add any number of rules
@@ -263,337 +265,192 @@ to derive consecuences from those postulated facts,
 all in acordance to whatever particular pieces of "natural knowledge"
 we want to represent.
 
-\subsection{Example}
+\subsection{An Example}
 
-As an example, I will develop a sketch of the access control logic for a
-document management system. The main classes of objects we deal with
-are people and documents.
+As an example, I will sketch the access control logic for a
+document management system. The main classes of objects we will deal with,
+in this system, are people and documents.
 
-person \subseteq word
-document \subseteq word
+\begin{equation}
+  \mathbf{person \subseteq word}
+\end{equation}
+
+\begin{equation}
+  \mathbf{document \subseteq word}
+\end{equation}
 
 we can have people and documents:
 
-alice \is person
-bob \is person
-doc1 \is document
-doc2 \is document
+\begin{equation}
+  \mathbf{bob \in person}
+\end{equation}
+\begin{equation}
+  \mathbf{doc1 \in document}
+\end{equation}
 
 People can do things with documents: they can view them, or edit them:
 
-doc-action \is verb
-view \subseteq doc-action
-edit \subseteq doc-action
+\begin{equation}
+  \mathbf{doc\-/action \in verb}
+\end{equation}
+\begin{equation}
+  \mathbf{view \subseteq doc\-/action}
+\end{equation}
+\begin{equation}
+  \mathbf{edit \subseteq doc\-/action}
+\end{equation}
 
 So, to represent that Bob views doc1, we would assert:
 
-[view bob doc1] \is fact.
+\begin{equation}
+  \mathbf{\left[bob\; view\; doc1\right] \in fact}
+\end{equation}
 
-Now we define a verb "want", that has a predicate as object.
+Now we define a verb \textbf{want}, that has a predicate as object.
 The idea is to have rules that, when presented with a fact
 where a person wants to do something with a document,
 can determine whether the  person gets to do the requested action:
 
-want \is verb.
+\begin{equation}
+  \mathbf{want \in verb}
+\end{equation}
 
-E.g., bob wants to see doc1:
+To represent that Bob wants to see doc1:
 
-[want bob [view bob doc1]] \is fact.
+\begin{equation}
+  \mathbf{\left[bob\; want\; \left[bob\; view\; doc1\right]\right] \in fact}
+\end{equation}
 
 Now we need permissions:
 
-permission \subseteq word
-view-perm \is permission
-edit-perm \is permission
+\begin{equation}
+  \mathbf{permission \subseteq word}
+\end{equation}
+\begin{equation}
+  \mathbf{view\-/perm \in permission}
+\end{equation}
+\begin{equation}
+  \mathbf{edit\-/perm \in permission}
+\end{equation}
 
-a permission can protect a document action:
+A permission can protect a document action:
 
-is-protected-by \is verb
+\begin{equation}
+  \mathbf{is\-/protected\-/by \in verb}
+\end{equation}
 
-so that to represent that the edit action is pretected by the edit-perm permission,
+So that to represent that the edit action is pretected by the edit\-/perm permission,
+we assert:
 
-[is-protected-by edit edit-perm] \is fact
+\begin{equation}
+  \mathbf{\left[edit\; is\-/protected\-/by\; edit\-/perm\right] \in fact}
+\end{equation}
 
-finally, a person can be granted a certain permission:
+Finally, a person can be granted a certain permission:
 
-has-permission \is verb
+\begin{equation}
+  \mathbf{has\-/permission \in verb}
+\end{equation}
 
-to say that bob has the edit-perm permission:
+And, to say that bob has the edit\-/perm permission:
 
-[has-permission bob edit-perm] \is fact
+\begin{equation}
+  \mathbf{\left[bob\; has\-/permission\; edit\-/perm\right] \in fact}
+\end{equation}
 
 Now we can produce a rule where we say that if a person
 wants to perform some action with a document,
-and that action is protected by some permission,
+that action is protected by some permission,
 and the person has that permission,
 the person gets to do it:
 
-x \is person
-y \subseteq doc-action
-z \is y
-w \is permission
-[want x z] \is fact
-[has-permission x w] \is fact
-[is-protected y w] \is fact
-->
-z \is fact
+\begin{equation}
+  \begin{array}{ll}  \forall\;\mathbf{x}\mathrm{,}\mathbf{y}\mathrm{,}\mathbf{z}\mathrm{,}\mathbf{w}\mathrm{:} & \;\mathbf{\left(x \in person\right)}\bigwedge \\ {} &  \mathbf{\left(y \subseteq doc\-/action\right)}\bigwedge \\ {} &  \mathbf{\left(z \in y\right)}\bigwedge \\ {} &  \;\mathbf{\left(w \in permission\right)}\bigwedge \\ {} & \mathbf{\left(\left[x\; want\; z\right] \in fact\right)}\bigwedge \\ {} &  \mathbf{\left(\left[x\; has\-/permission\; w\right] \in fact\right)}\bigwedge \\ {} &  \mathbf{\left(\left[y\; is\-/protected\-/by\; w\right] \in fact\right)} \\ {} &  \rightarrow \\ {} &  \mathbf{\left(z \in fact\right)}\end{array}
+\end{equation}
 
-let's examine this rule.
-the 1st line constraints x to be bob or alice;
-the second line constraints y to be edit or view;
-the  3rd line constraints z to be a triplet where the verb is y;
-and the 4th w to be a  permission.
-Then, if x wants z (to do something with some document)
+Let's examine this rule in some detail.
+the 1st condition constraints \textbf{x} to be \textbf{bob};
+the second condition constraints \textbf{y} to be \textbf{edit} or \textbf{view};
+the  3rd condition constraints \textbf{z} to be a triplet where the verb is \textbf{y};
+and the 4th \textbf{w} to be a  permission.
+Then, if \textbf{x} wants \textbf{z} (to do something with some document)
 and has the permission needed to do it,
-z happens.
+\textbf{z} happens.
 
-With this:
+If we now  add these sentences:
 
-[has-permission bob view-perm] \is  fact
-[is-protected-by view view-perm] \is fact
-[want bob [view bob doc1]] \is fact
+\begin{equation}
+  \mathbf{\left[bob\; has\-/permission\; view\-/perm\right] \in  fact}
+\end{equation}
+\begin{equation}
+  \mathbf{\left[view\; is\-/protected\-/by\; view\-/perm\right] \in fact}
+\end{equation}
+\begin{equation}
+  \mathbf{\left[bob\; want\; \left[bob\; view\; doc1\right]\right] \in fact}
+\end{equation}
 
-Since bob can substitute x,
-and view-perm can substitue w,
-and view can substitute y,
-and [view bob doc1] can substitute z,
+Since \textbf{bob} can substitute \textbf{x},
+and \textbf{view\-/perm} can substitue \textbf{w},
+and \textbf{view} can substitute \textbf{y},
+and \textbf{[bob view doc1]} can substitute \textbf{z},
 we would have a  theorem that says that
 
-[view bob doc1] \is fact
+\begin{equation}
+  \mathbf{\left[bob\; view\; doc1\right] \in fact}
+\end{equation}
 
 And the thing to note here is that all variables are
 the same  kind, the same order.
 
-\subsection{Unrestricted comprehension}
-
-In this framework, we can establish a rule that may function as
-a sort of unrestricted comprehension:
-
-\forall x,y,z \exist w
-x \is verb
-w \subseteq word
-[x y z] \is fact
-->
-y \is w
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-First I will show a trivial example, easily reproducible in any other logic
-system. I will express that there are people, that Bob and Alice are people,
-that "to love" is a verb, that if someone loves someone else, the second also
-loves the first, and that Bob loves Alice.
+To finish with this example, we might add a rule that comes close to
+\textit{unrestricted comprehension} (UC), but that stays just clear of
+the antinomies encountered by  Bertrand Russell when examining UC
+as proposed by Gottlob Frege.
 
 \begin{equation}
-  \mathbf{person}\subseteq \mathbf{word}
+  \forall\;\mathbf{x}\mathrm{,}\mathbf{y}\mathrm{,}\mathbf{z}\;\exists\;\mathbf{w}\mathrm{:} \;\mathbf{\left(\left[x\; y\; z\right] \in fact\right)} \rightarrow \mathbf{\left(x \in w\right)}
 \end{equation}
 
-\begin{equation}
-  \mathbf{alice}\in \mathbf{person}
-\end{equation}
+This rule asserts that for any (non-copular) predicate \textbf{y z},
+there exists a word \textbf{w} that contains all words \textbf{x} that
+produce a true proposition applied to the given predicate. This is
+functionally very close to UC, but, since it excludes copular
+predicates, and Russell's paradox requires copular predicates,
+does not introduce by itself inconsistencies into our theories.
 
-\begin{equation}
-  \mathbf{bob}\in \mathbf{person}
-\end{equation}
+\subsection{A proof of concept.}
 
-\begin{equation}
-  \mathbf{love}\in \mathbf{verb}
-\end{equation}
-
-\begin{equation}
-\forall\:\mathbf{x\mathrm{,\mathbf{y\mathrm{:\:\left(\left[\mathbf{x\; love\; y}\right]\in \mathbf{fact}\right)}\rightarrow\left(\left[\mathbf{y\; love\; x}\right]\in \mathbf{fact}\right)}}}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{bob\; love\; alice}\right]\in \mathbf{fact}
-\end{equation}
-
-So we have defined \textbf{love} as a symmetric verb, and therefore, from
-(12) and (13), we will obtain a teorem that says:
-
-\begin{equation}
-  \left[\mathbf{alice\; love\; bob}\right]\in \mathbf{fact}
-\end{equation}
-
-We can now, by way of example, remove the rule at (12), and express symmetry
-in a more general way, as a property of verbs:
-
-\begin{equation}
-  \mathbf{symmetry}\in \mathbf{word}
-\end{equation}
-
-\begin{equation}
-  \mathbf{has\-/verb\-/property}\in \mathbf{verb}
-\end{equation}
-
-\begin{equation}
-\begin{array}{ll}  \forall\:\mathbf{x}\mathrm{,}\mathbf{y}\mathrm{,}\mathbf{z}\mathrm{:} & \:\left(\left[\mathbf{y\; has\-/verb\-/property\; symmetry}\right]\in \mathbf{fact}\right)\bigwedge \left(\left[\mathbf{x\; y\; z}\right]\in \mathbf{fact}\right) \\ {} & \rightarrow\left(\left[\mathbf{z\; y\; x}\right]\in \mathbf{fact}\right)\end{array}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{love\; has\-/verb\-/property\; symmetry}\right]\in \mathbf{fact}
-\end{equation}
-
-Note that in the fact at (18) we are using \textbf{love} as
-subject with \textbf{has\-/verb\-/property} acting as verb,
-the exact same \textbf{love} word that is acting as the verb in the facts (13)
-and (14). So with all this, and (13) as postulate, we would again have (14) as
-theorem.
-
-With the next example I just want to show that since we are dealing with a
-first order theory, a single variable can match any of all the constructs we
-have seen so far. I will develop a very brief and rather nonsensical ontology
-where there is a \textbf{she}, and whatever she wants, she gets:
-
-\begin{equation}
-  \mathbf{she}\in \mathbf{word}
-\end{equation}
-
-\begin{equation}
-  \mathbf{want}\in \mathbf{verb}
-\end{equation}
-
-\begin{equation}
-  \mathbf{get}\in \mathbf{verb}
-\end{equation}
-
-\begin{equation}
-\forall\:\mathbf{x}\mathrm{:} \:\left[\mathbf{she\; want\; x}\right]\in \mathbf{fact} \rightarrow\left[\mathbf{she\; get\; x}\right]\in \mathbf{fact}
-\end{equation}
-
-Then, if we add these sentences:
-
-\begin{equation}
-  \mathbf{apple}\subseteq \mathbf{word}
-\end{equation}
-
-\begin{equation}
-  \mathbf{this\-/apple}\in \mathbf{apple}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; want\; apple}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; want\; this\-/apple}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; want\; word}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; want\; love}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; want\; symmetry}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\: want\: \left[bob\: love\: alice\right]}\right]\in \mathbf{fact}
-\end{equation}
-
-We will obtain, as theorems:
-
-\begin{equation}
-  \left[\mathbf{she\; get\; apple}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; get\; this\-/apple}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; get\; word}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; get\; love}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\; get\; symmetry}\right]\in \mathbf{fact}
-\end{equation}
-
-\begin{equation}
-  \left[\mathbf{she\: get\: \left[bob\: love\: alice\right]}\right]\in \mathbf{fact}
-\end{equation}
-
-So, as you can see, the \textbf{x} variable in the rule at (22) has matched
-all  of \textbf{apple}, \textbf{this\-/apple}, \textbf{word}, \textbf{love},
-\textbf{symmetry}, and $\left[\mathbf{bob}\: \mathbf{love}\: \mathbf{alice}\right]$,
-all of which were performing quite different grammatical roles.
-
-\subsection{Semantics}
-As has been repeatedly stated above, the intended use of T\textsubscript{T}
-is to develop knowledge representation systems; i.e., to develop systems with
-the semantic capabilities of (some subset of) the natural language. But the
-semantics of the natural languages are, obviously, not formal. To get over this
-obstacle, we asume, as interpretation for the theories built on top of
-T\textsubscript{T}, not the meaning of the natural language texts that would
-express the same as the formal theories, but the actual natural language texts.
-We take these texts as sets of words, and we take the copular sentences in the
-texts as relations among the words, and the non-copular sentences as
-complex words that are implicitly related to some hidden "fact" word. This
-provides an interpretation for T\textsubscript{T} that is exact and finite and
-very simple. The procedure to obtain the interpretation of some
-T\textsubscript{T} theory, would be to understand it as some sort of Tarzan of
-the apes' speak, and translate it to normal civilized speak. Then we can use
-the theory to talk about whatever is the meaning of the text so obtained.
-
-\subsection{Implementation}
-There is a Python implementation of these ideas as a proof of concept,
-publicly hosted at github \cite{r5}, under the name of "Terms". The actual
-theory behind Terms is slightly more complicated than the T\textsubscript{T}
-presented here, and, for example,
-facts can be tuples of any length, rather than just triplets. Terms is a
-forward chaining production rule system, and its inference
-capabilities are provided by a RETE-like algorithm \cite{r6}. There is
-documentation for it at \cite{r7}.
-
+There is an implementation of a system based on the ideas laid out in
+this paper, published as free open source software, available at \cite{r7}.
 
 \clearpage
+
 %%%%%%%%%%% The bibliography starts:
 \begin{thebibliography}{99}
 
 \bibitem{r1}
 \textit{Axiomatic Set Theory}. Paul Bernays.
-2\textsuperscript{nd} ed. Amsterdam: North Holland Pub. Co., 1968.
+    2\textsuperscript{nd} ed. Amsterdam: North Holland Pub. Co. (1968)
 
 \bibitem{r2}
   \textit{Untersuchungen über die Grundlagen der Mengenlehre I}. Ernst Zermelo.
   Mathematische Annalen 65 (2): 261–281 (1908)
 
 \bibitem{r3}
-  \textit{OWL Web Ontology Language Reference}. W3C Recommendation.
-  https://www.w3.org/TR/owl-ref/ Retrieved 2016-01-10
+  \textit{Introduction to Symbolic Logic and its Applications}. Rudolf Carnap.
+    New York: Dover Publications Inc. (1958)
 
 \bibitem{r4}
-  \textit{Introduction to Symbolic Logic and its Applications} Rudolf Carnap.
-  ed. New York: Dover Publications Inc., 1958
+  \textit{OWL Web Ontology Language Reference}. W3C Recommendation.
+    https://www.w3.org/TR/owl-ref/ (Retrieved 2016-01-10)
 
 \bibitem{r5}
-  \textit{Terms}. Enrique P\'erez Arnaud.
-  https://github.com/enriquepablo/terms Retrieved 2016-01-10
+  \textit{Variables in natural language}. Meredith Lizabeth Landman.
+  Doctoral Dissertations Available from Proquest. Paper AAI3206213. (2006)
 
 \bibitem{r6}
-  \textit{Production Matching for Large Learning Systems}. Robert B. Doorenbos
-  http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Retrieved 2016-01-10
+  \textit{A semantic Web Primer}. Grigoris Antoniou and Frank van Harmelen.
+    Cambridge, Ma: The MIT Press (2004)
 
 \bibitem{r7}
   \textit{Terms Documentation} Enrique P\'erez Arnaud.
