@@ -54,6 +54,7 @@ setup(
             'terms = terms.core.scripts.repl:repl',
             'initterms = terms.core.scripts.initterms:init_terms',
             'kbdaemon = terms.core.scripts.kbdaemon:main',
+            'make_graph = terms.core.scripts.class_graph:main',
         ],
     },
     tests_require = [
@@ -62,6 +63,7 @@ setup(
     ],
     extras_require = {
         'PG': ['psycopg2 == 2.6.1',],
+        'graph': ['sadisplay == 0.4.4'],
         },
     install_requires = [
         'setuptools==18.4',
