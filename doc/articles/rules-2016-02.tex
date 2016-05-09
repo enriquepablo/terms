@@ -128,7 +128,7 @@ something useful out of it.
 There might be, however, another way of using that first group of axioms,
 to make what could be called formal classifications, or perhaps taxonomies.
 In this sense, what we would do is to define individuals (sets) axiomatically,
-ad hoc, to represent the classes and the objects that we want to classify.
+\textit{ad hoc}, to represent the classes and the objects that we want to classify.
 For example, and stretching the meaning of "set" a little bit (since the
 modern concept of set includes the constructive axioms mentioned above),
 we might define an "animal" set, and a "mammal" subset of "animal",
@@ -279,7 +279,7 @@ in this system, are people and documents.
   \mathbf{document \subseteq word}
 \end{equation}
 
-we can have people and documents:
+We can have people and documents:
 
 \begin{equation}
   \mathbf{bob \in person}
@@ -400,9 +400,13 @@ we would have a  theorem that says that
 \end{equation}
 
 And the thing to note here is that all variables are
-the same  kind, the same order.
+the same  kind, the same order, with  such different words in their range as
+\textbf{bob}, \textbf{view}, and \textbf{[bob view doc1]},
+standing for, respectively, a proper name, a verb, and a fact.
 
-To finish with this example, we might add a rule that comes close to
+\subsection{(Almost) Unrestricted Comprehension.}
+
+To add to the previous example, we might consider a rule that comes close to
 \textit{unrestricted comprehension} (UC), but that stays just clear of
 the antinomies encountered by  Bertrand Russell when examining UC
 as proposed by Gottlob Frege.
@@ -411,11 +415,13 @@ as proposed by Gottlob Frege.
   \forall\;\mathbf{x}\mathrm{,}\mathbf{y}\mathrm{,}\mathbf{z}\;\exists\;\mathbf{w}\mathrm{:} \;\mathbf{\left(\left[x\; y\; z\right] \in fact\right)} \rightarrow \mathbf{\left(x \in w\right)}
 \end{equation}
 
-This rule asserts that for any (non-copular) predicate \textbf{y z},
+This rule asserts that for every verb-object pair \textbf{y z}
+(corresponding to an arbitrary natural language non-copular predicate),
 there exists a word \textbf{w} that contains all words \textbf{x} that
-produce a true proposition applied to the given predicate. This is
-functionally very close to UC, but, since it excludes copular
-predicates, and Russell's paradox requires copular predicates,
+produce a true proposition with it. This is
+functionally very close to UC, but, since it excludes set-theoretic
+predicates (i.e. the only possible logical predicates in T\textsubscript{T}),
+and Russell's paradox requires those, it
 does not introduce by itself inconsistencies into our theories.
 
 \subsection{A proof of concept.}
