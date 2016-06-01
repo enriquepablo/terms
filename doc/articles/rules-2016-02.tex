@@ -166,9 +166,9 @@ in addition to "taxonomic" knowledge. In the natural languages we represent
 this knowledge in the same way we represent taxonomic knowledge, that is,
 using additional predicates: conjugated verbs, modified by adverbs and objects.
 
-There are many formal systems that incorporate this basic classificatory logic.
-From the class systems of object oriented programming languages,
-to type systems in functional languages, etc. As regards knowledge representation,
+There are many formal systems that incorporate this basic classificatory logic;
+a simple example may be the class systems  of object oriented
+programming languages. As regards knowledge representation,
 there have been numerous proposals for formal systems where,
 on top of a class system without constructive axioms, there are
 additional techniques to express arbitrary knowledge.
@@ -215,7 +215,8 @@ What is proposed in T\textsubscript{T} is to use an operation
 
 \section{The Theory T\textsubscript{T}}
 The individuals of T\textsubscript{T} are called "words", and they comply with
-the axioms (1) and (2) above. As respects their use in T\textsubscript{T},
+the axioms (1) and (2) above, so that the predicates of the theory are
+$\in$ and $\subseteq$. As respects their use in T\textsubscript{T},
 we might read $\in$ as "is a", and $\subseteq$ as "is a subword of".
 Here, I will represent logical variables
 by \textbf{x}, \textbf{y}, \textbf{z}, and \textbf{w}, and words
@@ -239,9 +240,9 @@ we first define a new word, \textbf{verb}:
 \forall\;\mathbf{x\mathrm{,\mathbf{y\mathrm{,\mathbf{z}:\;\mathbf{\left(\mathbf{y\in\mathbf{verb}}\right)\rightarrow\left(\left[\mathbf{x\; y\; z}\right]\in y\right)}}}}}
 \end{equation}
 
-In (4), we define \textbf{verb} as a word that can contain other words
+In (4), we define \textbf{verb} as a word that can "contain" other words
 (it is a a subword of \textbf{word}), and in (5) we guarantee that each verb
-(each word that $\in$ \textbf{verb}) "contains" all the triplets that can be
+(each word that $\in$ \textbf{verb}) contains all the triplets that can be
 formed with itself as middle term in the triplet. This is just a device to
 introduce the triplet operator and guarantee the existence of
 any possible triplet where the middle term is a verb.
