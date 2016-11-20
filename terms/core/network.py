@@ -248,6 +248,7 @@ class Network(object):
         is_var = getattr(value, 'var', False)
         if redundant_var and not is_var:
             value = value.term_type
+            is_var = getattr(value, 'var', False)
         name = getattr(value, 'name', '')
         pnum = 0
         if is_var:
@@ -485,7 +486,7 @@ class VerbNode(Node):
         try:
             for segment in path[:-1]:
                 term = term.get_object(segment)
-            if term.var or getattr(term, 'redundant_var', False):
+            if getattr(term, 'var', False) or getattr(term, 'redundant_var', False):
                 return term
             return term.term_type
         except (AttributeError, KeyError):
@@ -499,8 +500,10 @@ class VerbNode(Node):
             types = (value,) + get_bases(value)
             type_ids = [t.id for t in types]
             chvars = network.session.query(cls).filter(cls.parent_id==parent.id, Node.var>0)
+            # VerbNodes var>0 whose verb_id points to a verb of type the one in value or one of its bases
             pchildren = chvars.join(Term, cls.verb_id==Term.id).filter(Term.type_id.in_(type_ids))
             tbases = aliased(Term)
+            # VerbNodes var>0 whose verb_id points to a subverb of the one in value or one of its bases
             vchildren = chvars.join(Term, cls.verb_id==Term.id).join(term_to_base, Term.id==term_to_base.c.term_id).join(tbases, term_to_base.c.base_id==tbases.id).filter(tbases.id.in_(type_ids))
         return children, pchildren, vchildren
 
@@ -525,7 +528,7 @@ class PremNode(Base):
         return '<PremNode prems: {!r}>'.format(prems)
 
     def dispatch(self, match, network):
-        logging.debug('this has matched: {!r}'.format(match))
+        logger.debug('this has matched: {!r}'.format(match))
         if not self.prems[0].check_match(match, network):
             return
         m = PMatch(self, match.fact)
