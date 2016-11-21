@@ -66,8 +66,8 @@ setup(
         'graph': ['sadisplay == 0.4.4'],
         },
     install_requires = [
-        'setuptools==28.6.0',
-        'sqlalchemy == 1.1.2',
+        'setuptools==28.8.0',
+        'sqlalchemy == 1.1.4',
         'ply == 3.9',
     ],
 )
