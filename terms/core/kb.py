@@ -79,7 +79,7 @@ class Teller(Process):
                 except ImportProblems as e:
                     session.rollback()
                     resp = e.args[0]
-                except DuplicateWord:
+                except DuplicateWord as e:
                     session.rollback()
                     resp = e.args[0]
                 self.compiler.network.pipe = None
