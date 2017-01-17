@@ -46,8 +46,11 @@ class Teller(Process):
     def run(self):
         for client in iter(self.teller_queue.get, None):
             totell = []
-            for msg in iter(client.recv_bytes, b'FINISH-TERMS'):
-                totell.append(msg.decode('utf8'))
+            try:
+                for msg in iter(client.recv_bytes, b'FINISH-TERMS'):
+                    totell.append(msg.decode('utf8'))
+            except OSError:
+                continue
             totell = '\n'.join(totell)
             session = self.session_factory()
             self.compiler = Compiler(session, self.config)
