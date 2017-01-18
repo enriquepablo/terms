@@ -50,6 +50,7 @@ class Teller(Process):
                 for msg in iter(client.recv_bytes, b'FINISH-TERMS'):
                     totell.append(msg.decode('utf8'))
             except OSError:
+                client.close()
                 continue
             totell = '\n'.join(totell)
             session = self.session_factory()
