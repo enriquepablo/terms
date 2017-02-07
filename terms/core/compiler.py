@@ -530,6 +530,7 @@ class Parser(object):
 class AstNode(object):
     def __init__(self, type, **kwargs):
         self.type = type
+        self.kwargs = kwargs
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -644,6 +645,10 @@ class Compiler(object):
                 conds.append(cond)
         consecs = []
         for sen in rule.cons:
+            if sen.type != 'fact':
+                raise TermsSyntaxError('Expecting a fact as '
+                        'consecuence for rule, found {!r} with '
+                        'attrs {!r}'.format(sen.type, sen.kwargs))
             con = self.compile_fact(sen)
             consecs.append(con)
         return prems, conds, condcode, consecs
