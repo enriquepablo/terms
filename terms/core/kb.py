@@ -59,7 +59,10 @@ class Teller(Process):
             register_exec_global(Runtime(self.compiler), name='runtime')
             load_exec_globals(session)
             if totell.startswith('lexicon:'):
-                resp = self._from_lexicon(totell)
+                try:
+                    resp = self._from_lexicon(totell)
+                except TermNotFound as e:
+                    resp = 'Unknown word: ' + e.args[0]
             elif totell.startswith('compiler:exec_globals:'):
                 resp = self._add_execglobal(totell)
             else:
