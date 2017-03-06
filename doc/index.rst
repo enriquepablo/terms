@@ -10,7 +10,7 @@ and `knowledge representation and resoning <https://en.wikipedia.org/wiki/Knowle
 Its inference capabilities are based on a `Rete Network <https://en.wikipedia.org/wiki/Rete_algorithm>`_.
 The data structures for both the Rete network (RN) and the knowledge bases (KBs) it manipulates
 are implemented in a relational database, so Terms is most appropriate to build long term
-knowledge stores to which new facts can be added incrementally.
+persistent knowledge stores to which new facts can be added incrementally.
 The facts and rules that give content to the KBs and RN are expressed in the
 Terms language (from now on, just "Terms" where there is no ambiguity).
 
