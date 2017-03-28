@@ -21,7 +21,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0b21'
+VERSION = '0.1.0b22'
 
 setup(
     name = 'Terms',
@@ -58,16 +58,16 @@ setup(
         ],
     },
     tests_require = [
-        'Nose',
-        'coverage',
+        'nose == 1.3.7',
+        'coverage == 4.3.4',
     ],
     extras_require = {
-        'PG': ['psycopg2 == 2.6.2',],
-        'graph': ['sadisplay == 0.4.4'],
+        'PG': ['psycopg2 == 2.7.1',],
+        'graph': ['sadisplay == 0.4.8'],
         },
     install_requires = [
-        'setuptools==28.8.0',
-        'sqlalchemy == 1.1.4',
-        'ply == 3.9',
+        'setuptools==34.3.3',
+        'sqlalchemy == 1.1.7',
+        'ply == 3.10',
     ],
 )
