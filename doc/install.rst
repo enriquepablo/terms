@@ -6,6 +6,7 @@ Docker
 
 You can use Docker to run Terms, see
 `terms-docker <https://github.com/enriquepablo/terms-docker>`_.
+This is the easiest and recommended way to test Terms.
 
 Installation with setuptools on a virtualenv
 ++++++++++++++++++++++++++++++++++++++++++++
