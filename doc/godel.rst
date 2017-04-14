@@ -90,7 +90,7 @@ since:
 
 If we want to remain general, we should rather be doing:
 
-   E^i(x) === R(Phi^i( '(' )) * x * R(Phi^i( '(' ))
+   E^i(x) === R(Phi^i( '(' )) * x * R(Phi^i( ')' ))
 
 Two little modifications are made in this definition.
 First, we substitute 11 and 13 for Phi^i acting on "(" and ")".
