@@ -96,10 +96,6 @@ Two little modifications are made in this definition.
 First, we substitute 11 and 13 for Phi^i acting on "(" and ")".
 11 and 13 would be the case if we instantiate the definition with Phi^0.
 
-We definitely want the jewel of the crown of the procedure,
-*is a provable formula*, to be interpreted in system P,
-and not in system P **plus** some particular Phi^i.
-
 And second, E inherits an index i;
 obviously, different Phi^i will define different  E^i.
 And so do most definitions afterwards.
