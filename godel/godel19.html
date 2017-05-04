@@ -1,7 +1,25 @@
 <p>Another take, from <a href="http://www.ams.org/notices/200604/fea-davis.pdf">this essay</a>
 
 <blockquote>
-Incompleteness Theorem. Let F be a sound formal
+  
+There is a computable function  f whose range K is not computable.
+  
+   consider propositions
+of the form 
+n
+∈
+K
+where 
+n
+is a fixed natural num-
+ber. We can suppose that, in a particular formal sys-
+tem these propositions are each represented by a
+corresponding string of symbols we may write as
+P
+n
+
+  
+Let F be a sound formal
 system. Then there is a number n0 such that n0 does not belong to K,
 but it is not the case that Pn0 is provable in F.
 </blockquote>
@@ -14,8 +32,10 @@ but it is not the case that P'n1 is provable in F'.
 The problem is that the proof that Pn0 is not provable in F
 is based on an enumeration of theorems in F,
 and not in any F, but in the particular F that we trying to prove that Pn0 is not provable in.
+  
+<p>So in principle, there is no reason to consider them equal. And, if we try to build it (them),
+  it will be a construction, like Gödel's, that depends on the particular F,
+  so it will be most surely different if we use different F.
 
-<p>And, if we try to use n1 in the same proof with F and Pn1,
-it will fail, because we already have n0 there to guarantee that K is uncomputable.
-
-<p>So in effect, we have that the unprovable P are insulated in their formal systems.
+<p>Furthermore, if we try to use n1 in the same proof with F and Pn1,
+it will fail, because we already have n0 there to guarantee that K is uncomputable in F.
