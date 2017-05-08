@@ -14,10 +14,10 @@ First, note that once we have a way to encode any Turing machine, we can also
 use it to enumerate all possible Turing machines. So the table will have, as
 rows, the enumeration of encoded Turing machines, and, as columns, an
 enumeration of the possible inputs. And second, he uses the L machine to fill
-in the cells of the table: in each cell, there is a "yes" if the L machine
+in the cells of the table: in each cell, there should be a "yes" if the L machine
 confirms that the machine in the
 corresponding row outputs confirm when given the input in the corresponding
-column, there is a "no" if L confirms that the given machine and input don't produce
+column, there should be a "no" if L confirms that the given machine and input don't produce
 confirm, and blank if L doesn't confirm ether.
 
 Finally, Shutt proposes a Turing machine A, that contains both an enumeration
