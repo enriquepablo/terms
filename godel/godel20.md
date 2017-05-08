@@ -85,5 +85,5 @@ So at the moment it semms to me that there is a path, the possibility of A leaki
 
 <sup><strong>*</strong></sup> We should in fact find undecidability for all
 input z that correspond to the diagonal cell of some A in some table. However,
-if the difference exposed above should be perceptible, we should be able to
+if the difference exposed above between A<sup>k</sup> and A<sup>w</sup> should be perceptible, we should be able to
 discriminate these as well.
