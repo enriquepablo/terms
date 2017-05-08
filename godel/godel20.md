@@ -37,8 +37,7 @@ Since A is a Turing machine, it is the label on some row n of the table.  What i
 </blockquote>
 
 It seems obvious that there may be different ways to encode Turing machines,
-and different L machines that take Turing machines differently encoded and analyse
-them differently to determine their output. So let's use an index k to mark the
+and different L machines that take Turing machines differently encoded to determine their output. So let's use an index k to mark the
 different L<sup>k</sup>. We will assume a
 canonical 0 encoding, that can be produced and understood by humans, and
 convene here that when we denote a Turing machine by some letter, we are
@@ -64,7 +63,7 @@ z) for all possible k and z. In this scheme, we should obtain undecidability
 corresponds to the diagonal cell of A<sup>k</sup> in the k table
 <sup><strong>*</strong></sup>.
 
-So what we have now, in our w world, are appropriate pairs of undecidable (A<sup>k</sup>, z).
+What we have now, in our w world, are appropriate pairs of undecidable (A<sup>k</sup>, z).
 
 So, should we be able to somehow distinguish between running L<sup>w</sup> ( C<sup>w</sup> ( A<sup>w</sup> ), x)
 and running any other L<sup>w</sup> ( C<sup>w</sup> ( A<sup>k</sup> ), z) ?
