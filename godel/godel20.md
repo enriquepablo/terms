@@ -3,8 +3,8 @@ incompleteness theorem](https://fexpr.blogspot.com.es/2015/05/computation-and-tr
 
 To do so, he defines a Turing machine L, for Logic, that can take, as input, any
 turing machine f plus an input/output pair appropriate for f, and will output
-"confirm" in case f, given input i, produces
-output o, and will not output "confirm" if such is not the case.
+"confirm" in case f, with the given input, produces the given
+output, and will not output "confirm" if such is not the case.
 Since a Turing machine can only take as inputs sequences of symbols, it is
 clear that to provide a Turing machine as input, we have to encode it in some
 way that may be understood by the L machine.
@@ -43,8 +43,8 @@ different L<sup>k</sup>. We will assume a
 canonical 0 encoding, that can be produced and understood by humans, and
 convene here that when we denote a Turing machine by some letter, we are
 referring to its canonical encoding. We do not attach any special property to
-the canonical encoding, appart from the fact that we can understand them and
-produce them.
+the canonical encoding, apart from the fact that we can understand them and
+produce them from our informal definitions.
 
 Now we define a new type of Turing machine, C<sup>k</sup> for compiler, that will take the
 canonical encoding of any Turing machine, and output the same Turing machine
@@ -59,19 +59,17 @@ encodings, or of L machines. The w encoding, and thus the L<sup>w</sup>
 machine, should be among them. Then build an A machine for each k encoding, and
 run them for all possible input z. Since we are within w, what we are actually
 doing is making the world run L<sup>w</sup>( C<sup>w</sup> ( A<sup>k</sup> ),
-z) for all possible k and z. In this scheme, we should obtain undecidabiity
+z) for all possible k and z. In this scheme, we should obtain undecidability
 (inconsistencies in the outputs) with one input z for each A<sup>k</sup>, the input that
-corresponds to the diagonal cell of A<sup>k</sup> in the k table.
+corresponds to the diagonal cell of A<sup>k</sup> in the k table
+<sup><strong>*</strong></sup>.
 
 So what we have now, in our w world, are appropriate pairs of undecidable (A<sup>k</sup>, z).
 
-In our w world, each time we run a Turing machine g, what we are effectively
-doing is running L<sup>w</sup> ( C<sup>w</sup> ( g )).
+So, should we be able to somehow distinguish between running L<sup>w</sup> ( C<sup>w</sup> ( A<sup>w</sup> ), x)
+and running any other L<sup>w</sup> ( C<sup>w</sup> ( A<sup>k</sup> ), z) ?
 
-So, should we be able to somehow distinguish between running L<sup>w</sup> ( C<sup>w</sup> ( A<sup>w</sup> ), z)
-and running L<sup>w</sup> ( C<sup>w</sup> ( A<sup>k</sup> ), x) ?
-
-I believe we might. In both cases, running A under L will reach an undecidable
+I believe we might. In all cases, running A under L will reach an undecidable
 state, and will produce inconsistent outputs. But if in one case that state is
 reached earlier than in the other, we might be able to detect it.
 
@@ -84,4 +82,9 @@ We have L<sup>w</sup>, C<sup>w</sup>, C<sup>w</sup>(A<sup>w</sup>), and x . We a
 
 We have L<sup>w</sup>, C<sup>w</sup>, C<sup>w</sup>(A<sup>k</sup>), and z . We analyze C<sup>w</sup>(A<sup>k</sup>) and see that it contains L<sup>k</sup> and an enumeration of C<sup>k</sup> encoded machines and inputs. We learn that we must use those enumerations to find out the next necessary operation, which is specified in the diagonal row to the z column. We find out what is in that row, and find C<sup>k</sup>(A<sup>k</sup>). We already have C<sup>w</sup>(A<sup>k</sup>), **but** we cannot recognize it; as of now, we do not understand the k encoding. Now we have to use L<sup>k</sup> to analyze A<sup>k</sup> and understand what to do. We are already past the state where we found undecidability in the previous case.
 
-So at the moment it semms to me that there is a path, the possibility of leaking seems real. 
+So at the moment it semms to me that there is a path, the possibility of A leaking the encoding to the encoded seems real. 
+
+<sup><strong>*</strong></sup> We should in fact find undecidability for all
+input z that correspond to the diagonal cell of some A in some table. However,
+if the difference exposed above should be perceptible, we should be able to
+discriminate these as well.
