@@ -31,9 +31,9 @@ Now Gödel's theorem arises by considering what happens when A is given as input
 the one that corresponds to its own diagonal cell in the table. In Shutt's
 words:
 
-""
+<blockquote>
 Since A is a Turing machine, it is the label on some row n of the table.  What is the content of table entry n,n?  Remember, the content of the table entry is what L actually confirms about the behavior of A on the nth input.  By construction, if the entry contains "no", then A outputs confirm, and the "no" is incorrect.  If the entry contains "yes", and the "yes" is correct, then A outputs confirm, and by construction it must have done so because the entry contains an incorrect "no" that caused A to behave this way.  Therefore, if L doesn't confirm anything that's false, this table entry must be blank.  But if we know the table entry is blank, then we know that, by failing to put a "no" there, L has failed to confirm something true, and is therefore incomplete.
-""
+</blockquote>
 
 It seems obvious that there may be different ways to encode Turing machines,
 and different L machines that take Turing machines differently encoded and analyse
