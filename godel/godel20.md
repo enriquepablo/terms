@@ -58,10 +58,10 @@ encodings, or of L machines. The w encoding, and thus the L<sup>w</sup>
 machine, should be among them. Then build an A machine for each k encoding, and
 run them for all possible input z. Since we are within w, what we are actually
 doing is making the world run L<sup>w</sup>( C<sup>w</sup> ( A<sup>k</sup> ),
-z) for all possible k and z. In this scheme, we should obtain undecidability
+z) <sup><strong>*</strong></sup> for all possible k and z. In this scheme, we should obtain undecidability
 (inconsistencies in the outputs) with one input z for each A<sup>k</sup>, the input that
 corresponds to the diagonal cell of A<sup>k</sup> in the k table
-<sup><strong>*</strong></sup>.
+<sup><strong>**</strong></sup>.
 
 What we have now, in our w world, are appropriate pairs of undecidable (A<sup>k</sup>, z).
 
@@ -87,7 +87,9 @@ We have L<sup>w</sup>, C<sup>w</sup>, C<sup>w</sup>(A<sup>k</sup>), and z . We a
 
 So at the moment it semms to me that there is a path, the possibility of A leaking the encoding to the encoded seems real. 
 
-<sup><strong>*</strong></sup> We should in fact find undecidability for all
+<sup><strong>*</strong></sup> [<em>Edited to add: Here, with f ( x [ ,z ...] ), we mean the output of some inplementation of Turing machine f when given x [ ,z ...] as input. Therefore, C<sup>w</sup>(A<sup>w</sup>) stands for the w encoding of the A<sup>w</sup> machine, and L<sup>w</sup> ( C<sup>w</sup> ( A<sup>w</sup> ), x) is the output of the L<sup>w</sup> machine when given as input the w encoding of A<sup>w</sup> and x.</em>]
+
+<sup><strong>**</strong></sup>We should in fact find undecidability for all
 input z that correspond to the diagonal cell of some A in some table. However,
 if the difference exposed above between A<sup>k</sup> and A<sup>w</sup> should be perceptible, we should be able to
 discriminate these as well.
